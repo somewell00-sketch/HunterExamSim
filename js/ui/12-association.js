@@ -118,7 +118,7 @@ function renderAssociation(){
         <div><div class="section-h">Rising Hunters</div><div class="toph">${H.filter(h => hActive(h) && !h.legacy && !TOP10.includes(h) && S.edition - h.edition <= 10 && h.edition < S.edition + (S.finished ? 1 : 0)).sort((a, b) => (b.rp || 0) / Math.max(1, S.edition - b.edition) - (a.rp || 0) / Math.max(1, S.edition - a.edition) || hStars(b) - hStars(a)).slice(0, 5).map((h, i) => `<div data-hunter="${esc(h.license)}"><small>${i + 1}</small><span><b>${esc(h.name)}</b> <span class="muted">${esc((h.career || '').replace(' Hunter', ''))}</span></span><span class="stars">${starStr(hStars(h)) || `<span class="muted mono-s">${ordinal(h.edition)} · ${hunterAge(h)}</span>`}</span></div>`).join('') || '<p class="muted" style="margin:0">Nobody yet.</p>'}</div></div></div>`}${`
     <div class="section-h ha-regh">Register</div>
     ${(() => {
-      const nMore = [/^\d/.test(haEd) ? haEd : '', haFormer, haFam, haSch, haRel, haCase, haMas, ATTR_LABEL[haSort] ? 1 : ''].filter(Boolean).length;
+      const nMore = [haCar, haNen, /^\d/.test(haEd) ? haEd : '', haFormer, haFam, haSch, haRel, haCase, haMas, ATTR_LABEL[haSort] ? 1 : ''].filter(Boolean).length;
       const chip = (k, label) => `<button class="fchip" data-haclr="${k}">${esc(label)} <i aria-hidden="true">×</i></button>`;
       const edLabel = haEd === 'main' ? 'Main exam' : haEd === 'pro' ? 'Veterans' : haEd === 'reg' ? 'Regional' : haEd === 'jub' ? 'Jubilee' : haEd === 'cen' ? 'Centennial' : haEd ? ordinal(+haEd) + ' exam' : '';
       const offLabel = {any: 'Any former office', Chairman: 'Former Chairmen', 'Vice-Chairman': 'Former Vices', Zodiac: 'Former Zodiac', Elder: 'Elders'}[haFormer];
@@ -133,11 +133,12 @@ function renderAssociation(){
         <div class="hq-row"><span class="hq-l">Status</span>${[['', 'Any'], ['Active', 'Active'], ['Retired', 'Retired'], ['Deceased', 'Deceased'], ['Missing', 'Missing']].map(([v, l]) => pill('st', haSt, v, l, h => stOf(h) === v)).join('')}</div>
         <div class="hq-row"><span class="hq-l">Rank</span>${[['', 'Any'], ['1', '★+'], ['2', '★★+'], ['3', '★★★']].map(([v, l]) => pill('star', haStar, v, l, h => hStars(h) >= +v)).join('')}</div>
         <div class="hq-row"><span class="hq-l">Licensed</span>${[['', 'Any'], ['main', 'Main exam', h => !h.pro && !h.regional], ['reg', 'Regional office', h => !!h.regional], ['pro', 'Before the records', h => h.pro]].map(([v, l, f]) => pill('ed', haEd, v, l, f)).join('')}</div>
-        <div class="hq-row"><span class="hq-l">Nen</span>${pill('nen', haNen, '', 'Any')}${NEN_CATS.map(c => pill('nen', haNen, c, `<i class="ndot" style="background:${NEN_COLOR[c]}"></i>${c.slice(0, 5)}.`, h => h.nen && h.nen.category === c, `title="${c}"`)).join('')}</div>
-        <div class="hq-row"><span class="hq-l">Specialty</span><select id="hacar" aria-label="Specialty">${opt('car', haCar, [['', 'Any specialty']].concat(careers.map(c => [c, c.replace(' Hunter', ''), h => h.career === c])))}</select>
-          <button type="button" class="btn small ha-fbtn" id="hafbtn" aria-expanded="${haOpen}">More filters${nMore ? ` · ${nMore}` : ''}</button></div>
+        <div class="hq-row"><span class="hq-l"></span><button type="button" class="btn small ha-fbtn" id="hafbtn" aria-expanded="${haOpen}">More filters${nMore ? ` · ${nMore}` : ''}</button></div>
       </div>
       ${haOpen ? `<div class="ha-panel">
+        <div><small>Specialty & Nen</small>
+          <select id="hacar" aria-label="Specialty">${opt('car', haCar, [['', 'Any specialty']].concat(careers.map(c => [c, c.replace(' Hunter', ''), h => h.career === c])))}</select>
+          <select id="hanen" aria-label="Nen type">${opt('nen', haNen, [['', 'Any Nen type']].concat(NEN_CATS.map(c => [c, c, h => h.nen && h.nen.category === c])))}</select></div>
         <div><small>Origin</small>
           <select id="haed" aria-label="Origin">${opt('ed', haEd, [['', 'Any origin'], ['main', 'Main exam', h => !h.pro && !h.regional], ['pro', 'Veterans (before records)', h => h.pro], ['reg', 'Regional offices', h => !!h.regional], ['jub', 'Jubilee exams', h => h.special === 'jubilee'], ['cen', 'Centennial exams', h => h.special === 'centenary']].concat([...new Set(HE.map(h => h.edition))].sort((a, b) => b - a).map(e => [String(e), ordinal(e) + ' Hunter Exam', h => !h.pro && h.edition === e])))}</select></div>
         <div><small>Office</small>

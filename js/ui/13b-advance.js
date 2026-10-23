@@ -5,10 +5,16 @@ const ADV_STOP_DEF = {fav: true, election: false, cat: true, relic: true, schism
 const ADV_STOP_LBL = {fav: 'A favourite dies or goes missing', election: 'A new Chairman is elected', cat: 'A catastrophe hits the exam', relic: 'A relic is found for the first time', schism: 'A school splits', appr: 'Your apprentice enters an exam'};
 let ADV_STOPS = (() => { try { return Object.assign({}, ADV_STOP_DEF, JSON.parse(localStorage.getItem('hxsim-adv') || '{}')); } catch(e){ return {...ADV_STOP_DEF}; } })();
 let ADV = {on: false};
+// tucked behind a ⋯ button, like the exam's extra actions, so a stray click never runs fifty years
 function advanceBarHtml(){
-  return `<div class="adv"><span class="adv-l">Advance</span>${[1, 10, 50].map(n => `<button type="button" class="btn" data-adv="${n}">+${n} year${n === 1 ? '' : 's'}</button>`).join('')}
-    <details class="adv-stops"><summary>Stop when…</summary><div>${Object.keys(ADV_STOP_DEF).map(k => `<label><input type="checkbox" data-advstop="${k}" ${ADV_STOPS[k] ? 'checked' : ''}> ${ADV_STOP_LBL[k]}</label>`).join('')}</div></details></div>`;
+  return `<div class="adv"><button type="button" class="btn more" data-advmenu aria-label="More actions" aria-expanded="false" title="More actions">⋯</button>
+    <div class="adv-menu" hidden><small>Advance the world</small>${[1, 10, 50].map(n => `<button type="button" class="btn" data-adv="${n}">+${n} year${n === 1 ? '' : 's'}</button>`).join('')}
+    <details class="adv-stops"><summary>Stop when…</summary><div>${Object.keys(ADV_STOP_DEF).map(k => `<label><input type="checkbox" data-advstop="${k}" ${ADV_STOPS[k] ? 'checked' : ''}> ${ADV_STOP_LBL[k]}</label>`).join('')}</div></details></div></div>`;
 }
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-advmenu]');
+  document.querySelectorAll('.adv-menu').forEach(m => { const mine = b && m.previousElementSibling === b; if(mine){ m.hidden = !m.hidden; b.setAttribute('aria-expanded', !m.hidden); } else if(!e.target.closest('.adv-menu')){ m.hidden = true; if(m.previousElementSibling) m.previousElementSibling.setAttribute('aria-expanded', false); } });
+});
 function advCheck(ed, cat){
   const B = BULLETINS[BULLETINS.length - 1], it = B && B.edition === ed ? B.items : [], why = [];
   if(ADV_STOPS.fav){ const f = HUNTERS.find(h => isFav(h.cid) && ((h.status === 'Deceased' && h.diedEd === ed) || (h.status === 'Missing' && (h.missEd ?? h.diedEd) === ed))); if(f) why.push(`${f.name} ${f.status === 'Deceased' ? 'has died' : 'has gone missing'}`); }
