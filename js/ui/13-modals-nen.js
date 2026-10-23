@@ -97,14 +97,14 @@ function lineageHtml(lic, cid, pre){
   const L = lineage(lic, cid); if(!L.length) return pre ? `<div><div class="section-h">Family</div><div class="grs">${pre}</div></div>` : '';
   const ED = S.edition, row = r => {
     const h = r.h, k = r.k, c = k && k.cid && S.candidates.find(x => x.id === k.cid);
-    const link = h ? `<a data-hunter="${esc(h.license)}">${esc(h.name)}</a>` : c ? `<a data-id="${c.id}">${esc(c.name)}</a>` : `<b>${esc(k.name)}</b>`;
+    const link = h ? `<a data-hunter="${esc(h.license)}">${esc(h.name)}</a>` : c ? `<a data-id="${c.id}">${esc(c.name)}</a>` : `<span class="fam-civ-n">${esc(k.name)}</span>`;
     const st = h ? `${h.status === 'Active Hunter' ? 'Hunter' : esc((h.status || '').toLowerCase())} · licensed in the ${ordinal(h.edition)}${hStars(h) ? ' · ' + starStr(hStars(h)) : ''}`
       : c ? `in the ${ordinal(ED)} exam · ${esc(c.status === 'Active' ? 'still in' : c.status.toLowerCase())}`
-      : (() => { const age = `${Math.max(0, ED - k.born)} years old`;
+      : (() => { const a = Math.max(0, ED - k.born), age = a > 80 ? '' : ` · ${a} years old`;   // past eighty, the record stops counting
         if(k.entered && k.fate && k.fate.st === 'Deceased') return `died in the ${ordinal(k.entered)} exam, at ${k.entered - k.born}`;
-        if(k.entered) return `${ED - k.entered >= 3 ? `took the ${ordinal(k.entered)} exam · chose another life` : `did not pass the ${ordinal(k.entered)} exam`} · ${age}`;
-        return k.never ? `chose another life · ${age}` : age; })();
-    return `<div><span style="color:var(--gold)">✦</span> ${link} <span class="muted">— ${esc(r.rel)} · ${st}</span></div>`; };
+        if(k.entered) return `${ED - k.entered >= 3 ? `took the ${ordinal(k.entered)} exam · chose another life` : `did not pass the ${ordinal(k.entered)} exam`}${age}`;
+        return k.never ? `chose another life${age}` : a > 80 ? `born after the ${ordinal(k.born)} exam` : age.slice(3); })();
+    return `<div${!h && !c ? ' class="fam-civ"' : ''}><span style="color:var(--gold)">✦</span> ${link} <span class="muted">— ${esc(r.rel)} · ${st}</span></div>`; };
   return `<div><div class="section-h">Family</div><div class="grs">${pre || ''}${L.map(row).join('')}</div></div>`;
 }
 function familyHtml(c){ const LP = legendKnown(c) && hLic(c.hParent) ? (() => { const H = hLic(c.hParent); return `<div><div class="section-h">Family</div><div class="grs"><div><span style="color:var(--gold)">✦</span> <a data-hunter="${esc(H.license)}">${esc(H.name)}</a> <span class="muted">— parent · ${H.status === 'Active Hunter' ? 'Hunter' : esc((H.status || '').toLowerCase())} · licensed in the ${ordinal(H.edition)}${hStars(H) ? ' · ' + starStr(hStars(H)) : ''}</span></div></div></div>`; })() : '';

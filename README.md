@@ -30,6 +30,12 @@ No build step, no server, no dependencies. Open `index.html` and it runs.
 - Careers with contracts by rank, star promotions and Blacklist hunts.
 - Dark Continent expeditions, crises, and places with a history.
 - Elections for Chairman and the Zodiac.
+- Cases before the council: accusations, investigations, trials, verdicts, and old cases reopened decades later.
+- Schools of Nen: masters take students, found schools, pass them on, and sometimes split them in two.
+- The missing who come back find their seat taken, their spouse remarried, or a case still waiting for them.
+- Thirty-four relics, each with a gift and a price: found on the Dark Continent or in old ruins, inherited, stolen, sealed, forged.
+- Advance +1, +10 or +50 years without watching each exam; the run stops when something you care about happens.
+- Statistics: population, causes of death, pass rates, Nen, dynasties, schools, cases, outlaws, relics.
 - A newspaper for every exam, plus family trees across generations.
 
 Saves live in the browser (IndexedDB, with a localStorage fallback). The save menu exports and imports a file.
@@ -66,10 +72,14 @@ js/ui/                  everything on screen
   07-controls.js
   08-careers-world.js   Hunters' careers and the years between exams
   09-politics.js        Chairman, Vice-Chairman, Zodiac
+  09b-chronicles.js     cases and trials, schools of Nen, coming back from missing
+  09c-relics.js         the 34 relics: gifts, prices, owners, thefts, forgeries, the Atlas
   10-herald.js          the newspaper
   11-exam-views.js      trial pages, Zevil Island, the Final
   12-association.js     the Hunter register
+  12b-stats.js          yearly statistics and the Statistics section in History
   13-modals-nen.js      profiles and the Nen panel
+  13b-advance.js        advancing years without watching each exam
   14-global.js          global clicks and start-up
 tests/                  headless checks (Playwright)
 tools/build-single.js   inlines everything into one HTML file
@@ -86,7 +96,7 @@ The scripts are plain (non-module) scripts and share one global scope, so **load
 ```
 npm install
 npx playwright install chromium
-npm test           # smoke run, themed trials, catastrophe, family trees
+npm test           # smoke run, themed trials, catastrophe, family trees, chronicles
 npm run stats      # 100 simulated years: deaths, stars, nicknames
 ```
 
@@ -94,6 +104,9 @@ npm run stats      # 100 simulated years: deaths, stars, nicknames
 - `family`: simulates 200 years and checks that every family tie appears on both relatives' profiles.
 - `themed-trials`: runs each theme's own trial to the end.
 - `catastrophe`: forces one and checks the aftermath.
+- `chronicles`: simulates 300 years and checks that cases reach verdicts, schools pass from master to student, relics change hands and the statistics are kept. `YEARS=100` makes it shorter.
+
+The tests fix `Math.random` inside the page with a seed, so every run simulates the same world. `SEED=2 npm test` tries another world; `SEED=0` keeps it random. The game itself is never seeded. `CHROMIUM=/path/to/chrome` uses a Chromium you already have.
 
 ## Credits
 

@@ -2,7 +2,7 @@
 let BULLETINS = [];
 // long-running stories between exams: wanted criminals and their hunters, expeditions, crises, avengers
 const worldFix = w => { ((w || {}).newPlaces || []).forEach(p => { if(typeof PLACES !== 'undefined' && !PLACES.includes(p)) PLACES.push(p); }); w = worldFix0(w); try{ const t = (w.chairHist || []).slice(-1)[0]; if(w.chair && t && !t.to && t.lic === w.chair.lic && t.from < w.chair.since){ w.chair.since = t.from; w.chair.how = String(w.chair.how || '').replace(/^elected/, 're-elected'); } }catch(e){} return w; };
-const worldFix0 = w => Object.assign({wanted: [], hunts: [], exped: null, crisis: null, avengers: [], seq: 0, chair: null, vice: null, zodiac: {}, elections: []}, w || {});
+const worldFix0 = w => Object.assign({cases: [], schools: [], wanted: [], hunts: [], exped: null, crisis: null, avengers: [], seq: 0, chair: null, vice: null, zodiac: {}, elections: []}, w || {});
 let WORLD = worldFix();
 // nicknames outside the exam: veterans and regional Hunters arrive with one now and then, and a big deed can earn one later
 const CAREER_NICK = {Blacklist: ['the Bounty', 'Warrant', 'Manhunter'], Treasure: ['Old Maps', 'Gold Tooth', 'X-Marks'], Beast: ['Beastfriend', 'the Keeper', 'Muzzle'], Gourmet: ['Spoon', 'the Palate', 'Second Helping'], Ruins: ['Dusty', 'Old Stones', 'the Digger'],
@@ -391,7 +391,7 @@ function worldTies(ed, add, items){
     cand.forEach((pr, o) => {
       const key = [h.license, o.license].sort().join('|'); if(seen.has(key)) return; seen.add(key);
       if(h.spouse || o.spouse || !hActive(o) || o.legacy || hunterAge(o) < 18 || Math.abs(hunterAge(o) - hunterAge(h)) > 15 || surname(o) === surname(h) || o.widowEd === ed || h.widowEd === ed) return;
-      if(Math.random() >= pr) return;
+      if(Math.random() >= pr * relMarry(h) * relMarry(o)) return;
       h.spouse = o.license; o.spouse = h.license; h.wedEd = o.wedEd = ed;
       const pl = pickR(PLACES), how = (h.bonds || []).some(b => b.id === o.cid) ? `inseparable since the ${ordinal(h.edition)} exam` : h.savedBy === o.cid ? `ever since ${o.name.split(' ')[0]} pulled ${h.name.split(' ')[0]} through ${h.savedIn ? thePhase(h.savedIn) : 'the exam'}` : 'after years of working side by side';
       add(h, 'wed', pickR([`${h.name} and ${o.name} marry in ${pl}, ${how}. Half the Association attends; the other half sends gifts.`, `Wedding in ${pl}: ${h.name} and ${o.name}, ${how}. The cake survives, barely.`, `${h.name} and ${o.name} are married, ${how}. They spend the honeymoon on a contract in ${pl}.`]), 6, o);
@@ -406,7 +406,7 @@ function worldTies(ed, add, items){
   act.forEach(h => { const o = h.spouse && byLic[h.spouse]; if(!o || h.license > o.license || o.status === 'Deceased' || o.status === 'Missing') return;
     const ages = [hunterAge(h), hunterAge(o)], kids = WORLD.heirs.filter(k => k.parents.includes(h.license)).length;
     const line = WORLD.heirs.some(k => k.cid && (k.cid === h.cid || k.cid === o.cid));
-    if(Math.min(...ages) < 20 || Math.max(...ages) > 46 || kids >= 3 || Math.random() >= (kids ? 0.05 : 0.09) * (line ? 1.5 : 1)) return;
+    if(Math.min(...ages) < 20 || Math.max(...ages) > 46 || kids >= 3 || Math.random() >= (kids ? 0.05 : 0.09) * (line ? 1.5 : 1) * relKids(h, o)) return;
     const g = Math.random() < 0.47 ? 'Male' : Math.random() < 0.9 ? 'Female' : 'Non-binary', pool = g === 'Male' ? FIRST_M : g === 'Female' ? FIRST_F : FIRST_N;
     const first = pickR(pool), last = surname(Math.random() < 0.5 ? h : o), kid = {id: 'K' + (++WORLD.seq), first, name: `${first} ${last}`, gender: g, born: ed, parents: [h.license, o.license]};
     WORLD.heirs.push(kid);
@@ -782,7 +782,7 @@ function placesYear(ed, add, items){
 // discoveries: a Hunter who finds something new can leave a name on the map
 function maybeDiscover(h, ed, add, job){
   // rare: a few times a century, never two in a row
-  if(!/found|discovered|uncovered|mapped|dug up|opened/.test(job) || (WORLD.lastDisc && ed - WORLD.lastDisc < 8) || Math.random() > 0.004) return;
+  if(!/found|discovered|uncovered|mapped|dug up|opened/.test(job) || (WORLD.lastDisc && ed - WORLD.lastDisc < 8) || Math.random() > 0.004 * relDisc(h)) return;
   WORLD.lastDisc = ed;
   const last = h.name.split(' ').slice(-1)[0], kind = pickR(['Ruins', 'Rift', 'Caverns', 'Falls', 'Pass', 'Reef', 'Grotto', 'Basin', 'Spire', 'Hollow']);
   const name = pickR([`the ${last} ${kind}`, `${last}'s ${kind}`]);
@@ -791,6 +791,7 @@ function maybeDiscover(h, ed, add, job){
   setPlace(name, 'peace', ed, `Discovered by ${h.name} after the ${ordinal(ed)} exam.`); WORLD.places[name].found = {ed, lic: h.license, by: h.name};
   h.rp = (h.rp || 0) + 50;
   add(h, 'award', pickR([`${h.name} finds a place no map has ever shown. The Association names it ${name}.`, `A new name goes on the world map: ${name}, after the Hunter who found it, ${h.name}.`]) + deedNick(h, ['Pathfinder', 'the Cartographer', 'Blank-Map', 'Compass'], `for finding ${name}`), 8);
+  if(Math.random() < 0.5) relicFromRuins(h, ed, add, null, name);
 }
 function worldStart(prev, ed, add, busy, items){
   const W = {crisis: null};
@@ -849,11 +850,11 @@ function worldStart(prev, ed, add, busy, items){
     const h = HUNTERS.find(y => y.license === x.lic), w = WORLD.wanted.find(y => y.id === x.w);
     if(!h || !w || !hActive(h)){ x.done = true; return; }
     busy.add(h.license); x.year++;
-    const sk = careerSkill(h) / 100 + hStars(h) * 0.08, pl = pickR(PLACES), r = Math.random();
-    const capP = Math.min(0.6, 0.15 + sk * 0.35 + x.year * 0.08 - w.danger * 0.05), dieP = 0.02 + w.danger * 0.025;
-    if(r < dieP){ x.done = true; h.status = 'Deceased'; h.diedEd = ed; h.killedBy = w.name; add(h, 'death', `${h.name} is found dead in ${pl}. ${w.name} was last seen there. The hunt is over, for now.`, 9); w.kills = (w.kills || 0) + 1; }
+    const sk = careerSkill(h) / 100 + hStars(h) * 0.08 + relCap(h) / 0.35, pl = pickR(PLACES), r = Math.random();
+    const capP = Math.min(0.75, 0.15 + sk * 0.35 + x.year * 0.08 - w.danger * 0.05 + (w.tip && ed - w.tip <= 3 ? 0.2 : 0)), dieP = 0.02 + w.danger * 0.025;
+    if(r < dieP * relHuntDie(h) && !relicSaves(h, ed, add, 'hunt')){ x.done = true; h.status = 'Deceased'; h.diedEd = ed; h.killedBy = w.name; add(h, 'death', `${h.name} is found dead in ${pl}. ${w.name} was last seen there. The hunt is over, for now.`, 9); w.kills = (w.kills || 0) + 1; }
     else if(r < dieP + capP){ x.done = true; w.status = 'captured'; w.by = h.name; h.rp = (h.rp || 0) + 60 + w.danger * 30; add(h, 'hunt', pickR([`After ${x.year + 1} year${x.year ? 's' : ''}, ${h.name} brings ${w.name} in alive. The Blacklist is one name shorter.`, `${h.name} corners ${w.name} in ${pl}. It ends without a fight, which surprises everyone.`, `${w.name} is in Association custody. ${h.name} looks older than a year ago.`]) + (h.avenge && h.avenge.killer === w.name ? ` ${h.avenge.hunter} can rest now.` : '') + deedNick(h, ['the Hound', 'Handcuffs', 'Bring-Em-Back', 'the Warden', 'Last Call', `${w.name.split(' ')[0]}'s Bane`], `for bringing in ${w.name}`), 8); }
-    else if(r < dieP + capP + 0.12 && x.year >= 2){ x.done = true; add(h, 'hunt', `${w.name} slips away from ${h.name} in ${pl} and vanishes. ${h.name} gives up the contract.`, 4); }
+    else if(r < dieP + capP + 0.12 && x.year >= 2){ x.done = true; add(h, 'hunt', `${w.name} slips away from ${h.name} in ${pl} and vanishes. ${h.name} gives up the contract.`, 4); w.slips = (w.slips || 0) + 1; if(Math.random() < 0.15 + 0.1 * (w.slips - 1)) openCase(h, 'collusion', ed, add, {w: w.name}); }
     else add(h, 'hunt', pickR([`${h.name} picks up ${w.name}'s trail in ${pl}.`, `${h.name} walks into an ambush set by ${w.name} in ${pl}, and walks out of it.`, `${h.name} misses ${w.name} by a day in ${pl}.`, `A tip sends ${h.name} to ${pl}. ${w.name} was there, and left a message.`]), 4);
   });
   // the Dark Continent: a rare expedition of 3–10 Hunters, gone 2–5 years; sometimes a rescue for an earlier one
@@ -866,6 +867,7 @@ function worldStart(prev, ed, add, busy, items){
     const zl = Math.random() < 0.3 ? Object.entries(WORLD.zodiac || {}).map(([z, l]) => [z, hLic(l)]).filter(([z, h]) => h && usable(h) && !busy.has(h.license)) : [];
     const zLead = zl.length ? pickR(zl) : null;
     if(zLead){ team = [zLead[1]].concat(team.filter(h => h !== zLead[1])).slice(0, size); }
+    { const rn = (WORLD.relics || {}).a7, rh = rn && rn.st === 'held' && !rn.swap && hLic(rn.holder); if(rh && hActive(rh) && !team.includes(rh) && !busy.has(rh.license) && team.length >= 2){ team = team.slice(0, Math.max(2, team.length - 1)).concat([rh]); } }
     if(team.length >= 3){
       const len = rescueGo ? 2 : pickR([2, 3, 3, 3, 4, 4, 5]);
       WORLD.exped = {id: 'X' + (++WORLD.seq), ed, year: 0, len, rescue: rescueGo ? LX.id : null, goal: rescueGo ? null : pickR(DC_GOALS), members: team.map(h => h.license), lost: []};
@@ -880,7 +882,7 @@ function worldStart(prev, ed, add, busy, items){
     E.year++;
     const alive = E.members.map(l => HUNTERS.find(h => h.license === l)).filter(h => h && hActive(h));
     const pk = () => pickR(alive);
-    if(alive.length && Math.random() < 0.35){ const v = pk(); v.lostIn = E.id; v.status = Math.random() < 0.6 ? 'Deceased' : 'Missing'; v.diedEd = ed; E.lost.push(v.license); add(v, v.status === 'Deceased' ? 'death' : 'missing', pickR(v.status === 'Deceased' ? DC_DEATH : DC_MISS)(v), 9); }
+    if(alive.length && Math.random() < 0.35 * relExpLoss(alive)){ const v = pk(); v.lostIn = E.id; v.status = Math.random() < 0.6 ? 'Deceased' : 'Missing'; v.diedEd = ed; E.lost.push(v.license); add(v, v.status === 'Deceased' ? 'death' : 'missing', pickR(v.status === 'Deceased' ? DC_DEATH : DC_MISS)(v), 9); }
     const live = alive.filter(h => hActive(h));
     if(live.length && E.year < (E.len || 3)) { const la = pickR(live), lb = live.length > 1 ? pickR(live.filter(h => h !== la)) : null, L = DC_LETTERS({a: la, b: lb, yr: E.year, goal: E.goal, firsts: live.map(h => h.first || h.name.split(' ')[0]).join(', ')});
       E.said = E.said || []; const fresh = L.map((x, i) => i).filter(i => !E.said.includes(i)); const i = fresh.length ? pickR(fresh) : pickR(L.map((x, j) => j)); E.said.push(i); add(L[i].includes(la.name) ? la : pk(), 'exped', L[i], 7); }
@@ -890,13 +892,14 @@ function worldStart(prev, ed, add, busy, items){
       if(E.rescue && live.length){
         const miss = HUNTERS.filter(h => h.status === 'Missing' && h.lostIn === E.rescue);
         const found = miss.length && Math.random() < 0.45 ? pickR(miss) : null;
-        if(found){ found.status = 'Active Hunter'; delete found.diedEd; delete found.lostIn; found.rp = (found.rp || 0) + 120; add(found, 'exped', `The rescue expedition brings ${found.name} home from the Dark Continent, alive, years after ${PR(found).they} ${PR(found).were} given up for lost.`, 11); }
+        if(found){ const since0 = found.missEd ?? found.diedEd, lost0 = found.lostIn; found.status = 'Active Hunter'; delete found.diedEd; delete found.lostIn; delete found.missEd; found.rp = (found.rp || 0) + 120; add(found, 'exped', `The rescue expedition brings ${found.name} home from the Dark Continent, alive, years after ${PR(found).they} ${PR(found).were} given up for lost.`, 11); afterReturn(found, ed, add, since0, lost0); }
         else items.push({lic: live[0].license, name: live[0].name, kind: 'exped', text: `The rescue expedition finds the old camp on the Dark Continent, empty. Whatever happened there, nobody is coming home from it.`, rank: 8});
       }
       const missNow = E.lost.map(l => hLic(l)).filter(h => h && h.status === 'Missing');
       missNow.forEach(h => h.lostIn = E.id);
       if(!E.rescue && (missNow.length || !live.length)) WORLD.lostExp = {id: E.id, ed, names: (live.length ? missNow : E.members.map(l => hLic(l)).filter(Boolean)).map(h => h.name).slice(0, 4)};
-      if(live.length){ const changed = Math.random() < 0.35 ? pickR(live) : null; const dn = pickR(live), dnT = deedNick(dn, ['Far Shore', 'the Returned', 'Came-Back', 'Other Side', 'Driftwood'], 'for coming back from the Dark Continent'); items.push({lic: live[0].license, name: live[0].name, kind: 'exped', text: `The Dark Continent expedition returns: ${andList(live.map(h => h.name))} ${live.length === 1 ? 'comes' : 'come'} home${E.lost.length ? `, ${E.lost.length} short` : ''}.${!E.rescue && Math.random() < 0.6 ? ' ' + pickR(DC_HAUL) : ''}${changed ? ' ' + pickR(DC_CHANGED)(changed) : ''}${dnT ? ` ${dn.name.split(' ')[0]} comes back with a new name: "${dn.nick}".` : ''}`, rank: 10}); if(changed && Math.random() < 0.5){ changed.status = 'Retired'; retireRec(changed, ed, 'after what they saw on the Dark Continent'); } }
+      { const lead = hLic(E.members[0]); if(lead && live.includes(lead) && E.lost.length && !E.rescue && Math.random() < 0.25) openCase(lead, 'abandon', ed, add); }
+      if(live.length){ const changed = Math.random() < 0.35 ? pickR(live) : null; const dn = pickR(live), dnT = deedNick(dn, ['Far Shore', 'the Returned', 'Came-Back', 'Other Side', 'Driftwood'], 'for coming back from the Dark Continent'); items.push({lic: live[0].license, name: live[0].name, kind: 'exped', text: `The Dark Continent expedition returns: ${andList(live.map(h => h.name))} ${live.length === 1 ? 'comes' : 'come'} home${E.lost.length ? `, ${E.lost.length} short` : ''}.${!E.rescue && !relicFromExped(E, live, ed, add, items) && Math.random() < 0.6 ? ' ' + pickR(DC_HAUL) : ''}${changed ? ' ' + pickR(DC_CHANGED)(changed) : ''}${dnT ? ` ${dn.name.split(' ')[0]} comes back with a new name: "${dn.nick}".` : ''}`, rank: 10}); if(changed && Math.random() < 0.5){ changed.status = 'Retired'; retireRec(changed, ed, 'after what they saw on the Dark Continent'); } }
       else items.push({lic: '', name: '', kind: 'exped', text: 'The Dark Continent expedition is declared lost. Nobody came back.', rank: 10});
       HUNTERS.forEach(h => { if(h.exped === E.id) delete h.exped; });
       WORLD.exped = null;
@@ -932,7 +935,7 @@ function worldEnd(prev, ed, add, items, W){
     const yrs = ed - Math.max(h.edition || ed, o.edition || ed), settled = [h, o].filter(x => x.spouse || WORLD.heirs.some(kk => kk.parents.includes(x.license))).length;
     const pr = 0.03 + settled * 0.02 + Math.min(0.06, yrs * 0.002) + (hunterAge(h) > 45 ? 0.02 : 0);
     if(o.status === 'Deceased'){ if(Math.random() < 0.25){ h.rivals = h.rivals.filter(x => x !== cid); add(h, 'rival', pickR([`${h.name} goes to ${o.name}'s funeral and stands at the back. The old rivalry ends there.`, `${h.name} hears that ${o.name} is dead and is surprised how little the old grudge weighs now.`]), 5, o); } return; }
-    if(Math.random() >= pr) return;
+    if(Math.random() >= pr * relFade(h, o)) return;
     h.rivals = h.rivals.filter(x => x !== cid); o.rivals = (o.rivals || []).filter(x => x !== h.cid);
     const kid = WORLD.heirs.find(kk => kk.born === ed && (kk.parents.includes(h.license) || kk.parents.includes(o.license))), pl = pickR(PLACES);
     add(h, 'rival', kid ? `${kid.parents.includes(h.license) ? o.name : h.name} sends flowers when ${kid.parents.includes(h.license) ? h.name : o.name}'s ${kid.gender === 'Male' ? 'son' : kid.gender === 'Female' ? 'daughter' : 'child'} is born. The rivalry from the ${ordinal(Math.max(h.edition, o.edition))} exam is over.`
@@ -941,7 +944,7 @@ function worldEnd(prev, ed, add, items, W){
   // rivalries from the exam follow them into their careers
   const rs = new Set();
   act.forEach(h => (h.rivals || []).forEach(cid => {
-    const o = byCid[cid], k = [h.cid, cid].sort().join(); if(!o || !hActive(o) || rs.has(k) || Math.random() > 0.14) return; rs.add(k);
+    const o = byCid[cid], k = [h.cid, cid].sort().join(); if(!o || !hActive(o) || rs.has(k) || Math.random() > 0.14 * relDuel(h, o)) return; rs.add(k);
     const r = Math.random(), pl = pickR(PLACES);
     if(r < 0.03){ o.status = 'Deceased'; o.diedEd = ed; add(h, 'rival', `${h.name} and ${o.name} settle their old grudge from the exam in ${pl}. Only one walks away.`, 9, o); (o.log = o.log || []).push({ed, k: 'death', text: `${o.name} dies in a duel with an old rival from the exam.`}); }
     else if(r < 0.15){ h.rivals = h.rivals.filter(x => x !== cid); o.rivals = (o.rivals || []).filter(x => x !== h.cid); add(h, 'rival', `${h.name} and ${o.name}, rivals since the exam, finally share a drink in ${pl}. Nobody saw that coming.`, 6, o); }

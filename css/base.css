@@ -684,3 +684,103 @@ td.num{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
 @media (prefers-reduced-motion:reduce){.lx div,.oc{animation:none}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 
+/* chronicles: cases and schools */
+.bl.case i{color:var(--red)}
+.bl.school i,.bl.pupil i{color:var(--gold)}
+.sch-t td{white-space:normal;vertical-align:top}
+.sch-t td:first-child{min-width:180px}
+.sch-t tr.dormant,.sch-t tr.closed{opacity:.6}
+.sch-pr{margin:0;font-family:var(--f-display);font-size:20px;line-height:1.25;border-left:3px solid var(--gold);padding:2px 0 2px 12px}
+.sch-pr small{display:block;font-family:inherit;font-size:12px;color:var(--muted);margin-top:4px;letter-spacing:.04em}
+.sch-line{display:flex;flex-wrap:wrap;gap:8px}
+.sch-line > span{display:flex;flex-direction:column;gap:1px;padding:6px 10px;border:1px solid var(--line);border-radius:6px;font-size:13px}
+.sch-line small{font-size:11px;color:var(--muted)}
+/* relics */
+.bl.relic i{color:#c79be8}
+.rl-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px}
+.rl{all:unset;box-sizing:border-box;cursor:pointer;display:flex;flex-direction:column;gap:3px;padding:10px 12px;border:1px solid var(--line);border-radius:6px;background:var(--panel);min-height:112px}
+.rl:hover,.rl:focus-visible{border-color:var(--gold)}
+.rl small{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.rl b{font-family:var(--f-display);font-size:15px;line-height:1.2}
+.rl .rl-st{font-size:12px;color:var(--gold)}
+.rl.rl-lost .rl-st,.rl.rl-outlaw .rl-st,.rl.rl-sealed .rl-st,.rl.rl-missing .rl-st{color:var(--red)}
+.rl .rl-w{font-size:12px;color:var(--muted)}
+.rl em{font-style:normal;font-size:11px;color:var(--dim);margin-top:auto}
+.rl.unknown{cursor:default;border-style:dashed;align-items:center;justify-content:center;text-align:center;color:var(--muted)}
+.rl.unknown b{font-size:26px;color:var(--fg)}
+.rl-gc{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.rl-gc > div{border:1px solid var(--line);border-radius:6px;padding:10px 12px}
+.rl-gc small{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--gold)}
+.rl-gc > div:last-child small{color:var(--red)}
+.rl-gc p{margin:4px 0 0;font-size:14px}
+@media (max-width:560px){.rl-gc{grid-template-columns:1fr}}
+/* advance */
+.adv{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0 0 4px}
+.adv-l{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-right:2px}
+.adv-stops{position:relative}
+.adv-stops summary{cursor:pointer;font-size:13px;color:var(--muted);padding:6px 4px;list-style:none}
+.adv-stops summary::-webkit-details-marker{display:none}
+.adv-stops summary::before{content:'⚙ '}
+.adv-stops > div{position:absolute;z-index:20;top:100%;left:0;min-width:260px;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:10px 12px;display:flex;flex-direction:column;gap:6px;font-size:13px;box-shadow:0 8px 24px rgba(0,0,0,.4)}
+.adv-stops label{display:flex;gap:8px;align-items:center;cursor:pointer}
+.adv-bar{height:8px;border-radius:4px;background:var(--raise);overflow:hidden}
+.adv-bar i{display:block;height:100%;background:var(--gold);transition:width .15s}
+.adv-why{color:var(--gold)!important}
+@media (max-width:560px){.adv-stops > div{left:auto;right:0}}
+/* statistics */
+.wstats{display:flex;flex-direction:column;gap:16px}
+.st-note{margin:-8px 0 0;font-size:12px}
+.st-two{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
+.st-three{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:16px}
+.st-fig{margin:0;border:1px solid var(--line);border-radius:6px;padding:10px 12px}
+.st-fig figcaption{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
+.st-fig svg{width:100%;height:auto;display:block}
+.st-grid{stroke:var(--line);stroke-width:1}
+.st-ax{fill:var(--muted);font-size:11px;font-family:var(--f-mono)}
+.st-line{fill:none;stroke:var(--gold);stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+.st-hit{fill:transparent;cursor:crosshair}
+.st-hit:hover{fill:var(--gold)}
+.st-bars{border:1px solid var(--line);border-radius:6px;padding:10px 12px;display:flex;flex-direction:column;gap:6px}
+.st-h{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.st-b{display:grid;grid-template-columns:minmax(80px,1.1fr) 2fr auto;gap:8px;align-items:center;font-size:12.5px}
+.st-b span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.st-b i{height:8px;background:var(--raise);border-radius:4px;overflow:hidden}
+.st-b i b{display:block;height:100%;background:var(--gold);border-radius:0 4px 4px 0}
+.st-b em{font-style:normal;font-family:var(--f-mono);font-size:11.5px;color:var(--muted);white-space:nowrap}
+/* the register */
+.ha-pane{margin:2px 0 4px}
+.ha-pane button{font-size:13.5px;padding:7px 18px}
+.ha-quick{display:flex;flex-direction:column;gap:6px;margin-top:8px}
+.hq-row{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.hq-l{width:72px;font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.hpill{font:inherit;font-size:12.5px;padding:4px 10px;border-radius:99px;border:1px solid var(--line);background:none;color:var(--muted);cursor:pointer;display:inline-flex;gap:6px;align-items:center}
+.hpill small{font-family:var(--f-mono);font-size:10.5px;color:var(--dim)}
+.hpill:hover{color:var(--fg);border-color:var(--muted)}
+.hpill.on{color:var(--fg);border-color:var(--gold);background:color-mix(in srgb,var(--gold) 14%,transparent)}
+.hpill.on small{color:var(--gold)}
+.hpill[disabled]{opacity:.35;cursor:default}
+.hpill .ndot{margin:0}
+.hq-row select{min-width:180px}
+.ha-count{font-size:12.5px;color:var(--muted);margin-right:6px;align-self:center}
+.ha-count b{color:var(--fg);font-family:var(--f-mono)}
+@media (max-width:640px){
+  .hq-l{width:100%}
+  .hatable.ha-reg thead{display:none}
+  .hatable.ha-reg,.hatable.ha-reg tbody{display:block}
+  .hatable.ha-reg tr{display:grid;grid-template-columns:1fr auto;gap:2px 10px;padding:10px 4px;border-bottom:1px solid var(--line)}
+  .hatable.ha-reg td{border:0;padding:0;white-space:normal}
+  .hatable.ha-reg .c-lic,.hatable.ha-reg .c-ed,.hatable.ha-reg .c-age{display:none}
+  .hatable.ha-reg .c-name{grid-column:1/-1;font-weight:500}
+  .hatable.ha-reg .c-rank{text-align:right}
+  .hatable.ha-reg .c-sch{grid-column:1;font-size:12px}
+  .hatable.ha-reg .c-st{text-align:right;font-size:12px}
+}
+/* relatives who never became Hunters sit a step back */
+.fam-civ{opacity:.62}
+.fam-civ .fam-civ-n{font-weight:400;color:var(--muted)}
+.fam-civ > span:first-child{color:var(--muted)!important}
+.ha-regh{margin-top:8px}
+a.golink{color:var(--gold);cursor:pointer;text-decoration:underline dotted;text-decoration-color:color-mix(in srgb,var(--gold) 50%,transparent);text-underline-offset:3px}
+a.golink:hover{text-decoration-style:solid;text-decoration-color:var(--gold)}
+a.golink.sm{font-size:12.5px}
+.hcard a.golink{font-family:var(--f-mono);font-weight:500}

@@ -88,7 +88,7 @@ function runElection(ed, reason, add, items){
   const zod = new Set(Object.values(WORLD.zodiac || {})), inc = WORLD.chair && hLic(WORLD.chair.lic);
   // a magnetic personality can carry a Hunter with few or no stars into contention
   const cha = h => (h.attrs && h.attrs.charisma) || 50, star = h => cha(h) >= 90 && hStars(h) <= 1 ? 8 + (cha(h) - 90) * 1.2 : 1;
-  const base = h => (1 + hStars(h)) ** 2.2 * star(h) * (1 + (h.rp || 0) / 600) * (cha(h) / 55) ** 2 * (WORLD.vice === h.license ? 6 : 1) * (zod.has(h.license) ? 3 : 1) * (inc === h && hActive(h) ? 4 : 1) * (Math.random() < 0.02 ? 6 : 1);
+  const base = h => (1 + hStars(h)) ** 2.2 * star(h) * (1 + (h.rp || 0) / 600) * (cha(h) / 55) ** 2 * (WORLD.vice === h.license ? 6 : 1) * (zod.has(h.license) ? 3 : 1) * (inc === h && hActive(h) ? 4 : 1) * (Math.random() < 0.02 ? 6 : 1) * caseW(h, ed) * (h.claimEd === ed ? 3 : 1) * relVote(h);
   const bw = new Map(voters.map(h => [h.license, base(h)]));
   const rounds = []; let cands = voters.slice(), winner = null, n = 0;
   while(!winner && n < 12){
@@ -207,7 +207,7 @@ const yrs = x => x.from != null && x.to != null ? (x.from === x.to ? ordinal(x.f
 const ROLE_SHORT = r => r === 'Chairman' ? 'Chairman' : r === 'Vice-Chairman' ? 'Vice-Chairman' : r;
 // "Former Monkey", "Former Vice-Chairman ×2" — the current seat is not a former one
 // career lines: what kind of event each one is (older saves are read from the text)
-const CAREER_IC = {wed:'⚭', reunion:'⇄', memorial:'❖', zodiac:'✧', chair:'♛', elder:'✪', election:'⚖', promo:'★', nen:'✦', exped:'▲', rival:'⚔', bond:'∞', death:'✝', missing:'?', retire:'◐', avenge:'✝', epilogue:'✓', debut:'+', duty:'◆', award:'✪', scandal:'!', hunt:'⌖', crisis:'⚠', regional:'⌂', origin:'◉'};
+const CAREER_IC = {relic:'⚱', case:'§', school:'⛩', pupil:'⛩', wed:'⚭', reunion:'⇄', memorial:'❖', zodiac:'✧', chair:'♛', elder:'✪', election:'⚖', promo:'★', nen:'✦', exped:'▲', rival:'⚔', bond:'∞', death:'✝', missing:'?', retire:'◐', avenge:'✝', epilogue:'✓', debut:'+', duty:'◆', award:'✪', scandal:'!', hunt:'⌖', crisis:'⚠', regional:'⌂', origin:'◉'};
 function careerKind(x){
   const t = x.text || '';
   if(/\ban Elder\b|Elder of the Association/.test(t)) return 'elder';
@@ -267,13 +267,18 @@ function politicsCore(ed, add, items){
   ensureChair(ed);
   const ch = hLic(WORLD.chair && WORLD.chair.lic); if(!ch) return;
   let reason = null;
-  if(!hActive(ch)) reason = ch.status === 'Deceased' ? `Chairman ${ch.name} has died. An election is called.` : ch.status === 'Missing' ? (WORLD.origin && WORLD.origin.k === 'dark' && !WORLD.origin.voted ? (WORLD.origin.voted = true, `After the Dark Years, the Association declares Chairman ${ch.name} lost and calls its first election in a generation.`) : `Chairman ${ch.name} has gone missing. After months of waiting, an election is called.`) : `Chairman ${ch.name} retires. An election is called.`;
+  const chq = hActive(ch) ? caseSeat(ch, ed) : null, cl = WORLD.claim && WORLD.claim.ed === ed && hLic(WORLD.claim.lic);
+  if(!hActive(ch) && ch.revoked === ed) reason = `Chairman ${ch.name} loses the Hunter License by verdict of the council. An election is called.`;
+  else if(chq) reason = `Chairman ${ch.name} ${chq}. An election is called.`;
+  else if(cl && hActive(cl) && cl !== ch) reason = `${cl.name}, the Chairman who vanished, comes back and demands the seat. An election is called.`;
+  else if(!hActive(ch)) reason = ch.status === 'Deceased' ? `Chairman ${ch.name} has died. An election is called.` : ch.status === 'Missing' ? (WORLD.origin && WORLD.origin.k === 'dark' && !WORLD.origin.voted ? (WORLD.origin.voted = true, `After the Dark Years, the Association declares Chairman ${ch.name} lost and calls its first election in a generation.`) : `Chairman ${ch.name} has gone missing. After months of waiting, an election is called.`) : `Chairman ${ch.name} retires. An election is called.`;
   else if(Math.random() < 0.035){ reason = `Chairman ${ch.name} abdicates without warning. An election is called.`; ch.wasChair = ed; }
   else if(Math.random() < 0.05 + (ed - WORLD.chair.since) * 0.004){ reason = `Chairman ${ch.name} calls a new election to renew the mandate.`; }
   if(reason){ runElection(ed, reason, add, items); return; }
   // the Vice and the Zodiac come and go
   const v = hLic(WORLD.vice);
-  if(!usable(v) || Math.random() < 0.03){ const nv = trusted(ch, HUNTERS.filter(h => usable(h) && hStars(h) >= 2 && h !== ch)); if(v && usable(v)) add(v, 'zodiac', `${v.name} steps down as Vice-Chairman.`, 6); WORLD.vice = nv ? nv.license : null; seatSince('vice', ed); if(nv) add(nv, 'zodiac', `Chairman ${ch.name} names ${nv.name} Vice-Chairman.`, 7); }
+  const vq = usable(v) ? caseSeat(v, ed) : null;
+  if(!usable(v) || vq || Math.random() < 0.03){ const nv = trusted(ch, HUNTERS.filter(h => usable(h) && hStars(h) >= 2 && h !== ch && !caseOf(h))); if(v && usable(v)) add(v, 'zodiac', vq ? `${v.name} ${vq} as Vice-Chairman.` : `${v.name} steps down as Vice-Chairman.`, 6); WORLD.vice = nv ? nv.license : null; seatSince('vice', ed); if(nv) add(nv, 'zodiac', `Chairman ${ch.name} names ${nv.name} Vice-Chairman.`, 7); }
   WORLD.stay = WORLD.stay || {};
   const fresh = ed - WORLD.chair.since === 1 && /^elected/.test(WORLD.chair.how || '') && WORLD.chair.lic !== WORLD.chair.prevLic;   // a new Chairman's first year: a few seats change hands
   const purge = fresh && Math.random() < 0.45 ? new Set(ZSIGNS.filter(z => usable(hLic(WORLD.zodiac[z]))).sort(() => Math.random() - 0.5).slice(0, 1 + Math.floor(Math.random() * 3))) : new Set();
@@ -282,7 +287,9 @@ function politicsCore(ed, add, items){
     let quit = false, qwhy = null;
     if(usable(cur)){
       const tenure = ed - ((WORLD.since || {})[z] || ed), age = hunterAge(cur);
-      if(WORLD.stay[z] === cur.license){ quit = true; qwhy = pickR(['keeps the promise of one more year, and not a day longer', 'gave the Chairman the extra year and now walks away']); delete WORLD.stay[z]; }
+      const cq = caseSeat(cur, ed);
+      if(cq){ quit = true; qwhy = cq; }
+      else if(WORLD.stay[z] === cur.license){ quit = true; qwhy = pickR(['keeps the promise of one more year, and not a day longer', 'gave the Chairman the extra year and now walks away']); delete WORLD.stay[z]; }
       else if(purge.has(z)){ quit = true; qwhy = pickR([`is replaced as the new Chairman reshapes the Zodiac`, `loses the seat in the new Chairman's first reshuffle`, `is thanked for ${PR(cur).their} service and let go by the new Chairman`]); }
       else if(tenure >= 1 && Math.random() < Math.min(0.9, 0.24 + tenure * 0.01 + Math.max(0, effAge(cur, age) - 65) * 0.01)){   // a desk job: 25% after the first year, +1% each year after
         if(Math.random() < 0.25){ WORLD.stay[z] = cur.license; add(cur, 'zodiac', `${cur.name} asks to leave the ${z} seat. Chairman ${ch.name} asks for one more year, and ${cur.name.split(' ')[0]} agrees.`, 5); return; }
@@ -292,7 +299,7 @@ function politicsCore(ed, add, items){
       }
       if(!quit) return;
     }
-    const why = !cur ? null : quit ? qwhy : cur.status === 'Deceased' ? (cur.killedBy && cur.diedEd >= ed - 1 ? `was killed by ${cur.killedBy}` : 'dies') : cur.status === 'Missing' ? 'goes missing' : cur.status === 'Retired' ? 'retires' : 'leaves for the Dark Continent';
+    const why = !cur ? null : quit ? qwhy : cur.revoked === ed ? 'loses the Hunter License by verdict of the council' : cur.status === 'Deceased' ? (cur.killedBy && cur.diedEd >= ed - 1 ? `was killed by ${cur.killedBy}` : 'dies') : cur.status === 'Missing' ? 'goes missing' : cur.status === 'Retired' ? 'retires' : 'leaves for the Dark Continent';
     const nz = zPick(ch, z, council()); WORLD.zodiac[z] = nz ? nz.license : null; if(nz) seatSince(z, ed);
     if(nz) add(nz, 'zodiac', cur ? `Zodiac, the ${z}: ${cur.name} ${why}; Chairman ${ch.name} names ${nz.name} in ${cur.name.split(' ')[0]}'s place.` : `${nz.name} takes the empty ${z} seat in the Zodiac.`, 7, cur || undefined);
     else if(cur) add(cur, 'zodiac', `${cur.name} ${why}, leaving the ${z} seat of the Zodiac empty.`, 6);
@@ -370,6 +377,7 @@ function hunterYear(prev){
   const items = [], ed = prev.edition, nextEd = ed + 1;
   const add = (h, kind, text, rank, o) => { text = String(text).replace(/\.\.$/, '.'); items.push({lic: h.license, name: h.name, kind, text, rank: rank || 0, o: o ? {lic: o.license, name: o.name} : undefined}); (h.log = h.log || []).push({ed, text, k: kind}); if(o) (o.log = o.log || []).push({ed, text, k: kind}); if(o && ['job', 'epilogue', 'reunion'].includes(kind)) tieUp(h, o); };
   const busy = new Set();
+  relicsStart(ed);
   const W = worldStart(prev, ed, add, busy, items);
   placesYear(ed, add, items);
   // examiner duty in the exam that just finished
@@ -396,11 +404,11 @@ function hunterYear(prev){
   HUNTERS.filter(h => h.status === 'Missing' && !h.legacy && !(WORLD.exped && WORLD.exped.rescue && h.lostIn === WORLD.exped.rescue)).forEach(h => {
     if(h.missEd == null && h.diedEd == null) h.missEd = ed - 3;   // older saves never recorded when
     const since = h.missEd ?? h.diedEd ?? ed, yrs = Math.max(1, ed - since);
-    if(since >= ed || Math.random() >= 0.07) return;
+    if(since >= ed || Math.random() >= relReturnP(h)) return;
     const dc = !!h.lostIn, pl = dc ? 'the Dark Continent' : pickR(PLACES), Y = yrs === 1 ? 'a year' : yrs + ' years';
     const f = (s, x) => pro(s, h);
     if(Math.random() < (dc ? 0.35 : 0.55) - Math.min(0.25, yrs * 0.02)){
-      h.status = 'Active Hunter'; delete h.diedEd; delete h.lostIn; delete h.missEd; h.rp = (h.rp || 0) + 60;
+      const lostIn0 = h.lostIn; h.status = 'Active Hunter'; delete h.diedEd; delete h.lostIn; delete h.missEd; h.rp = (h.rp || 0) + 60;
       add(h, 'missing', f(pickR(dc ? [
         `${h.name} walks into a harbour on the coast, alone, ${Y} after vanishing on the Dark Continent. {They} will not say how {they} got back.`,
         `A fishing boat picks up ${h.name} drifting off the Begerosse Sea, ${Y} after the expedition lost {them}. {They} {are} thinner, quieter, and alive.`,
@@ -412,6 +420,7 @@ function hunterYear(prev){
         `${h.name} had been living under another name in ${pl} for ${Y}, deep undercover. Nobody had been told.`,
         `A rescue team finds ${h.name} in ${pl}, ${Y} after {they} vanished. {They} had been waiting for them.`
       ])), 9);
+      afterReturn(h, ed, add, since, lostIn0);
     } else {
       h.status = 'Deceased'; h.diedEd = ed; delete h.missEd;
       add(h, 'death', f(pickR(dc ? [
@@ -443,10 +452,11 @@ function hunterYear(prev){
     (h.rpH = h.rpH || []).push(h.rp || 0); if(h.rpH.length > 10) h.rpH.shift();   // reputation at the start of each of the last 10 years
     growAttrs(h, ageNow);
     if(h.exped === WORLD.exped?.id && WORLD.exped) return;   // away on the expedition this year
+    if(h.susp && h.susp >= ed) return;   // suspended by the council: no contracts this year
     const hot = W.crisis && W.crisis.areas.includes(area);
-    const risk = (0.01 + (['Blacklist','Crime','Virus'].includes(area) ? 0.012 : 0) - before * 0.002) * (hot ? 1.8 : 1) * thin;
-    if(Math.random() < risk){ const D = deathOf(h, ed, ageNow, area, hot); h.status = 'Deceased'; h.diedEd = ed; add(h, 'death', D.t, D.rank || 9, D.o); mournFor(h, ed, add, D.o); return; }
-    if(Math.random() < 0.004 * thin){ h.status = 'Missing'; h.missEd = ed; add(h, 'missing', fillH(pickR(MISSING), h), 8); return; }
+    const risk = (0.01 + (['Blacklist','Crime','Virus'].includes(area) ? 0.012 : 0) - before * 0.002) * (hot ? 1.8 : 1) * thin * relRisk(h, ageNow);
+    if(Math.random() < risk && !relicSaves(h, ed, add, 'field')){ const D = deathOf(h, ed, ageNow, area, hot); h.status = 'Deceased'; h.diedEd = ed; add(h, 'death', D.t, D.rank || 9, D.o); mournFor(h, ed, add, D.o); return; }
+    if(Math.random() < 0.004 * thin * relMiss(h)){ h.status = 'Missing'; h.missEd = ed; add(h, 'missing', fillH(pickR(MISSING), h), 8); return; }
     if(effAge(h, ageNow) > 85 && Math.random() < (effAge(h, ageNow) - 85) * 0.012){ h.status = 'Deceased'; h.diedEd = ed; const st = before ? ', a ' + starStr(before) + ' Hunter to the end' : '';
       // lines that make a claim are only used when the record backs it up
       const mates = h.pro ? [] : HUNTERS.filter(x => x !== h && !x.pro && x.edition === h.edition), gone = mates.filter(x => x.status === 'Deceased').length;
@@ -454,7 +464,7 @@ function hunterYear(prev){
       add(h, 'death', pickR([`${h.name} died peacefully at ${ageNow}${st}.`, `${h.name} died at ${ageNow}, in ${pro('{their}', h)} own bed, which surprised everyone who knew ${pro('{them}', h)}${st}.`, `${h.name}, ${ageNow}, died between two pages of the memoir ${pro('{they} {were}', h)} writing.`]
         .concat(mates.length >= 2 && gone / mates.length >= 0.75 ? [`${h.name} died at ${ageNow}. ${pro('{They}', h)} had outlived ${gone === mates.length ? 'everyone' : `${gone} of the ${mates.length} others`} from the ${ordinal(h.edition)} exam.`] : [])
         .concat(taught ? [`${h.name} died at ${ageNow}, still answering letters from Hunters ${pro('{they}', h)} had trained${st}.`] : [])), 8); mournFor(h, ed, add); return; }
-    if(effAge(h, ageNow) >= 60 && Math.random() < 0.08 * Math.max(0.55, thin) * (h.unretired ? 2 : 1)){ h.status = 'Retired'; h.retEd = ed; retireRec(h, ed, 'of age'); add(h, 'retire', fillH(pickR(RETIRE), h, {age: ageNow, st: before ? ' as a ' + starStr(before) + ' Hunter' : ''}), 6); return; }
+    if(effAge(h, ageNow) >= 60 && Math.random() < relRetire(h) * 0.08 * Math.max(0.55, thin) * (h.unretired ? 2 : 1)){ h.status = 'Retired'; h.retEd = ed; retireRec(h, ed, 'of age'); add(h, 'retire', fillH(pickR(RETIRE), h, {age: ageNow, st: before ? ' as a ' + starStr(before) + ' Hunter' : ''}), 6); return; }
     // a few leave young: an injury, a family, a scandal, a loss
     if(ageNow < 60 && Math.random() < 0.003 * Math.max(0.55, thin)){
       const pl = pickR(PLACES), lostB = (h.bonds || []).map(b => HUNTERS.find(x => x.cid === b.id)).find(x => x && x.status === 'Deceased');
@@ -465,20 +475,20 @@ function hunterYear(prev){
       const r = wpickM(R, x => x[2]); h.status = 'Retired'; h.retEd = ed; retireRec(h, ed, r[0]); add(h, 'retire', r[1], 6); return;
     }
     // a year off the field: suspensions and injuries cost the missions
-    if(Math.random() < 0.015){ add(h, 'scandal', fillH(pickR(SCANDAL), h), 5); h.rp = Math.max(0, h.rp - 20); return; }
-    if(Math.random() < 0.04){ add(h, 'fail', fillH(pickR(['{n} spent most of the year recovering from injuries taken in {pl}.','{n} was badly hurt in {pl} and missed the whole season.','{n} lost an eye in {pl}, and came back sharper.']), h), 3); h.rp += 3; return; }
+    if(Math.random() < 0.015 * relScandal(h)){ if(scandalCase(h, ed, add)) return; add(h, 'scandal', fillH(pickR(SCANDAL), h), 5); h.rp = Math.max(0, h.rp - 20); return; }
+    if(!relNoInj(h) && Math.random() < 0.04){ add(h, 'fail', fillH(pickR(['{n} spent most of the year recovering from injuries taken in {pl}.','{n} was badly hurt in {pl} and missed the whole season.','{n} lost an eye in {pl}, and came back sharper.']), h), 3); h.rp += 3; return; }
     if(Math.random() < 0.14) add(h, 'life', fillH(pickR(LIFE), h), 2);
-    if(Math.random() < 0.06 && h.nen && h.nen.hatsu && h.nen.hatsu.name) add(h, 'nen', fillH(pickR(NEN_EV).replace(/\{tech\}/g, pickR(['Ko', 'Ken', 'Ryu', 'En', 'Gyo', 'Shu', 'In'])).replace(/\{cat\}/g, h.nen.category), h, {h: h.nen.hatsu.alias || h.nen.hatsu.name}), 3);
-    const missions = busy.has(h.license) ? 1 : hot ? 2 + (Math.random() < 0.4 ? 1 : 0) : Math.random() < 0.45 ? 2 : 1;
+    if(Math.random() < 0.06 * relNen(h) && h.nen && h.nen.hatsu && h.nen.hatsu.name) add(h, 'nen', fillH(pickR(NEN_EV).replace(/\{tech\}/g, pickR(['Ko', 'Ken', 'Ryu', 'En', 'Gyo', 'Shu', 'In'])).replace(/\{cat\}/g, h.nen.category), h, {h: h.nen.hatsu.alias || h.nen.hatsu.name}), 3);
+    const missions = Math.max(1, relMissions(h) + (busy.has(h.license) ? 1 : hot ? 2 + (Math.random() < 0.4 ? 1 : 0) : Math.random() < 0.45 ? 2 : 1));
     if(hot && Math.random() < 0.12) add(h, 'crisis', fillH(pickR(W.crisis.hero), h, {pl: WORLD.crisis.pl2 && Math.random() < 0.4 ? WORLD.crisis.pl2 : WORLD.crisis.pl}), 5);
     // contracts come by rank: mostly at their own, often below, and about one in twenty (a natural 20) above it
     const bold = ['Daredevil', 'Thrill-seeker', 'Berserker'].includes(h.trait) || h.prodigy || (h.avenge && !h.avenge.done);
     let fell = false;
     for(let i = 0; i < missions; i++){
-      const roll = Math.random(), reachP = 0.05 * (bold ? 1.6 : 1);
+      const roll = Math.random(), reachP = 0.05 * (bold ? 1.6 : 1) * relReach(h);
       let tier = before; if(before < 3 && roll < reachP) tier = Math.min(3, before + (Math.random() < 0.1 ? 2 : 1)); else if(before > 0 && roll < reachP + 0.4) tier = Math.floor(Math.random() * before);
       const gap = Math.max(0, tier - before), MT = (MISSIONS[area] || MISSIONS.Head)[tier];
-      const ok = Math.random() < clamp(0.45 + (sk - 60) / 80 + before * 0.05 - gap * 0.2 + (tier < before ? 0.12 : 0), 0.12, 0.95), pl = pickPlace(area);
+      const okP = clamp(0.45 + (sk - 60) / 80 + before * 0.05 - gap * 0.2 + (tier < before ? 0.12 : 0) + relOk(h, area), 0.12, 0.97), ok = Math.random() < 1 - (1 - okP) * relFail(h), pl = pickPlace(area);
       if(gap){
         const rs = starStr(tier), cur0 = before ? starStr(before) + ' Hunter' : 'unranked Hunter', cur = (before ? 'a ' : 'an ') + cur0, X = {pl, rs, cur, cur0};
         const fill = t => fillH(t.replace(/\{rs\}/g, rs).replace(/\{cur0\}/g, cur0).replace(/\{cur\}/g, cur), h, X);
@@ -490,7 +500,7 @@ function hunterYear(prev){
             else { h.fast = ed; add(h, 'promo', `There is no open ${rs} seat for ${h.name} yet, but after that contract ${pro('{they} {are}', h)} first in line.`, 5); } }
         } else {
           const r = Math.random();
-          if(r < 0.05 * gap * (hot ? 1.5 : 1)){ h.status = 'Deceased'; h.diedEd = ed; add(h, 'death', fill(pickR(REACH_DIE)), 10); mournFor(h, ed, add); fell = true; break; }
+          if(r < 0.05 * gap * (hot ? 1.5 : 1) * relReachDie(h) && !relicSaves(h, ed, add, 'reach')){ h.status = 'Deceased'; h.diedEd = ed; add(h, 'death', fill(pickR(REACH_DIE)), 10); mournFor(h, ed, add); fell = true; break; }
           else if(r < 0.45){ h.rp += 5; add(h, 'fail', fill(pickR(REACH_HURT)), 4); }
           else { h.rp += 10; add(h, 'fail', fill(pickR(REACH_BACK)), 3); }
         }
@@ -499,7 +509,7 @@ function hunterYear(prev){
       if(ok){
         const gain = Math.max(10, Math.round((25 + (sk - 55) * 0.8 + Math.random() * 30) * TIER_MULT[tier])), job = pickR(MT);
         // now and then a Hunter of the same field joins in, or gets in the way
-        const peer = Math.random() < 0.12 ? pickR(HUNTERS.filter(x => x !== h && hActive(x) && !x.legacy && x.edition <= ed && (x.career || '') === (h.career || '') && !busy.has(x.license)) .concat([null])) : null;
+        const peer = Math.random() < 0.12 * relDuo(h) ? pickR(HUNTERS.filter(x => x !== h && hActive(x) && !x.legacy && x.edition <= ed && (x.career || '') === (h.career || '') && !busy.has(x.license)) .concat([null])) : null;
         if(peer && Math.random() < 0.6 && !/^was /.test(job)){ busy.add(peer.license); peer.rp = (peer.rp || 0) + Math.round(gain / 2); h.rp += gain; add(h, 'job', fillH(pickR(DUO), h, {o: peer.name, job: toBase(job.replace(/\{pl\}/g, plText(pl)))}) + '.', gain / 18, peer); }
         else if(peer){ busy.add(peer.license); h.rp += gain; add(h, 'rival', fillH(pickR(RIVAL), h, {o: peer.name, pl}), 3, peer); }
         else { h.rp += gain; add(h, 'job', `${h.name} ${fillH(job, h, {pl})}.`, gain / 20); maybeDiscover(h, ed, add, job); }
@@ -513,6 +523,7 @@ function hunterYear(prev){
   });
   worldTies(ed, add, items);
   worldEnd(prev, ed, add, items, W);
+  chroniclesYear(prev, ed, add, items);   // cases, schools, the ones who stopped waiting
   politicsYear(ed, add, items);
   regionalYear(ed, items);
   // promotions: earned points open the door, but only while there is room at that rank
@@ -530,7 +541,7 @@ function hunterYear(prev){
   [3, 2, 1].forEach(st => {
     const room = Math.round(N * STAR_SHARE[st]) - pool.filter(h => hStars(h) >= st).length;
     if(room <= 0) return;
-    pool.filter(h => hStars(h) === st - 1 && ((h.rp || 0) >= RANK_AT[st] || h.fast === ed - 1) && h.edition < ed && h.lastPromo !== ed)
+    pool.filter(h => hStars(h) === st - 1 && ((h.rp || 0) >= RANK_AT[st] * relRank(h) || h.fast === ed - 1) && h.edition < ed && h.lastPromo !== ed)
       .sort((a, b) => (b.fast === ed - 1 ? 1e7 : 0) + (b.rp || 0) - (a.fast === ed - 1 ? 1e7 : 0) - (a.rp || 0)).slice(0, Math.min(room, Math.max(1, Math.ceil(N * (st === 1 ? 0.12 : 0.03)))))
       .forEach(h => { h.st = st; h.lastPromo = ed;
         // only claimed when it is true: nobody in the same field holds that rank at a younger age
@@ -547,7 +558,8 @@ function hunterYear(prev){
       `Flags at half-mast across the Association: ${h.name}, the Centennial Star of the ${nth}, has died at ${age}.`,
       `A hundred exams produced one ${h.name}. The Centennial Star of the ${nth} is gone, at ${age}, and the Association observes a minute of silence.`])});
   });
-  const STORY = ['wed','reunion','memorial','crisis','hunt','exped','bond','rival','election','zodiac','regional'];   // ongoing stories are always kept
+  try { statsYear(prev, ed, items); } catch(e){ console.error(e); }
+  const STORY = ['wed','reunion','memorial','crisis','hunt','exped','bond','rival','election','zodiac','regional','case','school','relic'];   // ongoing stories are always kept
   items.forEach((it, i) => { it.i = i; });   // remember the order things happened in
   const srt = items.sort((x, y) => y.rank - x.rank), keep = srt.slice(0, 30).concat(srt.slice(30).filter(i => STORY.includes(i.kind))), rest = srt.slice(30).filter(i => ['life','nen','job','fail','award','scandal'].includes(i.kind));
   for(let i = rest.length - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); [rest[i], rest[j]] = [rest[j], rest[i]]; }
@@ -626,13 +638,13 @@ function renderWorld(){
   const el = $('pane-world'), n = BULLETINS.length, i = wdYear == null ? n - 1 : clamp(wdYear, 0, n - 1), b = BULLETINS[i];
   const herald = b ? `<div class="herald"><div class="hd-mast"><button type="button" class="hd-nav" data-wdy="${i - 1}" ${i > 0 ? '' : 'disabled'} aria-label="Earlier issue">‹</button><div><b>The Hunter Herald</b><small>No. ${b.edition} · the year after the ${ordinal(b.edition)} exam${i < n - 1 ? ' · <span class="hd-old">back issue</span>' : ''}</small></div><button type="button" class="hd-nav" data-wdy="${i + 1}" ${i < n - 1 ? '' : 'disabled'} aria-label="Later issue">›</button></div>${bulletinHtml(b)}</div>`
     : '<div class="herald"><div class="hd-mast"><span></span><div><b>The Hunter Herald</b><small>The first issue comes out after the first exam</small></div><span></span></div></div>';
-  el.innerHTML = `${pageHead('Beyond the exam', 'World', '#e0703a')}${herald}<div class="wd-two">${wantedHtml() || '<div><div class="section-h">Blacklist</div><p class="muted" style="margin:0">Nobody is wanted right now.</p></div>'}${dcHtml()}</div>${atlasHtml() || '<div><div class="section-h">Regions</div><p class="muted" style="margin:0">Everywhere is quiet, for now.</p></div>'}${marksHtml()}${originHtml()}`;
+  el.innerHTML = `${pageHead('Beyond the exam', 'World', '#e0703a')}${advanceBarHtml()}${herald}<div class="wd-two">${wantedHtml() || '<div><div class="section-h">Blacklist</div><p class="muted" style="margin:0">Nobody is wanted right now.</p></div>'}${dcHtml()}</div>${atlasHtml() || '<div><div class="section-h">Regions</div><p class="muted" style="margin:0">Everywhere is quiet, for now.</p></div>'}${marksHtml()}${relicsHtml()}${schoolsHtml()}${docketHtml()}${originHtml()}`;
   el.querySelectorAll('[data-wdy]').forEach(x => x.onclick = () => { wdYear = +x.dataset.wdy; renderWorld(); });
 }
 document.addEventListener('click', e => { const g = e.target.closest('[data-gosec]'); if(g){ showTab(g.dataset.gosec); window.scrollTo(0, 0); } });
 function bulletinHtml(b){
   if(!b) return '';
-  const ic = {wed:'⚭', reunion:'⇄', memorial:'❖', origin:'◉', regional:'⌂', election:'⚖', zodiac:'✧', death:'✝', missing:'?', retire:'◐', promo:'★', job:'·', fail:'·', duty:'◆', debut:'+', epilogue:'✓', life:'♦', nen:'✦', scandal:'!', award:'✪', rival:'⚔', hunt:'⌖', exped:'▲', bond:'∞', crisis:'⚠', avenge:'✝', place:'◈'};
+  const ic = {relic:'⚱', case:'§', school:'⛩', pupil:'⛩', wed:'⚭', reunion:'⇄', memorial:'❖', origin:'◉', regional:'⌂', election:'⚖', zodiac:'✧', death:'✝', missing:'?', retire:'◐', promo:'★', job:'·', fail:'·', duty:'◆', debut:'+', epilogue:'✓', life:'♦', nen:'✦', scandal:'!', award:'✪', rival:'⚔', hunt:'⌖', exped:'▲', bond:'∞', crisis:'⚠', avenge:'✝', place:'◈'};
   const BRIEF = ['job', 'life', 'fail', 'nen'];
   const oldK = it => /election is called|new election|abdicates/.test(it.text) ? 0 : /rounds of voting/.test(it.text) ? 1 : /elected Chairman/.test(it.text) ? 2 : it.kind === 'zodiac' && /new Zodiac/.test(it.text) ? 3 : 4;   // bulletins saved before the order was kept
   const ix = new Map(b.items.map((it, i) => [it, it.i ?? (oldK(it) * 1000 + i)])), byTime = (x, y) => ix.get(x) - ix.get(y), byRank = (x, y) => y.rank - x.rank;
