@@ -835,9 +835,7 @@ function rulesHtml(){
 function castStripHtml(i){
   const m = cmap(S), L = (S.castEver || []).filter(x => x.p <= i).map(x => m[x.id]).filter(c => c && !(c.out != null && c.out <= i && c.status !== 'Approved'));
   if(!L.length) return '';
-  // in the order they first showed up in this exam's story
-  const first = {}; S.log.forEach((e, k) => { if(e.d || e.type === 'phase') return; (e.ids || []).forEach(id => { if(first[id] == null) first[id] = k; }); });
-  L.sort((a, b) => (first[a.id] ?? 1e9) - (first[b.id] ?? 1e9));
+  // the opening ones in the order the first trial's report shows them (moment first), then each newcomer in the trial they joined
   const tag = c => c.nick ? `“${c.nick}”` : (c.attempts || []).length > 1 ? 'returning' : c.hParent || c.heir ? 'heir' : c.crusher ? 'rookie crusher' : traitNoun(c.trait || '');
   return `<div><div class="section-h">Ones to watch</div><div class="standouts">${L.slice(0, 8).map(c => `<div><a data-id="${c.id}">${esc(c.name)}</a><span>${esc(tag(c))}</span></div>`).join('')}</div></div>`;
 }

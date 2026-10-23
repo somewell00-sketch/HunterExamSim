@@ -139,8 +139,9 @@ function castFalls(S, ph, p){
 // (the five visible cards of "What happened", then the camp, then the rest), as long as they made it through
 const CAST_HIDE = new Set(['phase', 'examiner', 'fav', 'ally', 'betray', 'help', 'split', 'family', 'team', 'rescue', 'veteran', 'duel', 'fight', 'info', 'elim']);
 function castIntro(S, p){
-  const m = cmap(S), ev = S.log.filter(e => e.p === p && !e.d && !CAST_HIDE.has(e.type) && (e.ids || []).length);
-  const hi = ev.filter(e => e.type !== 'story' && e.type !== 'bond'), order = hi.slice(0, 5).concat(ev.filter(e => e.type === 'event' || e.type === 'story'), hi.slice(5), ev.filter(e => e.type === 'bond'));
+  const m = cmap(S), all = S.log.filter(e => e.p === p && !e.d && !CAST_HIDE.has(e.type)), ev = all.filter(e => (e.ids || []).length);   // lines without people still take a card on screen
+  const mo = typeof momentOf === 'function' ? momentOf(S.log.filter(e => e.p === p)) : null;   // the moment of the trial comes first: it is what the reader sees first
+  const hiAll = all.filter(e => e.type !== 'story' && e.type !== 'bond' && e !== mo), hi = hiAll.filter(e => (e.ids || []).length), shown = hiAll.slice(0, 5).filter(e => (e.ids || []).length), order = (mo && (mo.ids || []).length ? [mo] : []).concat(shown, ev.filter(e => e.type === 'story' && e !== mo), hi.filter(e => !shown.includes(e)), ev.filter(e => e.type === 'bond' && e !== mo));
   // variety: one kind of scene cannot fill the cast (old rivalries open almost every exam); a second pass fills any gap
   const seen = new Set(), fam = {}, kind = {}, L = [], CAP = {rival: 2, sabot: 1, secret: 2, heir: 2, story: 3, event: 3};
   const take = capped => order.forEach(e => { const k = e.type, ids = e.ids.slice(0, 2).filter(id => !seen.has(id));
@@ -149,5 +150,6 @@ function castIntro(S, p){
       if(c.fam && (fam[c.fam] || 0) >= 2) return;
       seen.add(id); if(c.fam) fam[c.fam] = (fam[c.fam] || 0) + 1; kind[k] = (kind[k] || 0) + 1; L.push(c); }); });
   take(true); if(L.length < CAST_N) take(false);
+  const pos = c => order.findIndex(e => e.ids.slice(0, 2).includes(c.id)); L.sort((a, b) => pos(a) - pos(b));   // listed in the order the report shows them
   S.castNow = L.map(c => c.id); S.castEver = L.map(c => ({id: c.id, p}));
 }
