@@ -14,6 +14,7 @@ No build step, no server, no dependencies. Open `index.html` and it runs.
 **The exam**
 - Every edition draws its own route: preliminary trials, endurance trials, a second phase, a team trial with duels, Zevil Island and the Final Tournament.
 - Examiners are real Hunters from the register. Each has a style that changes who gets through.
+- Each exam has a cast: the candidates the story keeps returning to. Scenes remember their injuries, debts, grudges and names; the camp cuts back to them; small finds, wanderings and jokes fill the gaps.
 - A theme for each year (storms, the Crimson Ledger, the Chairman's dice…). Some themes bring a trial of their own.
 - Jubilee and Centennial exams. And, about once in fifty years, a catastrophe that ends the exam.
 
@@ -64,6 +65,7 @@ js/engine/              the simulation (no DOM)
   06-narrative.js       personas, nicknames, themed trials
   07-alliances.js
   08-nen-and-run.js     Nen, and running a phase
+  09-cast.js            the cast of each exam, scenes that remember, finds, jokes and cutaways
 js/ui/                  everything on screen
   01-state.js           state and saving
   02-nen-lab.js

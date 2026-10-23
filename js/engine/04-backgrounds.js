@@ -96,6 +96,7 @@ function familyBefore(S, ph, p, rng, active){
   });
 }
 function dramaBefore(S, ph, p, rng, active){
+  castPhase(S, p, active.filter(c => c.status === 'Active'));
   backgroundBefore(S, ph, p, rng, active);
   personalNicks(S, ph, p, rng, active);
   familyBefore(S, ph, p, rng, active);
@@ -104,9 +105,12 @@ function dramaBefore(S, ph, p, rng, active){
   if(ph.final || ph.zevil) promisesAt(S, ph, p);
   crusherActs(S, ph, p, rng, active);
   if(!ph.final) setPieces(S, ph, p, rng, active.filter(c => c.status === 'Active'));
+  lightEvents(S, ph, p, rng, active.filter(c => c.status === 'Active'));
   makePromise(S, ph, p, rng, active);
 }
 function dramaAfter(S, ph, p, rng){
+  castFalls(S, ph, p);
+  if(p === 0) castIntro(S, p);
   const m = cmap(S);
   if(!ph.final) bondsAfter(S, ph, p, rng);
   if(!ph.final) secretsAfter(S, ph, p, rng);

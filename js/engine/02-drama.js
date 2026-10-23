@@ -1,7 +1,7 @@
 /* ===== Drama: set pieces, injuries, debts, promises, rookie crushers ===== */
 const injPen = c => c.injury ? c.injury.pen : 0;
 const dmod = c => (c.pmod || 0) - injPen(c);
-function dlog(S, p, type, text, ids, dr){ if(type === 'story'){ text = storyLine(S, text, ids); if(text === null) return; } const e = {p, type, text: chairT(proIds(S, text, ids)), ids: ids || [], d: ordOnly(S, type, ids), dr}; if(MATCH_TAG) e.mt = MATCH_TAG; S.log.push(e); }
+function dlog(S, p, type, text, ids, dr){ if(type === 'story'){ text = storyLine(S, text, ids); if(text === null) return; } const e = {p, type, text: chairT(proIds(S, text, ids)), ids: ids || [], d: ordOnly(S, type, ids), dr}; if(MATCH_TAG) e.mt = MATCH_TAG; S.log.push(e); if(typeof castNote === 'function') castNote(S, e); }
 const gNames = arr => arr.length <= 3 ? andList(arr.map(c => c.name)) : arr.slice(0, 3).map(c => c.name).join(', ') + (arr.length === 4 ? ' and one other' : ` and ${arr.length - 3} others`);
 const INJURIES = ['twisted ankle','cracked rib','sprained wrist','wrenched shoulder','gashed leg','swollen knee','mild concussion','burned hand','torn hamstring','dislocated finger'];
 function injure(S, c, p, rng, sev){
@@ -468,7 +468,7 @@ Object.entries(SP_MORE).forEach(([k, v]) => { SP[k] = (SP[k] || []).concat(v); }
 // who a set piece is about: the ones worth following; an ordinary applicant only once they are doing well, or late in the exam
 let SP_LATE = false, SP_TOP = new Set();
 const spNotable = c => c.tier === 'Skilled' || c.tier === 'Elite' || (c.attempts || []).length > 1 || !!(c.nick || c.heir || c.hParent || c.fam || c.secret) || (c.grudges || []).length > 0 || (c.bonds || []).length > 0;
-const spW = c => spNotable(c) ? (c.tier === 'Elite' || c.tier === 'Skilled' ? 4 : 3) : c.tier === 'Trained' ? 1 : SP_LATE ? 1 : SP_TOP.has(c.id) ? 2 : 0.12;
+const spW = c => (spNotable(c) ? (c.tier === 'Elite' || c.tier === 'Skilled' ? 4 : 3) : c.tier === 'Trained' ? 1 : SP_LATE ? 1 : SP_TOP.has(c.id) ? 2 : 0.12) * (typeof castW === 'function' ? castW(c) : 1);
 // more of the year's own events, so a theme does not tell the same three stories every time
 const TEV_MORE = {
   blood:[
@@ -528,7 +528,8 @@ function runSetPiece(S, ph, p, rng, active, e, used){
     const c = active.find(x => x.secret && !x.secret.revealed && !used.has(x.id)); if(!c) return false;
     used.add(c.id); revealSecret(S, c, p, rng); return true;
   }
-  const pool = e.who === 'vet' ? active.filter(c => (c.attempts || []).length > 1) : e.who === 'new' ? active.filter(c => (c.attempts || []).length <= 1) : active;
+  const pool0 = e.who === 'vet' ? active.filter(c => (c.attempts || []).length > 1) : e.who === 'new' ? active.filter(c => (c.attempts || []).length <= 1) : active;
+  const pool = S._castOnly ? pool0.filter(c => (S.castNow || []).includes(c.id)) : pool0;   // one scene a trial goes to the cast
   const needsAlly = e.b === 'ally';
   let a = null, b = null, g = [];
   if('a' in e){ a = needsAlly ? spPick(rng, pool.filter(c => alliesOf(S, c).length), e.a, used) : spPick(rng, pool, e.a, used); if(!a) return false; used.add(a.id); }
@@ -539,7 +540,7 @@ function runSetPiece(S, ph, p, rng, active, e, used){
     if(g.length < 2) return false;
   }
   const exName = ph.ex ? ph.ex.name : 'The examiner';
-  const text = e.t({a, b, g: gNames(g), n: g.length, ph: thePhase(ph.name), ex: exName});
+  const text = e.t({a, b, g: gNames(g), n: g.length, ph: thePhase(ph.name), ex: exName}) + (typeof castCallback === 'function' ? castCallback(S, p, rng, a, b) : '');
   dlog(S, p, 'event', text, [a, b].filter(Boolean).map(c => c.id).concat(g.slice(0, 6).map(c => c.id)), e.dr);
   if(a) a.notes.push({p, text});
   if(b) b.notes.push({p, text});
@@ -572,6 +573,7 @@ function setPieces(S, ph, p, rng, active){
   if(!bank) return;
   const r = rng(), k = 2 + (r < 0.55 ? 1 : 0) + (r < 0.2 ? 1 : 0) + (THEME === 'storm' ? 1 : 0) - themed;
   let done = 0;
+  if((S.castNow || []).length) for(const e of rng.shuffle(bank.slice()).slice(0, 8)){ S._castOnly = true; let ok = false; try { ok = runSetPiece(S, ph, p, rng, active.filter(c => c.status === 'Active'), e, used); } finally { S._castOnly = false; } if(ok){ done++; break; } }
   for(const e of rng.shuffle(bank.slice())){
     if(done >= k) break;
     if(runSetPiece(S, ph, p, rng, active.filter(c => c.status === 'Active'), e, used)) done++;

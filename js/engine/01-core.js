@@ -599,7 +599,7 @@ function storyLine(S, text, ids){
   if(r >= 26 && r < 42 && one && named && !ST_STATE.test(text) && !ST_GRIM.test(text)) return `${text} ${ST_TAIL[(h >>> 4) % ST_TAIL.length]}`;
   return text;
 }
-function log(S, p, type, text, ids, detail){ if(!detail && ordOnly(S, type, ids)) detail = true; if(type === 'story' && !detail){ text = storyLine(S, text, ids); if(text === null) return; } const e = {p, type, text: chairT(proIds(S, text, ids)), ids: ids || [], d: !!detail}; if(MATCH_TAG) e.mt = MATCH_TAG; S.log.push(e); }
+function log(S, p, type, text, ids, detail){ if(!detail && ordOnly(S, type, ids)) detail = true; if(type === 'story' && !detail){ text = storyLine(S, text, ids); if(text === null) return; } const e = {p, type, text: chairT(proIds(S, text, ids)), ids: ids || [], d: !!detail}; if(MATCH_TAG) e.mt = MATCH_TAG; S.log.push(e); if(typeof castNote === 'function') castNote(S, e); }
 
 
 /* ---------- how a candidate's exam ended, told as a moment: the trial's own scene, then one detail that is theirs ---------- */

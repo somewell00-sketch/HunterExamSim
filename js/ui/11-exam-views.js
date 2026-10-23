@@ -668,7 +668,8 @@ function renderPhase0(){
           // the phase in three layers: what mattered, the mood around it, and the bonds that formed
           const all = key.concat(eliteR), flav = all.filter(e => e.type === 'story'), bonds = all.filter(e => e.type === 'bond');
           const hi = all.filter(e => !flav.includes(e) && !bonds.includes(e)); { const tn = THEMES[S.theme || 'classic'], op = e => isOpening(e) || (tn && e.text.startsWith(tn.name + ':')); let at = 0; while(at < hi.length && op(hi[at])) at++; at = Math.max(1, at);
-            const j = hi.findIndex(e => e.type === 'heir'); if(j > at) hi.splice(at, 0, hi.splice(j, 1)[0]); }   // an heir sits right after the trial's own opening line
+            const j = hi.findIndex(e => e.type === 'heir'); if(j > at) hi.splice(at, 0, hi.splice(j, 1)[0]);
+            const co = hi.filter(e => e.type === 'castout'); co.forEach(e => hi.splice(hi.indexOf(e), 1)); hi.splice(at, 0, ...co); }   // the cast's falls come right after the opening   // an heir sits right after the trial's own opening line
           const hf = foldSame(hi), top = hf.slice(0, 5), more = hf.slice(5);
           return sec('What happened', story(top) + (more.length ? `<details class="ally-more"><summary>${more.length} more from this trial</summary>${story(more, more.length > 8, true)}</details>` : ''))
             + (flav.length ? `<div class="camp"><h4 class="camp-t">Around the camp</h4><p>${flav.map(e => linkNames(trimPh(e.text), e.ids)).join(' ')}</p></div>` : '')
@@ -680,6 +681,7 @@ function renderPhase0(){
         ${ph.zevil ? '' : sec(ph.final ? 'Bouts' : 'Duels', story(duels, true, true))}
       </div>
       <div class="rep-col">
+        ${castStripHtml(i)}
         ${(() => {
           const mtShown = id => !MENTOR.off && mtOf(id), fc = S.candidates.filter(c => isFav(c.id) && !mtShown(c.id) && (c.out == null || c.out >= i));
           if(!fc.length) return '';
@@ -828,3 +830,14 @@ function rulesHtml(){
   Each phase tests a mix of attributes, with some luck, and tired candidates do worse. Allies and families help each other; veterans remember trials they have seen before. On Zevil Island own and target badges are worth 3 points, any other 1; 6 points to pass. The Final Tournament is a reverse-elimination bracket: win once and you pass; the finalist who loses the last match fails.</div>`;
 }
 
+
+// the cast of this exam, as it stood after this trial: only those still in, kept as short as the standouts
+function castStripHtml(i){
+  const m = cmap(S), L = (S.castEver || []).filter(x => x.p <= i).map(x => m[x.id]).filter(c => c && !(c.out != null && c.out <= i && c.status !== 'Approved'));
+  if(!L.length) return '';
+  // in the order they first showed up in this exam's story
+  const first = {}; S.log.forEach((e, k) => { if(e.d || e.type === 'phase') return; (e.ids || []).forEach(id => { if(first[id] == null) first[id] = k; }); });
+  L.sort((a, b) => (first[a.id] ?? 1e9) - (first[b.id] ?? 1e9));
+  const tag = c => c.nick ? `“${c.nick}”` : (c.attempts || []).length > 1 ? 'returning' : c.hParent || c.heir ? 'heir' : c.crusher ? 'rookie crusher' : traitNoun(c.trait || '');
+  return `<div><div class="section-h">Ones to watch</div><div class="standouts">${L.slice(0, 8).map(c => `<div><a data-id="${c.id}">${esc(c.name)}</a><span>${esc(tag(c))}</span></div>`).join('')}</div></div>`;
+}
