@@ -849,7 +849,7 @@ function worldStart(prev, ed, add, busy, items){
     items.push({lic: '', name: '', kind: 'hunt', text: pro(FALL[k].replace('{x}', w.name + (w.nick ? ` ("${w.nick}")` : '')).replace('{e}', ordinal(prev.edition)), c), rank: 7});
   });
   // the Blacklist is never empty
-  while(WORLD.wanted.filter(w => w.status === 'wanted').length < 3){
+  while(WORLD.wanted.filter(w => w.status === 'wanted' && !w.gang).length < 3){   // lone outlaws: a group's members do not count
     const pl = pickR(PLACES), w = {id: 'W' + (++WORLD.seq), name: `${pickR(OUTLAW_FIRST)} ${pickR(LAST)}`, gender: Math.random() < 0.5 ? 'Male' : 'Female', nick: pickR(OUTLAW_TITLE).replace('{pl}', pl), danger: 1 + Math.floor(Math.random() * 3), from: ed, status: 'wanted'};
     WORLD.wanted.push(w);
   }
@@ -884,37 +884,49 @@ function worldStart(prev, ed, add, busy, items){
   const hunters = act.filter(h => (h.career || '').startsWith('Blacklist') || h.avenge);
   WORLD.wanted.filter(w => w.status === 'wanted' && !WORLD.hunts.some(x => x.w === w.id && !x.done)).forEach(w => {
     if(WORLD.hunts.filter(x => !x.done).length >= 3 || Math.random() > 0.5) return;
-    const avenger = act.find(h => h.avenge && h.avenge.killer === w.name);
+    const avenger = act.find(h => (h.avenge && h.avenge.killer === w.name) || (w.gang && h.uwVend === w.gang));
     const free = hunters.filter(h => !WORLD.hunts.some(x => !x.done && x.lic === h.license) && !(WORLD.exped && h.exped === WORLD.exped.id));
     const h = avenger || (free.length ? pickR(free) : null); if(!h) return;
     WORLD.hunts.push({w: w.id, lic: h.license, ed, year: 0, done: false});
-    add(h, 'hunt', avenger ? `${h.name} finally takes the contract on ${w.name}, the one who killed ${h.avenge.hunter}. It is personal now.` : `${h.name} takes the Blacklist contract on ${w.name}${w.nick ? ` ("${w.nick}")` : ''}.`, 6);
+    add(h, 'hunt', avenger && avenger.uwVend === w.gang && w.gang ? `${h.name} takes the contract on ${w.name}${w.title ? ', ' + w.title : ''} of ${gangOf(w.gang).name.replace(/^The /, 'the ')}. For the last of the family they burned, it was never just a contract.` : avenger ? `${h.name} finally takes the contract on ${w.name}, the one who killed ${h.avenge.hunter}. It is personal now.` : `${h.name} takes the Blacklist contract on ${w.name}${w.nick ? ` ("${w.nick}")` : ''}.`, 6);
   });
   WORLD.hunts.filter(x => !x.done && x.ed < ed).forEach(x => {
     const h = HUNTERS.find(y => y.license === x.lic), w = WORLD.wanted.find(y => y.id === x.w);
-    if(!h || !w || !hActive(h)){ x.done = true; return; }
+    if(!h || !w || !hActive(h) || w.status !== 'wanted'){ x.done = true; return; }
     busy.add(h.license); x.year++;
     const sk = careerSkill(h) / 100 + hStars(h) * 0.08 + relCap(h) / 0.35, pl = pickR(PLACES), r = Math.random();
-    const capP = Math.min(0.75, 0.15 + sk * 0.35 + x.year * 0.08 - w.danger * 0.05 + (w.tip && ed - w.tip <= 3 ? 0.2 : 0)), dieP = 0.02 + w.danger * 0.025;
-    if(r < dieP * relHuntDie(h) && !relicSaves(h, ed, add, 'hunt')){ x.done = true; h.status = 'Deceased'; h.diedEd = ed; h.killedBy = w.name; add(h, 'death', `${h.name} is found dead in ${pl}. ${w.name} was last seen there. The hunt is over, for now.`, 9); w.kills = (w.kills || 0) + 1; }
-    else if(r < dieP + capP){ x.done = true; w.status = 'captured'; w.by = h.name; h.rp = (h.rp || 0) + 60 + w.danger * 30; add(h, 'hunt', pickR([`After ${x.year + 1} year${x.year ? 's' : ''}, ${h.name} brings ${w.name} in alive. The Blacklist is one name shorter.`, `${h.name} corners ${w.name} in ${pl}. It ends without a fight, which surprises everyone.`, `${w.name} is in Association custody. ${h.name} looks older than a year ago.`]) + (h.avenge && h.avenge.killer === w.name ? ` ${h.avenge.hunter} can rest now.` : '') + deedNick(h, ['the Hound', 'Handcuffs', 'Bring-Em-Back', 'the Warden', 'Last Call', `${w.name.split(' ')[0]}'s Bane`], `for bringing in ${w.name}`), 8); }
-    else if(r < dieP + capP + 0.12 && x.year >= 2){ x.done = true; add(h, 'hunt', `${w.name} slips away from ${h.name} in ${pl} and vanishes. ${h.name} gives up the contract.`, 4); w.slips = (w.slips || 0) + 1; if(Math.random() < 0.15 + 0.1 * (w.slips - 1)) openCase(h, 'collusion', ed, add, {w: w.name}); }
-    else add(h, 'hunt', pickR([`${h.name} picks up ${w.name}'s trail in ${pl}.`, `${h.name} walks into an ambush set by ${w.name} in ${pl}, and walks out of it.`, `${h.name} misses ${w.name} by a day in ${pl}.`, `A tip sends ${h.name} to ${pl}. ${w.name} was there, and left a message.`]), 4);
+    const capP = Math.min(0.75, 0.15 + sk * 0.35 + x.year * 0.08 - w.danger * 0.05 - (w.gang && typeof gangOf === 'function' && gangOf(w.gang) && gangOf(w.gang).lead === w.id ? 0.12 : 0) + (w.tip && ed - w.tip <= 3 ? 0.2 : 0)), dieP = 0.02 + w.danger * 0.025;
+    if(r < dieP * relHuntDie(h) && !relicSaves(h, ed, add, 'hunt')){ x.done = true; h.status = 'Deceased'; h.diedEd = ed; h.killedBy = w.name; add(h, 'death', `${h.name} is found dead in ${pl}. ${w.name} was last seen there. The hunt is over, for now.`, 9); w.kills = (w.kills || 0) + 1; if(typeof uwContact === 'function') uwContact(w, ed, `Killed ${h.name}, who was hunting ${w.gender === 'Male' ? 'him' : w.gender === 'Female' ? 'her' : 'them'}, in ${pl}.`); if(w.gang && typeof gangOf === 'function' && gangOf(w.gang)) gangOf(w.gang).kills++; }
+    else if(r < dieP + capP){ x.done = true; w.status = 'captured'; w.by = h.name; w.byLic = h.license; w.endEd = ed; if(typeof uwContact === 'function') uwContact(w, ed, `Captured by ${h.name} after ${x.year + 1} year${x.year ? 's' : ''} on ${w.gender === 'Male' ? 'his' : w.gender === 'Female' ? 'her' : 'their'} trail.`); h.rp = (h.rp || 0) + 60 + w.danger * 30; add(h, 'hunt', pickR([`After ${x.year + 1} year${x.year ? 's' : ''}, ${h.name} brings ${w.name} in alive. The Blacklist is one name shorter.`, `${h.name} corners ${w.name} in ${pl}. It ends without a fight, which surprises everyone.`, `${w.name} is in Association custody. ${h.name} looks older than a year ago.`]) + (h.avenge && h.avenge.killer === w.name ? ` ${h.avenge.hunter} can rest now.` : '') + deedNick(h, ['the Hound', 'Handcuffs', 'Bring-Em-Back', 'the Warden', 'Last Call', `${w.name.split(' ')[0]}'s Bane`], `for bringing in ${w.name}`), 8); }
+    else if(r < dieP + capP + 0.12 && x.year >= 2){ x.done = true; add(h, 'hunt', `${w.name} slips away from ${h.name} in ${pl} and vanishes. ${h.name} gives up the contract.`, 4); w.slips = (w.slips || 0) + 1; if(typeof uwContact === 'function') uwContact(w, ed, `Slipped away from ${h.name} in ${pl}.`); if(Math.random() < 0.15 + 0.1 * (w.slips - 1)) openCase(h, 'collusion', ed, add, {w: w.name}); }
+    else add(h, 'hunt', pickR([`${h.name} picks up ${w.name}'s trail in ${pl}.`, `${h.name} walks into an ambush set by ${w.name} in ${pl}, and walks out of it.`, `${h.name} misses ${w.name} by a day in ${pl}.`, `A tip sends ${h.name} to ${pl}. ${w.name} was there, and left a message.`]), 4); if(typeof uwContact === 'function' && !x.done && w.status === 'wanted' && Math.random() < 0.5) uwContact(w, ed, `Hunted by ${h.name}; ${pickR(['seen', 'nearly caught', 'tracked'])} in ${pl}.`);
   });
   // the Dark Continent: a rare expedition of 3–10 Hunters, gone 2–5 years; sometimes a rescue for an earlier one
   const E = WORLD.exped, LX = WORLD.lostExp;
   const rescueGo = !E && LX && ed - LX.ed >= 1 && Math.random() < 0.25;
-  if(!E && (rescueGo || Math.random() < 0.1)){
+  // an expedition is announced a year ahead: the goal, the first volunteers, sometimes someone who refuses
+  const PL0 = WORLD.expPlan;
+  if(!E && !PL0 && !rescueGo && ed - (WORLD.lastExpEd ?? -99) >= 2 && Math.random() < 0.4){   // one leaves every eight years or so
+    const goal = pickR(DC_GOALS), pool = act.filter(h => hStars(h) >= 1 && !busy.has(h.license)), vol = pool.filter(h => ['Daredevil', 'Thrill-seeker'].includes(h.trait) || h.career === 'Lost Hunter' || h.career === 'Ruins Hunter').sort(() => Math.random() - 0.5).slice(0, 2);
+    WORLD.expPlan = {ed, goal, vol: vol.map(h => h.license)};
+    const ch = hLic(WORLD.chair && WORLD.chair.lic);
+    items.push({lic: ch ? ch.license : '', name: ch ? ch.name : '', kind: 'exped', text: `${ch ? `Chairman ${ch.name} announces` : 'The Association announces'} an expedition to the Dark Continent ${goal}. It leaves next year.${vol.length ? ` ${andList(vol.map(h => h.name))} ${vol.length === 1 ? 'is' : 'are'} the first to volunteer.` : ' Nobody volunteers yet.'}`, rank: 9});
+    const no = pool.filter(h => hStars(h) >= 3 && !vol.includes(h))[0];
+    if(no && Math.random() < 0.4) add(no, 'exped', pickR([`${no.name} turns down a place on the expedition. "Ask me again when I am tired of living."`, `${no.name} is asked to lead the expedition, and says no. ${PR(no).They} will not say why.`, `${no.name} refuses to go to the Dark Continent, and says so in front of the council.`]), 6);
+  }
+  if(!E && (rescueGo || (PL0 && PL0.ed < ed))){
     const size = rescueGo ? 3 + Math.floor(Math.random() * 3) : pickR([3, 4, 4, 5, 5, 5, 6, 6, 7, 8, 10]);
-    let team = act.filter(h => hStars(h) >= 1 && !busy.has(h.license)).sort(() => Math.random() - 0.5).slice(0, size);
+    let team = act.filter(h => hStars(h) >= 1 && !busy.has(h.license) && !h.exped).sort(() => Math.random() - 0.5).slice(0, size);
+    if(!rescueGo && PL0){ const vol = (PL0.vol || []).map(hLic).filter(h => h && hActive(h) && !busy.has(h.license)); team = vol.concat(team.filter(h => !vol.includes(h))).slice(0, size); }
     // now and then a Zodiac member leads, and gives up the seat to go
     const zl = Math.random() < 0.3 ? Object.entries(WORLD.zodiac || {}).map(([z, l]) => [z, hLic(l)]).filter(([z, h]) => h && usable(h) && !busy.has(h.license)) : [];
     const zLead = zl.length ? pickR(zl) : null;
     if(zLead){ team = [zLead[1]].concat(team.filter(h => h !== zLead[1])).slice(0, size); }
     { const rn = (WORLD.relics || {}).a7, rh = rn && rn.st === 'held' && !rn.swap && hLic(rn.holder); if(rh && hActive(rh) && !team.includes(rh) && !busy.has(rh.license) && team.length >= 2){ team = team.slice(0, Math.max(2, team.length - 1)).concat([rh]); } }
     if(team.length >= 3){
+      if(!rescueGo) WORLD.expPlan = null;
       const len = rescueGo ? 2 : pickR([2, 3, 3, 3, 4, 4, 5]);
-      WORLD.exped = {id: 'X' + (++WORLD.seq), ed, year: 0, len, rescue: rescueGo ? LX.id : null, goal: rescueGo ? null : pickR(DC_GOALS), members: team.map(h => h.license), lost: []};
+      WORLD.exped = {id: 'X' + (++WORLD.seq), ed, year: 0, len, rescue: rescueGo ? LX.id : null, goal: rescueGo ? null : (PL0 && PL0.goal) || pickR(DC_GOALS), members: team.map(h => h.license), lost: []};
       team.forEach(h => h.exped = WORLD.exped.id);
       const lead = zLead ? `led by ${team[0].name}, who leaves the ${zLead[0]} seat of the Zodiac to go` : `led by ${team[0].name}`;
       items.push({lic: team[0].license, name: team[0].name, kind: 'exped', text: rescueGo
@@ -946,7 +958,7 @@ function worldStart(prev, ed, add, busy, items){
       if(live.length){ const changed = Math.random() < 0.35 ? pickR(live) : null; const dn = pickR(live), dnT = deedNick(dn, ['Far Shore', 'the Returned', 'Came-Back', 'Other Side', 'Driftwood'], 'for coming back from the Dark Continent'); items.push({lic: live[0].license, name: live[0].name, kind: 'exped', text: `The Dark Continent expedition returns: ${andList(live.map(h => h.name))} ${live.length === 1 ? 'comes' : 'come'} home${E.lost.length ? `, ${E.lost.length} short` : ''}.${!E.rescue && !relicFromExped(E, live, ed, add, items) && Math.random() < 0.6 ? ' ' + pickR(DC_HAUL) : ''}${changed ? ' ' + pickR(DC_CHANGED)(changed) : ''}${dnT ? ` ${dn.name.split(' ')[0]} comes back with a new name: "${dn.nick}".` : ''}`, rank: 10}); if(changed && Math.random() < 0.5){ changed.status = 'Retired'; retireRec(changed, ed, 'after what they saw on the Dark Continent'); } }
       else items.push({lic: '', name: '', kind: 'exped', text: 'The Dark Continent expedition is declared lost. Nobody came back.', rank: 10});
       HUNTERS.forEach(h => { if(h.exped === E.id) delete h.exped; });
-      WORLD.exped = null;
+      WORLD.exped = null; WORLD.lastExpEd = ed;
     }
   }
   return W;
@@ -985,15 +997,31 @@ function worldEnd(prev, ed, add, items, W){
     add(h, 'rival', kid ? `${kid.parents.includes(h.license) ? o.name : h.name} sends flowers when ${kid.parents.includes(h.license) ? h.name : o.name}'s ${kid.gender === 'Male' ? 'son' : kid.gender === 'Female' ? 'daughter' : 'child'} is born. The rivalry from the ${ordinal(Math.max(h.edition, o.edition))} exam is over.`
       : pickR([`${yrs > 1 ? yrs + ' years' : 'A year'} after the exam, ${h.name} and ${o.name} run into each other in ${pl}. Neither remembers what the fight was about.`, `${h.name} and ${o.name}, rivals since the exam, end up on the same side of a bad night in ${pl}. They have been friends since.`, `Both licensed, both busy, both older: ${h.name} and ${o.name} let the old rivalry go without ever saying so.`]), 5, o);
   }));
-  // rivalries from the exam follow them into their careers
-  const rs = new Set();
+  // rivalries from the exam follow them into their careers, as a story with a few chapters instead of endless run-ins:
+  // they cross paths, then compete for something, then it comes to a head; after that it is over, one way or another
+  const rs = new Set(), RIV = WORLD.rivArc = WORLD.rivArc || {};
+  const R1 = [(h, o, pl) => `${h.name} and ${o.name}, rivals since the exam, end up on the same job in ${pl}. Neither will say who was hired first.`,
+    (h, o, pl) => `${h.name} walks into an inn in ${pl} and finds ${o.name} at the only free table. Neither leaves.`,
+    (h, o, pl) => `${h.name} and ${o.name} are forced to work together in ${pl}. They do not speak for three days.`,
+    (h, o, pl) => `${h.name} hears that ${o.name} has been asking about ${PR(h).them} in ${pl}. The old rivalry wakes up.`];
+  const R2 = [(w, l, pl) => `${w.name} and ${l.name} race each other for the same contract in ${pl}. ${w.name} gets there first, and makes sure ${l.first || l.name} hears about it.`,
+    (w, l, pl) => `${w.name} outbids ${l.name} for a lead in ${pl}. ${l.first || l.name} takes it personally.`,
+    (w, l, pl) => `${w.name} and ${l.name} argue in front of half the Association over a job in ${pl}. ${w.name} wins the room.`,
+    (w, l, pl) => `${w.name} takes the apprentice ${l.name} wanted in ${pl}. It is the last straw.`];
   act.forEach(h => (h.rivals || []).forEach(cid => {
-    const o = byCid[cid], k = [h.cid, cid].sort().join(); if(!o || !hActive(o) || rs.has(k) || Math.random() > 0.14 * relDuel(h, o)) return; rs.add(k);
-    const r = Math.random(), pl = pickR(PLACES);
-    if(r < 0.03){ o.status = 'Deceased'; o.diedEd = ed; add(h, 'rival', `${h.name} and ${o.name} settle their old grudge from the exam in ${pl}. Only one walks away.`, 9, o); (o.log = o.log || []).push({ed, k: 'death', text: `${o.name} dies in a duel with an old rival from the exam.`}); }
-    else if(r < 0.15){ h.rivals = h.rivals.filter(x => x !== cid); o.rivals = (o.rivals || []).filter(x => x !== h.cid); add(h, 'rival', `${h.name} and ${o.name}, rivals since the exam, finally share a drink in ${pl}. Nobody saw that coming.`, 6, o); }
-    else add(h, 'rival', pickR([`${h.name} and ${o.name}, rivals since the exam, race each other for a contract in ${pl}. ${h.name} wins, this time.`, `${h.name} and ${o.name} are forced to work together in ${pl}. They do not speak for three days.`, `${h.name} beats ${o.name} in a duel in ${pl}. The grudge from the exam is not over.`]), 5, o);
+    const o = byCid[cid], k = [h.cid, cid].sort().join(); if(!o || !hActive(o) || rs.has(k) || Math.random() > 0.11 * relDuel(h, o)) return; rs.add(k);
+    const st = RIV[k] || 0, pl = pickR(PLACES), end = () => { delete RIV[k]; h.rivals = h.rivals.filter(x => x !== cid); o.rivals = (o.rivals || []).filter(x => x !== h.cid); };
+    const sk = x => careerSkill(x) + hStars(x) * 10 + Math.random() * 30, [w, l] = sk(h) >= sk(o) ? [h, o] : [o, h];
+    if(st === 0){ RIV[k] = 1; add(h, 'rival', pickR(R1)(h, o, pl), 4, o); return; }
+    if(st === 1){ RIV[k] = 2; add(w, 'rival', pickR(R2)(w, l, pl), 5, l); return; }
+    // it comes to a head
+    const r = Math.random();
+    if(r < 0.08){ end(); l.status = 'Deceased'; l.diedEd = ed; l.killedBy = w.name; add(w, 'rival', `${w.name} and ${l.name} settle their old grudge from the exam in ${pl}. Only one walks away.`, 9, l); (l.log = l.log || []).push({ed, k: 'death', text: `${l.name} dies in a duel with ${w.name}, an old rival from the exam.`}); }
+    else if(r < 0.45){ end(); add(h, 'rival', pickR([`${h.name} and ${o.name}, rivals since the exam, end up on the same side of a bad night in ${pl}. They have been friends since.`, `${l.name} saves ${w.name}'s life in ${pl}, and the rivalry from the exam simply stops.`, `${h.name} and ${o.name} finally share a drink in ${pl}. Nobody saw that coming.`]), 6, o); }
+    else if(r < 0.85){ end(); add(w, 'rival', pickR([`${w.name} beats ${l.name} in a duel in ${pl}, cleanly, in front of witnesses. ${l.first || l.name} concedes, and the rivalry from the exam is over.`, `${w.name} and ${l.name} fight it out in ${pl}. ${w.name} wins, and ${l.first || l.name} never challenges ${PR(w).them} again.`]), 7, l); }
+    else { RIV[k] = 1; add(w, 'rival', `${w.name} and ${l.name} fight to a standstill in ${pl}. Nothing is settled.`, 6, l); }
   }));
+  if(ed % 10 === 0){ const live = new Set(); act.forEach(h => (h.rivals || []).forEach(cid => live.add([h.cid, cid].sort().join()))); Object.keys(RIV).forEach(k => { if(!live.has(k)) delete RIV[k]; }); }   // forget the arcs of rivalries that ended some other way
   // someone always wants to avenge the dead
   dead.forEach(d => { if(Math.random() < 0.45) WORLD.avengers.push({hunter: d.name, lic: d.license, last: d.name.split(' ').slice(-1)[0], killer: d.killedBy || null, ed}); });
   WORLD.avengers = WORLD.avengers.filter(a => a.ed >= ed - 2).slice(-4);

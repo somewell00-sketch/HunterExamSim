@@ -253,7 +253,10 @@ function relicsYear(prev, ed, add, items){
       if(WORLD.crisis && o){ relSetHolder(r, o, ed, 'awarded'); const t = `With ${CRISES[WORLD.crisis.k].name} spreading, the council breaks the seal on ${D.name} and gives it to ${o.name}.`; relNote(r, ed, t); add(o, 'relic', t, 8); }
       else { const pl = pickR(PLACES); relLose(r, ed, pl, `The seal on ${D.name} is found broken. The relic is gone.`); relItem(items, `The seal on ${D.name} is found broken, ${ed - r.sealEd} years after it was set. The relic is gone.`, 8); } }
     else if(r.st === 'outlaw'){ const w = (WORLD.wanted || []).find(x => x.id === r.w);
-      if(!w || w.status === 'captured'){ const by = w && w.by && HUNTERS.find(x => x.name === w.by && hActive(x)); if(by){ by.rp = (by.rp || 0) + 40; } if(w) delete w.relic; relVault(r, ed, `${D.name} is recovered${w ? ` when ${w.name} is caught` : ''}${by ? ` by ${by.name}` : ''}, and goes back to the vault.`); if(by) add(by, 'relic', `${by.name} brings back ${D.name} along with ${w.name}.`, 7); } }
+      // dead with nobody there to take it: another member of the group keeps it, or it is lost
+      if(w && w.status === 'dead' && !w.by){ const g = typeof gangOf === 'function' && (gangOf(w.gang) || gangOf(w.formerGang)), heir = g && g.end == null ? gangMembers(g).find(x => x.status === 'wanted' && !x.relic) : null; delete w.relic;
+        if(heir) relOutlaw(r, ed, heir, `${D.name} passes to ${heir.name} when ${w.name} dies.`); else relLose(r, ed, pickR(PLACES), `${D.name} disappears with ${w.name}.`); return; }
+      if(!w || w.status === 'captured' || w.status === 'dead'){ const by = w && w.by && HUNTERS.find(x => x.name === w.by && hActive(x)); if(by){ by.rp = (by.rp || 0) + 40; } if(w) delete w.relic; relVault(r, ed, `${D.name} is recovered${w ? ` when ${w.name} is ${w.status === 'dead' ? 'killed' : 'caught'}` : ''}${by ? ` by ${by.name}` : ''}, and goes back to the vault.`); if(by) add(by, 'relic', `${by.name} brings back ${D.name} along with ${w.name}.`, 7); } }
   });
   // still to be found: signs in the ruins of the old world, the odd arcanum far from the Dark Continent
   if(Math.random() < 0.04){ const f = pickR(act.filter(x => /^(Treasure|Ruins)/.test(x.career || ''))); if(f) relicFromRuins(f, ed, add, items); }

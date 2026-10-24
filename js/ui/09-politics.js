@@ -10,7 +10,7 @@ const seatSince = (k, ed) => { WORLD.since = WORLD.since || {}; WORLD.since[k] =
 const chairTerm = (lic, ed) => { WORLD.chairHist = WORLD.chairHist || []; const last = WORLD.chairHist[WORLD.chairHist.length - 1]; if(last && !last.to && last.lic === lic) return;   // re-elected: same term continues
   if(last && !last.to) last.to = ed; WORLD.chairHist.push({lic, from: ed}); };
 const setChair = () => { const c = WORLD.chair && hLic(WORLD.chair.lic), v = hLic(WORLD.vice); CHAIR = c && !hActive(c) && v && hActive(v) ? {name: v.name, gender: v.gender, title: 'Acting Chairman'} : c ? {name: c.name, gender: c.gender} : null; };   // a vanished Chairman is stood in for by the Vice
-const usable = h => h && hActive(h) && !h.legacy && !(WORLD.exped && h.exped === WORLD.exped.id);
+const usable = h => h && hActive(h) && !h.legacy && !(WORLD.exped && h.exped === WORLD.exped.id) && !(WORLD.rx && h.exped === WORLD.rx.id);
 // the Chairman picks people they trust: same field, bonds, and the strongest
 // each seat of the Zodiac looks for its own kind of Hunter: three abilities and two or three fields
 const ZPROF = {
@@ -232,7 +232,7 @@ function careerHtml(h){
   const groups = [];
   (h.log || []).slice().reverse().forEach(x => { const g = groups[groups.length - 1]; if(g && g.ed === x.ed) g.list.push(x); else groups.push({ed: x.ed, list: [x]}); });
   const line = x => { const k = careerKind(x), txt = x.text.startsWith(h.name + ' ') && !x.text.startsWith(h.name + ' and ') ? x.text.slice(h.name.length + 1) : x.text;
-    return `<div class="bl ${k}"><i>${CAREER_IC[k] || '·'}</i><span>${esc(txt.charAt(0).toUpperCase() + txt.slice(1))}</span></div>`; };
+    return `<div class="bl ${k}"><i>${CAREER_IC[k] || '·'}</i><span>${typeof uwLinkOutlaws === 'function' ? uwLinkOutlaws(esc(txt.charAt(0).toUpperCase() + txt.slice(1)), h.name) : esc(txt.charAt(0).toUpperCase() + txt.slice(1))}</span></div>`; };   // outlaw names link to their page
   const block = g => `<div class="cy"><div class="cy-h">After the ${ordinal(g.ed)}</div>${g.list.map(line).join('')}</div>`;
   const KEEP = 5, recent = groups.slice(0, KEEP), older = groups.slice(KEEP);
   return recent.map(block).join('') + (older.length ? `<details class="cy-old"><summary>Earlier years · ${older.length}</summary>${older.map(block).join('')}</details>` : '');
@@ -451,7 +451,7 @@ function hunterYear(prev){
     if(h.motive !== undefined && h.motive !== null && !h.motiveDone && RESOLVE[h.motive] && Math.random() < (h.edition === ed ? 0.1 : 0.15)){ h.motiveDone = ed; add(h, 'epilogue', pro(RESOLVE[h.motive].replace('{n}', h.name), h), 6); }
     (h.rpH = h.rpH || []).push(h.rp || 0); if(h.rpH.length > 10) h.rpH.shift();   // reputation at the start of each of the last 10 years
     growAttrs(h, ageNow);
-    if(h.exped === WORLD.exped?.id && WORLD.exped) return;   // away on the expedition this year
+    if((h.exped === WORLD.exped?.id && WORLD.exped) || (WORLD.rx && h.exped === WORLD.rx.id)) return;   // away on the expedition this year
     if(h.susp && h.susp >= ed) return;   // suspended by the council: no contracts this year
     const hot = W.crisis && W.crisis.areas.includes(area);
     const risk = (0.01 + (['Blacklist','Crime','Virus'].includes(area) ? 0.012 : 0) - before * 0.002) * (hot ? 1.8 : 1) * thin * relRisk(h, ageNow);
@@ -511,7 +511,8 @@ function hunterYear(prev){
         // now and then a Hunter of the same field joins in, or gets in the way
         const peer = Math.random() < 0.12 * relDuo(h) ? pickR(HUNTERS.filter(x => x !== h && hActive(x) && !x.legacy && x.edition <= ed && (x.career || '') === (h.career || '') && !busy.has(x.license)) .concat([null])) : null;
         if(peer && Math.random() < 0.6 && !/^was /.test(job)){ busy.add(peer.license); peer.rp = (peer.rp || 0) + Math.round(gain / 2); h.rp += gain; add(h, 'job', fillH(pickR(DUO), h, {o: peer.name, job: toBase(job.replace(/\{pl\}/g, plText(pl)))}) + '.', gain / 18, peer); }
-        else if(peer){ busy.add(peer.license); h.rp += gain; add(h, 'rival', fillH(pickR(RIVAL), h, {o: peer.name, pl}), 3, peer); }
+        else if(peer){ busy.add(peer.license); h.rp += gain; add(h, 'job', fillH(pickR(RIVAL), h, {o: peer.name, pl}), 3, peer);   // a clash over work, not yet a rivalry
+          if(Math.random() < 0.04 && h.cid && peer.cid && !(h.rivals || []).includes(peer.cid)){ [[h, peer], [peer, h]].forEach(([a, b]) => { (a.rivals = a.rivals || []).push(b.cid); (a.rivalWhy = a.rivalWhy || {})[b.cid] = `crossed ${PR(a).them} on a contract in ${plText(pl)}`; }); add(h, 'rival', pickR([`It started over one contract in ${plText(pl)}. Now ${h.name} and ${peer.name} are rivals.`, `${h.name} and ${peer.name} have crossed paths on one job too many. After ${plText(pl)}, it is personal.`, `${peer.name} took the credit for ${plText(pl)}. ${h.name} has not forgotten, and does not intend to.`]), 5, peer); } }
         else { h.rp += gain; add(h, 'job', `${h.name} ${fillH(job, h, {pl})}.`, gain / 20); maybeDiscover(h, ed, add, job); }
       }
       else { h.rp += 5; if(Math.random() < 0.35) add(h, 'fail', `${h.name} ${fillH(pickR(JOB_FAIL), h, {pl})}.`, 1); }
@@ -622,11 +623,13 @@ function marksHtml(){
 }
 function wantedHtml(){
   const W = WORLD, hb = l => { const h = HUNTERS.find(x => x.license === l); return h ? `<a data-hunter="${esc(h.license)}">${esc(h.name)}</a>` : '—'; };
-  const wanted = (W.wanted || []).filter(w => w.status === 'wanted').slice(-8).reverse(), caught = (W.wanted || []).filter(w => w.status === 'captured').slice(-3).reverse();
+  // a group's members live on the group's page; the posters show lone outlaws and the leaders
+  const poster = w => !w.gang || (typeof gangOf === 'function' && gangOf(w.gang) && gangOf(w.gang).lead === w.id);
+  const wanted = (W.wanted || []).filter(w => w.status === 'wanted' && poster(w)).slice(-8).reverse(), caught = (W.wanted || []).filter(w => w.status === 'captured' && poster(w)).slice(-3).reverse();
   if(!wanted.length && !caught.length) return '';
   const tilt = w => ((nhash(w.id) % 7) - 3) * 0.6;
   const card = (w, done) => { const x = !done && (W.hunts || []).find(y => y.w === w.id && !y.done);
-    return `<div class="wp${done ? ' caught' : ''}" style="--r:${tilt(w)}deg"><small>Wanted</small><b>${esc(w.name)}</b>${w.nick ? `<i>“${esc(w.nick)}”</i>` : ''}<span class="wp-d" title="Danger">${'☠'.repeat(w.danger || 1)}</span>
+    return `<div class="wp${done ? ' caught' : ''}" style="--r:${tilt(w)}deg"><small>Wanted</small><b><a data-outlaw="${w.id}">${esc(w.name)}</a></b>${w.gang && typeof gangOf === 'function' && gangOf(w.gang) ? `<i>leader of ${esc(gangOf(w.gang).name)}</i>` : ''}${w.nick ? `<i>“${esc(w.nick)}”</i>` : ''}<span class="wp-d" title="Danger">${'☠'.repeat(w.danger || 1)}</span>
       <p>${done ? `Caught by ${esc(w.by || 'a Hunter')}` : x ? `Hunted by ${hb(x.lic)} · ${x.year + 1} yr${x.year ? 's' : ''}` : 'No Hunter on the case'}${w.kills ? ` · ${w.kills} Hunter${w.kills > 1 ? 's' : ''} killed` : ''}${w.cid ? '<br>former candidate' : ''}</p>${done ? '<em class="wp-stamp">Captured</em>' : ''}</div>`; };
   return `<div><div class="section-h">Blacklist</div><div class="wanted">${wanted.map(w => card(w)).join('')}${caught.map(w => card(w, true)).join('')}</div></div>`;
 }
@@ -638,7 +641,7 @@ function renderWorld(){
   const el = $('pane-world'), n = BULLETINS.length, i = wdYear == null ? n - 1 : clamp(wdYear, 0, n - 1), b = BULLETINS[i];
   const herald = b ? `<div class="herald"><div class="hd-mast"><button type="button" class="hd-nav" data-wdy="${i - 1}" ${i > 0 ? '' : 'disabled'} aria-label="Earlier issue">‹</button><div><b>The Hunter Herald</b><small>No. ${b.edition} · the year after the ${ordinal(b.edition)} exam${i < n - 1 ? ' · <span class="hd-old">back issue</span>' : ''}</small></div><button type="button" class="hd-nav" data-wdy="${i + 1}" ${i < n - 1 ? '' : 'disabled'} aria-label="Later issue">›</button></div>${bulletinHtml(b)}</div>`
     : '<div class="herald"><div class="hd-mast"><span></span><div><b>The Hunter Herald</b><small>The first issue comes out after the first exam</small></div><span></span></div></div>';
-  el.innerHTML = `${pageHead('Beyond the exam', 'World', '#e0703a')}${advanceBarHtml()}${herald}<div class="wd-two">${wantedHtml() || '<div><div class="section-h">Blacklist</div><p class="muted" style="margin:0">Nobody is wanted right now.</p></div>'}${dcHtml()}</div>${atlasHtml() || '<div><div class="section-h">Regions</div><p class="muted" style="margin:0">Everywhere is quiet, for now.</p></div>'}${marksHtml()}${relicsHtml()}${schoolsHtml()}${docketHtml()}${originHtml()}`;
+  el.innerHTML = `${pageHead('Beyond the exam', 'World', '#e0703a')}${advanceBarHtml()}${herald}<div class="wd-two">${wantedHtml() || '<div><div class="section-h">Blacklist</div><p class="muted" style="margin:0">Nobody is wanted right now.</p></div>'}${dcHtml()}</div>${typeof underworldHtml === 'function' ? underworldHtml() : ''}${atlasHtml() || '<div><div class="section-h">Regions</div><p class="muted" style="margin:0">Everywhere is quiet, for now.</p></div>'}${marksHtml()}${relicsHtml()}${schoolsHtml()}${docketHtml()}${originHtml()}`;
   el.querySelectorAll('[data-wdy]').forEach(x => x.onclick = () => { wdYear = +x.dataset.wdy; renderWorld(); });
 }
 document.addEventListener('click', e => { const g = e.target.closest('[data-gosec]'); if(g){ showTab(g.dataset.gosec); window.scrollTo(0, 0); } });

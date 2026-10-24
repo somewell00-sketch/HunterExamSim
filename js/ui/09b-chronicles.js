@@ -16,6 +16,7 @@ const CASE_K = {
   fraud: {sev: 3, what: 'rigging the exam', open: ['Candidates from the {e} exam swear {n} let a favourite through the {ph}. The Association opens a case against its own examiner.', 'An anonymous letter accuses {n}, examiner of the {ph} in the {e} exam, of selling the answers.']},
   negl: {sev: 2, what: 'negligence as an examiner', open: ['The families of those who died in {cat} accuse {n}, an examiner that year, of negligence. The Association opens a case.']},
   collusion: {sev: 3, what: 'letting a Blacklist target go', open: ['{w} slipped away from {n} once too often. The Association asks whether it was an accident.', 'A Blacklist informant claims {n} was paid to lose {w}\'s trail. A case is opened.']},
+  patron: {sev: 2, what: 'serving a foreign expedition without leave', open: ['{n} took a patron\'s money and led a private expedition to the Dark Continent without the Association\'s leave. A case is opened.']},
   abandon: {sev: 2, what: 'abandoning teammates on the Dark Continent', open: ['The families of the Hunters lost on the Dark Continent accuse {n}, who led the expedition, of leaving them behind.']}
 };
 const CASE_OPEN_MAX = 4, CASE_KEEP = 60;
@@ -335,7 +336,7 @@ function schoolRowHtml(h){
   const m = hLic(h.master), s = schOf(h.school), P = HUNTERS.filter(x => x.master === h.license);
   if(!m && !s && !P.length) return '';
   const hl = x => `<a data-hunter="${esc(x.license)}">${esc(x.name)}</a>`;
-  return `<div><div class="section-h">Nen lineage</div>${m ? `<p class="h-fam"><span>⛩</span> Trained by ${hl(m)}${h.mEd ? ` <span class="muted">from the ${ordinal(h.mEd)}</span>` : ''}</p>` : ''}${s ? `<p class="h-fam"><span>⛩</span> ${schHead(s) && schHead(s).lic === h.license ? 'Master of' : s.founder === h.license ? 'Founder of' : 'Student of'} ${schoolCrest(s, 22)} <a class="golink" data-school="${s.id}" title="Open the school">${esc(capS(s.name))} ›</a></p>` : ''}${P.length ? `<p class="h-fam"><span>⛩</span> Students: ${P.slice(0, 8).map(hl).join(', ')}${P.length > 8 ? ` and ${P.length - 8} more` : ''}</p>` : ''}</div>`;
+  return `<div><div class="section-h">Nen lineage</div>${m ? `<p class="h-fam"><span>⛩</span> Trained by <b>${hl(m)}</b>${h.mEd ? ` <span class="muted">from the ${ordinal(h.mEd)}</span>` : ''}</p>` : ''}${s ? `<p class="h-fam"><span>⛩</span> ${schHead(s) && schHead(s).lic === h.license ? 'Master of' : s.founder === h.license ? 'Founder of' : 'Student of'} ${schoolCrest(s, 22)} <a class="golink" data-school="${s.id}" title="Open the school">${esc(capS(s.name))} ›</a></p>` : ''}${P.length ? `<p class="h-fam"><span>⛩</span> Students: ${P.slice(0, 8).map(hl).join(', ')}${P.length > 8 ? ` and ${P.length - 8} more` : ''}</p>` : ''}</div>`;
 }
 // capture phase: a school link inside a Hunter's row opens the school, not the Hunter
 document.addEventListener('click', e => { const s = e.target.closest('[data-school]'), h = e.target.closest('[data-hunter]'); if(s && (!h || h.contains(s))){ e.preventDefault(); e.stopPropagation(); openSchool(s.dataset.school); } }, true);
@@ -407,6 +408,7 @@ function chroniclesYear(prev, ed, add, items){
   try { casesYear(prev, ed, add, items); } catch(e){ console.error(e); }
   try { schoolsYear(ed, add, items); } catch(e){ console.error(e); }
   try { relicsYear(prev, ed, add, items); } catch(e){ console.error(e); }
+  try { if(typeof underworldYear === 'function') underworldYear(prev, ed, add, items); } catch(e){ console.error(e); }
 }
 
 /* ---------- the dojos: a school's pupils who are not Hunters yet ----------

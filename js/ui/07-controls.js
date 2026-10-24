@@ -35,7 +35,7 @@ $('bNext').onclick = () => {
   HISTORY.slice(0, -12).forEach(r => { if(r.snap && !r.slim){ r.snap.events = r.snap.events.filter(e => ['death','betray','major','sabot','arc','rival','event'].includes(e.t)).slice(0, 120); r.snap.alliances = (r.snap.alliances || []).slice(0, 6); r.slim = true; } });
   finalizeAttempts(S);
   hunterYear(S);
-  mtForceReturn(); const prev = S; S = fresh(S.edition + 1, S); FORCE_RETURN = new Set(); favReturn(prev); heirsEnter(S); try { schoolsEnter(S); } catch(e){ console.error(e); } selPhase = null; save(); render(); showTab('phase');
+  mtForceReturn(); const prev = S; S = fresh(S.edition + 1, S); FORCE_RETURN = new Set(); favReturn(prev); heirsEnter(S); try { schoolsEnter(S); } catch(e){ console.error(e); } try { if(typeof underworldEnter === 'function') underworldEnter(S); } catch(e){ console.error(e); } selPhase = null; save(); render(); showTab('phase');
 };
 // wiping the whole world lives in History, next to the save file, behind a second click
 function resetEverything(){

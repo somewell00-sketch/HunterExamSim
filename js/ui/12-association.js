@@ -206,6 +206,7 @@ function openHunter(license){
     ${lineageHtml(h.license, h.cid, spouseRow(h))}
     ${schoolRowHtml(h)}
     ${relicRowHtml(h)}
+    ${typeof hunterUwHtml === 'function' ? hunterUwHtml(h) : ''}
     ${(() => { const K = S.candidates.filter(c => c.hParent === h.license && legendKnown(c)); return K.length ? `<p class="h-fam"><span>✦</span> ${K.length === 1 ? 'Child' : 'Children'} in the ${ordinal(S.edition)} exam: ${K.map(c => `<a data-id="${c.id}">${esc(c.name)}</a>`).join(', ')}</p>` : ''; })()}
     ${(h.log || []).length || h.originNote ? `<div><div class="section-h">Career</div><div class="bulletin career">${careerHtml(h)}${h.originNote ? `<div class="bl origin"><i>◉</i><span><span class="muted">Before the records</span> ${esc(h.originNote.startsWith(h.name + ' ') ? h.originNote.slice(h.name.length + 1) : h.originNote)}</span></div>` : ''}</div></div>` : ''}
     ${h.nen ? nenPanel({nen: h.nen}) : ''}

@@ -859,7 +859,7 @@ select option{background:var(--panel);color:var(--fg)}
 @media (max-width:820px){.wd-two{grid-template-columns:1fr}}
 @media (max-width:560px){.wanted{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.herald{padding:12px}.wp small{font-size:16px}}
 .bl.wed i{color:#e892b4}.bl.reunion i{color:var(--green,#7bc47f)}.bl.memorial i{color:var(--gold)}
-.h-fam{margin:0;font-size:13.5px;color:var(--muted)}.h-fam span{color:#e892b4;margin-right:4px}
+.h-fam{margin:0;font-size:13.5px;color:var(--muted)}.h-fam > span:first-child{color:#e892b4;margin-right:4px}
 .hi-more{margin-top:8px}
 .wchip{position:relative}
 .pfx{position:absolute;left:50%;top:-4px;transform:translate(-50%,0);font-family:var(--f-mono);font-size:12px;font-weight:700;white-space:nowrap;pointer-events:none;animation:pfx 1.8s ease-out forwards}

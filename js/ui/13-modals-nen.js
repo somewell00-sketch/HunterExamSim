@@ -264,6 +264,7 @@ function familyLine(c){
 }
 const LEAD_NUM = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve'];
 function storyLead(c){
+  if(c.uwSurv) return `${c.first} is the last of the ${c.uwSurv.clan} family. ${c.uwSurv.gname.replace(/^The /, 'The ')} burned ${c.uwSurv.pl} when {they} {were} a child, and {they} {have} wanted a Hunter license ever since.`;
   const A = (c.attempts || []).filter(x => x.status === 'Completed' && x.edition < S.edition), n = attemptsOf(c);
   // a long road: five tries or more
   if(n >= 5 && A.length){

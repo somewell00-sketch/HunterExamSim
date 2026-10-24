@@ -29,10 +29,12 @@ No build step, no server, no dependencies. Open `index.html` and it runs.
 
 **The world**
 - Careers with contracts by rank, star promotions and Blacklist hunts.
-- Dark Continent expeditions, crises, and places with a history.
+- Dark Continent expeditions, announced a year ahead; other powers send their own. Crises, and places with a history.
+- Rivalries from the exam play out as short arcs: they cross paths, compete, and settle it.
 - Elections for Chairman and the Zodiac.
 - Cases before the council: accusations, investigations, trials, verdicts, and old cases reopened decades later.
 - Schools of Nen: masters take students, found schools, pass them on, and sometimes split them in two. Their dojos send candidates to the exam; a few already know some Nen. Each school has a crest that tells its story; branches carry their parent's arms with a mark of difference.
+- The Underworld: outlaw groups in the spirit of the Phantom Troupe, usually one at a time, numbered or themed (colours, chess, cards, sins, notes, metals, moons, winds). They rob, burn and kill Hunters, recruit, and end when their leader falls. A member may take the Hunter Exam under a clean name; the last survivor of a massacre may come for them years later.
 - The missing who come back find their seat taken, their spouse remarried, or a case still waiting for them.
 - Thirty-four relics, each with a gift and a price: found on the Dark Continent or in old ruins, inherited, stolen, sealed, forged.
 - Advance +1, +10 or +50 years without watching each exam; the run stops when something you care about happens.
@@ -77,6 +79,7 @@ js/ui/                  everything on screen
   09b-chronicles.js     cases and trials, schools of Nen, coming back from missing
   09c-relics.js         the 34 relics: gifts, prices, owners, thefts, forgeries, the Atlas
   09d-crests.js         school crests (shape, field, colours and charge from the school's story) and relic icons
+  09e-underworld.js     outlaw groups, their members, the spy in the exam, the last survivor, rival expeditions
   10-herald.js          the newspaper
   11-exam-views.js      trial pages, Zevil Island, the Final
   12-association.js     the Hunter register
