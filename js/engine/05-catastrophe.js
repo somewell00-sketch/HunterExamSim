@@ -277,7 +277,7 @@ function runScored(S, ph, p, rng, pool){
     setFall(S, c, p, fallPick(S, ((FALL_SC[ph.id] || {})[wk] || []).concat(['{F} ' + ph.fail[wk] + '.']), c.id + p), {attr: wk, hair: sc >= T - 3});
   }
   const best = pool.reduce((b,c) => !b || c.scores[ph.id] > b.scores[ph.id] ? c : b, null);
-  if(best){ log(S, p, 'major', vpick(S, T_LEAD, ph.id)({c: best, ph: ph.name}), [best.id]); giveNick(S, best, 'ace', `for leading the ${ph.name}`, p, 0.35); }
+  if(best){ log(S, p, 'major', vpick(S, phKind(ph) === 'course' ? T_LEAD : T_LEAD_TEST, ph.id)({c: best, ph: ph.name}), [best.id]); giveNick(S, best, 'ace', `for leading the ${ph.name}`, p, 0.35); }
   trialCloser(S, ph, p, pool, passed, T, best);
   const out = failed.filter(c => c.status === 'Eliminated');
   if(out.length){

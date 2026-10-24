@@ -68,7 +68,7 @@ function lineage(lic, cid){
   const key = p => p.lic || (p.kid && p.kid.id);
   const parents = p => { const h = p.lic && hLic(p.lic); return ((p.kid && p.kid.parents) || (h && (h.heirOf || (h.hParent ? [h.hParent] : null))) || []).map(ofLic).filter(Boolean); };
   const children = l => !l ? [] : H.filter(k => k.parents.includes(l)).map(k => ({lic: licOfKid(k), kid: k}))
-    .concat(HUNTERS.filter(x => x.hParent === l && !H.some(k => k.cid === x.cid)).map(x => ({lic: x.license, kid: null})));
+    .concat(HUNTERS.filter(x => (x.hParent === l || (x.heirOf || []).includes(l)) && !H.some(k => k.cid === x.cid)).map(x => ({lic: x.license, kid: null})));   // a Hunter listed as the heir of l is l's child too
   const uniq = arr => { const m = new Map(); arr.forEach(p => { const k = key(p); if(k && !m.has(k)) m.set(k, p); }); return [...m.values()]; };
   [me].forEach(p => seen.add(key(p))); if(me.kid) seen.add(me.kid.id); if(me.lic) seen.add(me.lic);
   const add = (p, rel, step) => { const k = key(p); if(!k || seen.has(k) || (p.kid && seen.has(p.kid.id))) return false; seen.add(k); if(p.kid) seen.add(p.kid.id); if(p.lic) seen.add(p.lic);
@@ -82,10 +82,10 @@ function lineage(lic, cid){
   const GP = uniq(P.flatMap(parents)); GP.forEach(p => add(p, x => g(x, 'grandfather', 'grandmother', 'grandparent')));
   const AU = uniq(GP.flatMap(p => children(p.lic))).filter(p => !PL.includes(p.lic) && !P.some(q => q.kid && p.kid && q.kid.id === p.kid.id)).filter(p => add(p, x => g(x, 'uncle', 'aunt', "parent's sibling")));
   const SIB = uniq(P.flatMap(p => children(p.lic))).filter(s => { const sp = parents(s).map(q => q.lic), full = sp.length === PL.length && PL.every(l => sp.includes(l)); return add(s, x => (full ? '' : 'half-') + g(x, 'brother', 'sister', 'sibling')); });
+  const K = uniq(children(me.lic)); K.forEach(p => add(p, x => g(x, 'son', 'daughter', 'child')));
   uniq(SP.flatMap(p => children(p.lic))).forEach(p => add(p, x => g(x, 'stepbrother', 'stepsister', 'step-sibling'), 1));
   uniq(AU.flatMap(p => children(p.lic))).forEach(p => add(p, () => 'cousin'));
   uniq(SIB.flatMap(p => children(p.lic))).forEach(p => add(p, x => g(x, 'nephew', 'niece', "sibling's child")));
-  const K = uniq(children(me.lic)); K.forEach(p => add(p, x => g(x, 'son', 'daughter', 'child')));
   uniq(spouses(me.lic).flatMap(p => children(p.lic))).forEach(p => add(p, x => g(x, 'stepson', 'stepdaughter', 'stepchild'), 1));
   uniq(K.flatMap(p => children(p.lic))).forEach(p => add(p, x => g(x, 'grandson', 'granddaughter', 'grandchild')));
   return out;

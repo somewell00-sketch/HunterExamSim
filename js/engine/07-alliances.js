@@ -201,7 +201,9 @@ function runZevil(S, ph, p, rng, active){
   const bn = id => '#' + byId[id].reg;
   active.forEach(c => { c.badges = [c.id]; c.target = null; c.zFights = 0; c.zxp = expBonus(S, c, p) * 0.6; c.zMode = null; c.zFor = null; c.zAsked = false; c.zFell = null; c.zHelped = []; });
   const Z = S.zevil = {ids: active.map(c => c.id), targets:{}, days:[], ev:[]};
-  const zlog = (day, type, text, ids, major) => { Z.ev.push({day, type, text, ids}); log(S, p, major ? 'major' : type, text, ids, !major); };
+  // the cast's hunts remember what came before ("(Erol still owes Nina for the Trick Tower.)")
+  const zlog = (day, type, text, ids, major) => { if(day > 0 && ['duel', 'help', 'ally', 'family'].includes(type) && typeof castCallback === 'function') text += castCallback(S, p, rng, ...(ids || []).map(id => byId[id]));
+    Z.ev.push({day, type, text, ids}); log(S, p, major ? 'major' : type, text, ids, !major); };
   const snap = day => Z.days.push({day, allies: Object.fromEntries(active.map(c => [c.id, alliesOf(S, c).map(o => o.id)])), hold: Object.fromEntries(active.map(c => [c.id, c.badges.slice()])), gone: Object.fromEntries(active.filter(c => c.status !== 'Active').map(c => [c.id, c.status]))});
   if(active.length === 1){
     const c = active[0];
@@ -212,6 +214,10 @@ function runZevil(S, ph, p, rng, active){
   const cyc = rng.shuffle(active.slice());
   cyc.forEach((c, i) => { c.target = cyc[(i+1) % cyc.length].id; Z.targets[c.id] = c.target; });
   log(S, p, 'info', `${active.length} candidates land on Zevil Island. Each draws a secret target number.`);
+  // the island's scenes written before the hunt (habits, finds, the second night) belong to the week, not to the landing: each goes to a day of the feed
+  S.log.filter(e => e.p === p && e.type === 'event' && !e.d && !/^(Day \d+|Arrival):/.test(e.text)).forEach(e => {
+    const d = /second night/.test(e.text) ? 2 : /every night|each day|every day/.test(e.text) ? 1 : 1 + Math.floor(rng() * 6);
+    e.text = `Day ${d}: ${e.text}`; Z.ev.push({day: d, type: 'event', text: e.text, ids: e.ids}); });
 
   // alliances carried onto the island: a member whose target is an ally faces a conflict of interest
   const zl = (t, ids, ty) => zlog(0, ty || 'ally', t, ids);
@@ -240,6 +246,7 @@ function runZevil(S, ph, p, rng, active){
   const zHelpNote = (c, o) => { if(!c.zHelped.includes(o.id)) c.zHelped.push(o.id); c.notes.push({p, text: c.zMode === 'escort' ? `Already safe, stayed at ${o.name}'s side on Zevil Island` : `Already safe, went back out to hunt for ${o.name}'s target`}); };
 
   for(let day=1; day<=7; day++){
+    if(typeof zevilMoments === 'function') zevilMoments(S, day, rng, active.filter(c => c.status === 'Active'), byId, (t, ids) => zlog(day, 'event', `Day ${day}: ${t}`, ids));
     // allies hand over each other's target badges
     for(const c of active){
       if(c.status !== 'Active') continue;

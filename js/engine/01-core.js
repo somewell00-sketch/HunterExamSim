@@ -560,6 +560,12 @@ const ST_GRIM = /\b(die|dies|dead|death|blood|fear|afraid|pale|nightmare|farewel
 const ST_STATE = /\b(has been|have been|grew up|was raised|were raised|comes from|come from|is the|has always|might as well|feels like|has already|is sure|was born|cannot|can't|can|never|always|it shows|twice as hard|fear of|examiners?)\b/i;
 // how the trial ended for a few people worth following: a climb, a near miss, a slip
 const CL_CLIMB = [o => `${o.c.name} was ${ordinal(o.pr)} of ${o.pn} after the ${o.prev}. ${o.P.They} finish${o.P.es} the ${o.ph} ${ordinal(o.r)}.`, o => `From ${ordinal(o.pr)} in the ${o.prev} to ${ordinal(o.r)} in the ${o.ph}: ${o.c.name} is waking up.`, o => `Nobody was watching ${o.c.name} after the ${o.prev}. After the ${o.ph}, everyone is.`];
+// what shape a trial has, for lines that talk about where it ends: a course has a finish and a camp after it; a duel has a ring;
+// Zevil Island ends at the boat; everything else (a quiz, a kitchen, an auction) is judged on the spot
+const PH_COURSE = new Set(['sea', 'nighttrain', 'cliffpath', 'marathon', 'stairs', 'wetlands', 'desert', 'nighthunt', 'mountain', 'egg', 'treasure', 'tower', 'maze', 'raft', 'centennial', 'ridge', 'blankmap', 'mute', 'pairs', 'feeding', 'mirror']);
+// trials that happen indoors or underground: no trees, no sky, no hot springs
+const PH_INDOOR = new Set(['nighttrain', 'auction', 'tower', 'maze', 'marathon', 'hall', 'mirror', 'banquet', 'dice', 'guardians', 'centennial', 'prisoner']);
+const phKind = ph => !ph ? 'test' : ph.zevil ? 'island' : ph.final ? 'final' : ph.xp === 'duel3' ? 'duel' : PH_COURSE.has(ph.id) || ph.course ? 'course' : 'test';
 const CL_HAIR = [o => `${o.c.name} makes the cut in the ${o.ph} by almost nothing.`, o => `${o.c.name} scrapes through the ${o.ph}. ${o.P.They} know${o.P.s} how close it was.`, o => `The examiner checks ${o.c.name}'s result twice. Through, barely.`, o => `${o.c.name} crosses the line in the ${o.ph} with nothing left, and nothing to spare.`];
 const CL_SLIP = [o => `${o.c.name}, ${ordinal(o.pr)} after the ${o.prev}, gets through the ${o.ph} in ${ordinal(o.r)}. Something is off.`, o => `${o.c.name} drops from ${ordinal(o.pr)} to ${ordinal(o.r)} in the ${o.ph}. Still in, but rattled.`];
 function trialCloser(S, ph, p, pool, passed, T, best){
@@ -576,7 +582,7 @@ function trialCloser(S, ph, p, pool, passed, T, best){
   }
   who.filter(c => c.scores[ph.id] - T >= 0 && c.scores[ph.id] - T < 2).slice(0, 3).forEach(c => add('hair', c, {}));
   out.forEach(({k, c, o}) => { const X = {c, P: PR(c), ph: ph.name, prev: prev && prev.name, pn: was ? was.n.toLocaleString('en-US') : '', ...o};
-    log(S, p, 'event', vpick(S, k === 'climb' ? CL_CLIMB : k === 'slip' ? CL_SLIP : CL_HAIR, c.id + k)(X), [c.id]); });
+    log(S, p, 'event', vpick(S, k === 'climb' ? CL_CLIMB : k === 'slip' ? CL_SLIP : phKind(ph) === 'course' ? CL_HAIR : CL_HAIR.slice(0, 3), c.id + k)(X), [c.id]); });   // only a course has a line to cross
 }
 // routine alliance news among ordinary applicants only goes to the detailed log
 const _cmC = new WeakMap();
@@ -594,7 +600,7 @@ function storyLine(S, text, ids){
   M[k] = S.edition;
   const one = (text.match(/[.!?](\s|$)/g) || []).length === 1, first = text.split(' ')[0], named = (ids || []).some(id => { const c = S.candidates.find(x => x.id === id); return c && text.startsWith(c.first || c.name); });
   const r = (h >>> 8) % 100;
-  if(r < 26 && one && !ST_STATE.test(text) && !/^(At|Before|After|By|During|In|On|When|While|Halfway|Somewhere|From|Last|This|Every|Nobody|Everyone|Someone|Two|Three)\b/.test(text) && !/:/.test(text.slice(0, 30)))
+  if(r < 26 && one && !ST_STATE.test(text) && !/^(At|Before|After|By|During|In|On|When|While|Halfway|Somewhere|From|Last|This|Every|Nobody|Everyone|Someone|Two|Three|Meanwhile)\b/.test(text) && !/:/.test(text.slice(0, 30)))
     return `${ST_OPEN[(h >>> 4) % ST_OPEN.length]} ${named || /^[A-Z][a-z]+ [A-Z]/.test(text) ? text : text.charAt(0).toLowerCase() + text.slice(1)}`;
   if(r >= 26 && r < 42 && one && named && !ST_STATE.test(text) && !ST_GRIM.test(text)) return `${text} ${ST_TAIL[(h >>> 4) % ST_TAIL.length]}`;
   return text;
@@ -721,15 +727,21 @@ function fallCtx(S, c, p, base, opt){
   if(c.sabBy && c.sabP === p && m[c.sabBy]) L.push([9, `It did not help that ${m[c.sabBy].name} had tampered with {their} gear the night before.`]);
   if(c.injury && c.injury.p < p) L.push([7, `The ${c.injury.w} from the ${c.injury.from} gave out first.`]);
   if(c.fatigue >= 55 && p > 0) L.push([5, `{They} had come in with nothing left from the ${PHASES[p - 1] ? PHASES[p - 1].name : 'last trial'}.`]);
-  if(opt.hair) L.push([6, vpick(S, ['A few steps more and {they} would have made it.', 'By a hair. The examiner said so, which did not help.', 'Close enough to see the others pass. Not close enough to pass.'], c.id + 'h')]);
+  if(opt.hair) L.push([6, vpick(S, (phKind(PHASES[p]) === 'course' ? ['A few steps more and {they} would have made it.'] : ['One more point and {they} would have made it.']).concat(['By a hair. The examiner said so, which did not help.', 'Close enough to see the others pass. Not close enough to pass.']), c.id + 'h')]);
   const T = c.trait && FALL_TRAIT[c.trait]; if(T){ const k = opt.attr, v = (k && T[k]) || (k && T[k] === 0 ? null : T._); if(v) L.push([4, v[nhash(c.id + p) % v.length]]); }
   const al = alliesOf(S, c).filter(o => o.status === 'Active' || o.status === 'Finalist');
   // an ally only counts if the story already showed them together: say who they are to each other
   const A = allianceOf(S, c), since = o => { const j = A && A.joined && A.joined[o.id] != null ? A.joined[o.id] : A ? A.formed : null, jc = A && A.joined && A.joined[c.id] != null ? A.joined[c.id] : A ? A.formed : null; return Math.max(j ?? p, jc ?? p); };
   const met = o => S.log.some(x => x.p < p && x.ids && x.ids.includes(c.id) && x.ids.includes(o.id)) || (c.notes || []).some(n => n.p < p && n.text.includes(o.name));   // only someone the story already put beside them
-  const al2 = al.filter(o => isRelative(o, c) || (since(o) < p && met(o)));
+  const al2 = al.filter(o => (isRelative(o, c) || (since(o) < p && met(o))) && !(base || '').includes(o.first || o.name));   // not when the scene itself is about that ally
   if(al2.length && !opt.team){ const o = al2[0], s = since(o), rel = isRelative(o, c) ? kinOf(c, o) : A && A.lodge ? 'who trained in the same lodge' : PHASES[s] ? `{their} ally since the ${PHASES[s].name}` : `{their} ally`;
-    L.push([3, [`${o.name}, ${rel}, made it through and looked back for {them}.`, `${o.name}, ${rel}, waited at the finish for {them}, longer than anyone needed to.`, `${o.name}, ${rel}, had to go on alone.`, `${o.name}, ${rel}, kept a place for {them} at the next camp. It stayed empty.`][nhash(c.id + o.id) % 4]]); }
+    const k = phKind(PHASES[p]), W = {
+      course: [`${o.name}, ${rel}, made it through and looked back for {them}.`, `${o.name}, ${rel}, waited at the finish for {them}, longer than anyone needed to.`, `${o.name}, ${rel}, had to go on alone.`, `${o.name}, ${rel}, kept a place for {them} at the next camp. It stayed empty.`],
+      island: [`${o.name}, ${rel}, reached the boat with six points and kept watching the treeline for {them}.`, `${o.name}, ${rel}, spent the last night searching the island for {them}, and ran out of time.`, `${o.name}, ${rel}, had ${PR(o).their} own badges to guard and could not go looking.`, `${o.name}, ${rel}, kept a place for {them} on the boat. It stayed empty.`],
+      duel: [`${o.name}, ${rel}, won ${PR(o).their} own bout and turned just in time to see {them} lose.`, `${o.name}, ${rel}, could only watch from the other side of the ring.`, `${o.name}, ${rel}, had to go on alone.`, `${o.name}, ${rel}, kept a place for {them} at the next camp. It stayed empty.`],
+      test: [`${o.name}, ${rel}, was called through first and looked for {them} among the ones turned away.`, `${o.name}, ${rel}, heard {their} name read out with the failures and did not look up.`, `${o.name}, ${rel}, had to go on alone.`, `${o.name}, ${rel}, kept a place for {them} at the next camp. It stayed empty.`]
+    }[k] || [`${o.name}, ${rel}, had to go on alone.`];
+    L.push([3, W[nhash(c.id + o.id) % W.length]]); }
   const rn = c.rescuedBy && (c.notes || []).filter(n => /rescued by/.test(n.text)).pop();
   if(rn && p - rn.p <= 2 && m[c.rescuedBy] && c.rescuedBy !== (al[0] || {}).id) L.push([2, `${m[c.rescuedBy].first || m[c.rescuedBy].name} had pulled {them} through once already. Not twice.`]);
   if(!L.length && c.motive != null && MOTIVES[c.motive] && nhash(c.id + 'mf' + p) % 3 === 0) L.push([1, MOTIVES[c.motive].fail]);

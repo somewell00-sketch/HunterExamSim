@@ -292,7 +292,13 @@ const T_BOND_FAM = [
 const T_BOND_LOSS = [
   o => `${o.s.name} watches ${o.g.name} leave the exam and does not say a word for hours. Now ${o.s.first} is fighting for both of them.`,
   o => `${o.g.name} is out. ${o.s.name} swears to carry on for ${PR(o.g).them}.`,
-  o => `Losing ${o.g.first} hits ${o.s.name} harder than any examiner could.`
+  o => `Losing ${o.g.first} hits ${o.s.name} harder than any examiner could.`,
+  o => `${o.s.name} keeps ${o.g.first}'s parting words to ${PR(o.s).themselves}. ${PR(o.s).They} ${PR(o.s).are} not ready to say them out loud.`,
+  o => `${o.s.first} ties ${o.g.first}'s old wristband around ${PR(o.s).their} own arm, and goes on.`,
+  o => `${o.s.name} tells nobody that ${o.g.first} is gone, as if saying it would make it true.`,
+  o => `${o.s.name} goes very quiet after ${o.g.name} falls, and very, very focused.`,
+  o => `${o.s.first} and ${o.g.first} had a plan for after the exam. ${o.s.first} decides to keep it anyway.`,
+  o => `Without ${o.g.first}, ${o.s.name} eats alone, sleeps alone, and stops wasting words.`
 ];
 const T_BOND_DEATH = [
   o => `${o.s.name} kneels beside ${o.g.name} for a long time. Something in ${o.s.first} has changed.`,
@@ -344,8 +350,13 @@ function bondsAfter(S, ph, p, rng){
     if(g.out !== p || !['Eliminated','Deceased','Disqualified'].includes(g.status)) return;
     bondPartners(S, g).filter(s => s.status === 'Active').forEach(s => {
       s.bondFire = p + 1;
-      dlog(S, p, 'bond', vpick(S, g.status === 'Deceased' ? T_BOND_DEATH : T_BOND_LOSS, s.id + g.id)({s, g}), [s.id, g.id], g.status === 'Deceased' ? 8 : 6);
-      if(ph.stage < 2 && g.status !== 'Deceased') S.log[S.log.length - 1].d = true;
+      // never the same line twice in a trial; at most three shown, and none when the fallen one's own farewell card already names the partner
+      const T = g.status === 'Deceased' ? T_BOND_DEATH : T_BOND_LOSS, U = S._blUsed = S._blUsed && S._blUsed.p === p ? S._blUsed : {p, k: [], n: 0};
+      const free = T.map((f, i) => i).filter(i => !U.k.includes(T === T_BOND_DEATH ? 'd' + i : i)), ix = free.length ? free[nhash(s.id + g.id) % free.length] : nhash(s.id + g.id) % T.length;
+      U.k.push(T === T_BOND_DEATH ? 'd' + ix : ix);
+      dlog(S, p, 'bond', T[ix]({s, g}), [s.id, g.id], g.status === 'Deceased' ? 8 : 6);
+      const named = g.castOut === p && S.log.some(e => e.p === p && e.type === 'castout' && (e.ids || []).includes(g.id) && e.text.includes(s.name));
+      if((ph.stage < 2 && g.status !== 'Deceased') || named || ++U.n > 3) S.log[S.log.length - 1].d = true;
       if(g.status === 'Deceased' && g.killedBy && m[g.killedBy]) addGrudge(s, m[g.killedBy], `killed ${g.first}`);
     });
   });

@@ -436,6 +436,14 @@ function personalNicks(S, ph, p, rng, active){
   const c = typeof castBias === 'function' ? castBias(S, pool, rng, 0.35) || src[Math.floor(rng() * src.length)] : src[Math.floor(rng() * src.length)], pn = personalNick(S, c);
   if(pn) giveNick(S, c, 'personal', pn[1], p, undefined, pn[0]);
 }
+// the best of a trial judged on the spot (a quiz, a kitchen, an auction): nobody crosses anything first
+const T_LEAD_TEST = [
+  o => `${o.c.name} makes the ${o.ph} look easy.`,
+  o => `The examiners mark one name after the ${o.ph}: ${o.c.name}.`,
+  o => `Nobody in the ${o.ph} comes close to ${o.c.name}.`,
+  o => `${o.c.name} has the best result of the ${o.ph}, and does not look surprised.`,
+  o => `The examiner leaves ${o.c.name}'s result for last, and almost smiles.`
+];
 const T_LEAD = [
   o => `${o.c.name} finishes the ${o.ph} at the front of the pack.`,
   o => `Nobody keeps up with ${o.c.name} in the ${o.ph}.`,

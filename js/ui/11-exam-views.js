@@ -455,6 +455,13 @@ function renderZevil(st){
   const qualifying = rows.filter(r => r.p >= 6).length;
   const lead = rows.slice(0, 10).map((r, k) => `<div class="lb"><span class="rk">${k+1}</span><a data-id="${r.c.id}">${esc(r.c.name)}</a><span class="lp">${r.p} pt${r.p===1?'':'s'}</span>${bar(r.p)}</div>`).join('');
   const feed = Z.ev.filter(e => e.day === zDay).map(e => `<div class="ev ${e.type}"><span class="txt">${linkNames(e.text.replace(/^(Day \d+|Arrival): /, ''), e.ids)}</span></div>`).join('');
+  // the island's story outside the hunt: the camp on arrival, and on the last day how it ended for the cast and the bonds it made
+  castoutClean();
+  const zi = PHASES.findIndex(x => x.zevil), zt = new Set(Z.ev.map(e => e.text)), nar = S.log.filter(e => e.p === zi && !e.d && !zt.has(e.text) && !/^(Day \d+|Arrival):/.test(e.text));
+  const campL = nar.filter(e => e.type === 'story' || e.type === 'event' || e.type === 'arc'), endL = nar.filter(e => e.type === 'castout' || e.type === 'bond');
+  const zCamp = zDay === 0 && campL.length ? `<div class="camp"><h4 class="camp-t">Around the camp</h4><p>${(() => { let n = 0; const tame = t => t.replace(/([.!?]["”]? )?\bZevil Island\b/g, (m, pre, off) => ++n === 1 ? m : (pre || off === 0) ? (pre || '') + 'The island' : 'the island');   // named once, then "the island"
+    return campL.map(e => linkNames(tame(e.text), e.ids)).join(' '); })()}</p></div>` : '';
+  const zEnd = end && endL.length ? `<div><div class="section-h">What happened</div><div class="story">${endL.map(e => `<div class="ev ${e.type}"><span class="txt">${linkNames(e.text, e.ids)}</span></div>`).join('')}</div></div>` : '';
   // one standings table: everyone ranked, the ones you follow always shown, the rest behind a toggle
   const keep = r => isFav(r.c.id) || !!mtOf(r.c.id);
   const zrow = (r, k) => { const gone = (snap.gone || {})[r.c.id], out = (end && zDay > 0 && r.p < 6) || gone, al = (snap.allies && snap.allies[r.c.id]) || [];
@@ -471,6 +478,7 @@ function renderZevil(st){
     <div class="rep-grid">
       <div class="rep-col">
         <div><div class="section-h">Event feed · ${zDay === 0 ? 'arrival' : 'day ' + zDay}</div><div class="story scroll log zfeed">${feed || '<div class="muted" style="padding:10px">A quiet day on the island.</div>'}</div></div>
+        ${zCamp}${zEnd}
       </div>
       <div class="rep-col">
         <div><div class="section-h">Standings · ${zDay === 0 ? 'on arrival' : end ? 'final' : 'end of day ' + zDay}</div><p class="zkey"><span class="bdg own">#</span><span class="bdg tgt">#</span> own or target 3 pts · <span class="bdg any">#</span> other 1 pt · <span class="bdg tgt miss">#</span> not held · 6 to qualify</p>${table}</div>
