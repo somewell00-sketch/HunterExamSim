@@ -190,7 +190,7 @@ function nenPanel(c){
   const tech = NEN_TECH.map(t => `<span class="tech ${n.techniques.includes(t[0]) ? 'on' : ''}" title="${esc(t[2])}${n.techniques.includes(t[0]) ? '' : ' · unlocks at mastery ' + t[1]}">${t[0]}</span>`).join('');
   return `<div class="nen" style="--c:${col}">
     <div class="nen-h"><div><div class="section-h" style="margin:0">Nen · unlocked after the exam</div><div class="nen-cat">${nenChip(n.category)}<span class="muted">${n.status}</span></div></div></div>
-    <div class="nen-top">${nenHex(n)}<div class="nen-stats">${bar('Potential', n.potential)}${bar('Mastery', n.mastery)}${bar('Aura capacity', n.capacity)}${bar('Aura output', n.output)}${bar('Aura control', n.control)}</div></div>
+    <div class="nen-top">${nenHex(n)}<div class="nen-stats">${bar('Potential', n.potential)}${bar('Mastery', n.mastery)}${bar('Aura capacity', n.capacity)}${bar('Aura output', n.output)}${bar('Aura control', n.control)}${n.sch && typeof schOf === 'function' && schOf(n.sch.id) ? `<p class="nen-sch">⛩ Shaped by <a class="golink" data-school="${n.sch.id}">${esc(capS(schOf(n.sch.id).name))}</a>: ${esc(n.sch.k)} +${n.sch.v}</p>` : ''}</div></div>
     <div class="acard">
       <div class="acard-h"><small>Hatsu</small><h3>${esc(h.alias || h.name)}</h3>${h.alias ? `<div class="akw">${esc(h.name)}</div>` : ''}<div class="acats">${nenChip(h.primary)}${h.secondary ? '<span class="muted">+</span>' + nenChip(h.secondary) : ''}</div></div>
       <p>${esc(h.description)}</p>${h.born ? `<p class="h-born"><span>Born from</span> ${esc(h.born)}</p>` : ''}
@@ -294,19 +294,32 @@ function bgHtml(c){
 function grudgesHtml(c){
   const G = c.grudges || []; if(!G.length) return '';
   const m = cmap(S);
-  return `<div><div class="section-h">Grudges</div><div class="grs">${G.map(g => { const o = m[g.id]; return `<div>${o ? `<a data-id="${o.id}">${esc(g.name)}</a>` : `<b>${esc(g.name)}</b>`} <span class="muted">— ${esc(g.why)}${o ? '' : WORLD.wanted.some(w => w.cid === g.id) ? ' (now on the Blacklist)' : ' (did not come back)'}</span></div>`; }).join('')}</div></div>`;
+  // the same rules as bonds: rivals who left fade (and vanish after six years), rivals who became Hunters stay, tagged
+  const who = g => { const o = m[g.id], h = (!o || o.status === 'Approved') ? HUNTERS.find(x => x.cid === g.id) : null, w = WORLD.wanted.some(x => x.cid === g.id); return {o, h, w, gone: !o && !h && !w}; };
+  const show = G.filter(g => !(who(g).gone && g.ed != null && S.edition - g.ed > 6)), faded = G.length - show.length;
+  if(!show.length) return '';
+  const row = g => { const {o, h, w, gone} = who(g);
+    const link = h ? `<a data-hunter="${esc(h.license)}">${esc(g.name)}</a> <span class="xtag sm sp">Hunter</span>` : o ? `<a data-id="${o.id}">${esc(g.name)}</a>` : `<span class="fam-civ-n">${esc(g.name)}</span>`;
+    const st = h ? ` · ${h.status === 'Active Hunter' ? 'Hunter' : esc(h.status)}${hStars(h) ? ' · ' + starStr(hStars(h)) : ''}` : o ? '' : w ? ' (now on the Blacklist)' : ' (did not come back)';
+    return `<div${gone ? ' class="fam-civ"' : ''}>${link} <span class="muted">— ${esc(g.why)}${st}</span></div>`; };
+  return `<div><div class="section-h">Grudges</div><div class="grs">${show.map(row).join('')}${faded ? `<p class="muted" style="margin:4px 0 0;font-size:12px">${faded} older grudge${faded === 1 ? '' : 's'} faded with time.</p>` : ''}</div></div>`;
 }
 function bondsHtml(c){
   const B = c.bonds || []; if(!B.length) return '';
   const m = cmap(S);
-  return `<div><div class="section-h">Unbreakable bonds</div><div class="grs">${B.map(bondRow).join('')}</div></div>`;
+  // partners who left the exam world fade out after a few years; Hunters and anyone still around stay
+  const gone = b => { const o = m[b.id], h = HUNTERS.find(x => x.cid === b.id); return !h && !o && !WORLD.wanted.some(w => w.cid === b.id); };
+  const show = B.filter(b => !(gone(b) && S.edition - (b.ed || S.edition) > 6)), faded = B.length - show.length;
+  if(!show.length) return '';
+  return `<div><div class="section-h">Unbreakable bonds</div><div class="grs">${show.map(bondRow).join('')}${faded ? `<p class="muted" style="margin:4px 0 0;font-size:12px">${faded} older bond${faded === 1 ? '' : 's'} faded with time.</p>` : ''}</div></div>`;
 }
 // a bond partner may be in this exam, a licensed Hunter from an earlier one, or gone from the records
 function bondRow(b){
   const o = cmap(S)[b.id], h = !o || o.status === 'Approved' ? HUNTERS.find(x => x.cid === b.id) : null;
   const link = h ? `<a data-hunter="${esc(h.license)}">${esc(b.name)}</a>` : o ? `<a data-id="${o.id}">${esc(b.name)}</a>` : `<b>${esc(b.name)}</b>`;
-  const st = h ? `${h.status === 'Active Hunter' ? 'Hunter' : esc(h.status)} · ${h.license}` : o ? (ALIVE(o.status) ? 'still in' : o.status === 'Deceased' ? 'died' : 'out') : b.dead ? `died in the ${ordinal(b.dead)}` : (WORLD.wanted.some(w => w.cid === b.id) ? 'now on the Blacklist' : 'did not apply again');
-  return `<div><span style="color:var(--bond)">∞</span> ${link} <span class="muted">— ${b.fam ? 'family' : 'bonded in the ' + ordinal(b.ed)} · ${st}</span></div>`;
+  const st = h ? `${h.status === 'Active Hunter' ? 'Hunter' : esc(h.status)}${hStars(h) ? ' · ' + starStr(hStars(h)) : ''} · ${h.license}` : o ? (ALIVE(o.status) ? 'still in' : o.status === 'Deceased' ? 'died' : 'out') : b.dead ? `died in the ${ordinal(b.dead)}` : (WORLD.wanted.some(w => w.cid === b.id) ? 'now on the Blacklist' : 'did not apply again');
+  const civ = !h && !o;   // never came back: a step back, like relatives who chose another life
+  return `<div${civ ? ' class="fam-civ"' : ''}><span style="color:var(--bond)">∞</span> ${civ ? `<span class="fam-civ-n">${esc(b.name)}</span>` : link}${h ? ' <span class="xtag sm sp">Hunter</span>' : ''} <span class="muted">— ${b.fam ? 'family' : 'bonded in the ' + ordinal(b.ed)} · ${st}</span></div>`;
 }
 function openProfile(id){
   const c = S.candidates.find(x => x.id === id);
@@ -363,6 +376,7 @@ function openProfile(id){
     <div><div class="section-h">Story</div><p class="story-p">${autoLink(esc(storyOf(c)), c.id)}</p>${bgHtml(c)}<p class="muted" style="margin:6px 0 0;font-size:12.5px">Best at ${top.map(k => ATTR_LABEL[k]).join(', ')}; weakest in ${low.map(k => ATTR_LABEL[k]).join(' and ')}.${ALIVE(c.status) ? state : ''}</p></div>
     ${bondsHtml(c)}
     ${grudgesHtml(c)}
+    ${c.dojo && schOf(c.dojo.id) ? `<p class="h-fam"><span>⛩</span> ${c.dojoNen ? 'Already taught some Nen at' : 'Trained at'} <a class="golink" data-school="${c.dojo.id}" title="Open the school">${esc(capS(schOf(c.dojo.id).name))} ›</a></p>` : ''}
     ${familyHtml(c)}
     ${allianceHtml(c)}
     ${connectionsHtml(c)}

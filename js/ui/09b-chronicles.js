@@ -182,12 +182,24 @@ const schBranchName = (s, taken, f) => {
   for(let t = 0; t < 10; t++){ const n = s.parent && t === 0 ? line : pickR(opts); if(!taken.has(n)) return n; }
   return `${line} (${ordinal((WORLD.schools || []).length)})`;
 };
+// the category a school pushes its students towards: one of the two neighbours of its own Nen, picked by its principle
+function schLean(s){ const i = NEN_CATS.indexOf(s.cat), nb = [NEN_CATS[(i + 5) % 6], NEN_CATS[(i + 1) % 6]], pi = Math.max(0, (SCH_PR[s.cat] || []).findIndex(p => p[0] === s.pr[0])); return nb[pi % 2]; }
+// training leaves the school's mark on a student's Nen: a couple of points a year towards what the school values
+function schMark(h, s){
+  if(!h.nen || !h.nen.efficiency) return;
+  const lean = h.nen.category !== s.cat && !(s.cat === 'Specialization') ? s.cat : (s.lean || (s.lean = schLean(s)));
+  if(lean === h.nen.category) return;
+  const base = nenEfficiency(h.nen.category)[lean]; if(!base) return;   // Specialization stays closed to those not born to it
+  const now = h.nen.efficiency[lean] ?? base, cap = Math.min(95, base + 12); if(now >= cap) return;
+  const v = Math.min(2, cap - now); h.nen.efficiency[lean] = now + v;
+  h.nen.sch = h.nen.sch && h.nen.sch.id === s.id ? {id: s.id, k: lean, v: h.nen.sch.v + v} : {id: s.id, k: lean, v};
+}
 function schFound(m, ed, add, items, parent){
   WORLD.schools = WORLD.schools || [];
   const cat = parent ? parent.cat : m.nen.category, taken = new Set(WORLD.schools.map(s => s.name)), home = homeOf(m);
   const used = parent ? parent.pr[0] : null, prs = (SCH_PR[cat] || SCH_PR.Specialization).filter(p => p[0] !== used);
   const s = {id: 'N' + (++WORLD.seq), name: parent ? schBranchName(parent, taken, m) : schName(m, cat, home, taken), cat, pr: pickR(prs), founder: m.license, fName: m.name, ed, home, heads: [{lic: m.license, name: m.name, from: ed}], st: 'open', parent: parent ? parent.id : null, rival: parent ? parent.id : null, dead: 0, peak: 0, wins: 0};
-  WORLD.schools.push(s); m.school = s.id;
+  s.lean = schLean(s); WORLD.schools.push(s); m.school = s.id;
   return s;
 }
 function schoolsYear(ed, add, items){
@@ -195,6 +207,8 @@ function schoolsYear(ed, add, items){
   const pupils = new Map(); act.forEach(h => { if(h.master) (pupils.get(h.master) || pupils.set(h.master, []).get(h.master)).push(h); });
   const free = m => (pupils.get(m.license) || []).filter(p => ed - (p.mEd || ed) <= 3).length < SCH_PUPILS;
   const canTeach = m => m && hActive(m) && !m.legacy && hStars(m) >= 1 && hunterAge(m) >= 28 && m.nen && m.nen.category && !(m.susp >= ed) && !(WORLD.exped && m.exped === WORLD.exped.id);
+  // the dojo's own: pupils who came to the exam from a school go back to it
+  act.filter(h => h.dojo && !h.master && ed - h.edition <= 1 && h.edition <= ed).forEach(h => { if(dojoReturn(h, ed, add, act)) (pupils.get(h.master) || pupils.set(h.master, []).get(h.master)).push(h); });
   // 🥋 new Hunters look for a master: same Nen first, a parent if they can, a school's name helps
   act.filter(h => !h.master && h.nen && h.nen.category && ed - h.edition <= 1 && h.edition <= ed && !h.pro && hunterAge(h) < 40).forEach(h => {
     const par = (h.heirOf || []).concat(h.hParent ? [h.hParent] : []).map(l => byLic.get(l)).filter(m => canTeach(m) && free(m));
@@ -213,7 +227,7 @@ function schoolsYear(ed, add, items){
   // what the school teaches shows in its students, over their first three years
   act.forEach(h => { if(!h.master || !h.attrs || ed - (h.mEd || ed) > 3 || ed === h.mEd || Math.random() >= 0.45) return;
     const s = schOf(h.school), m = byLic.get(h.master), k = s ? pickR(s.pr[1]) : m && m.attrs ? Object.entries(m.attrs).sort((a, b) => b[1] - a[1])[0][0] : null;
-    if(k && h.attrs[k] != null) h.attrs[k] = Math.min(99, h.attrs[k] + 1 + (m && RX(m, 'a5') && Math.random() < RX(m, 'a5') ? 1 : 0)); });
+    if(k && h.attrs[k] != null) h.attrs[k] = Math.min(99, h.attrs[k] + 1 + (m && RX(m, 'a5') && Math.random() < RX(m, 'a5') ? 1 : 0)); if(s) schMark(h, s); });
   // ⛩ a master with enough students founds a school; a star of another school may leave to found a rival
   const openN = () => S0.filter(s => s.st !== 'closed').length;
   act.forEach(m => { if(!canTeach(m) || (m.pupilsN || 0) < 3 || openN() >= SCH_OPEN_MAX) return;
@@ -294,7 +308,7 @@ function openSchool(id){
     <div class="sheet-head"><div><div class="meta">School of Nen · ${nenChip(s.cat)}</div><div class="sh-t"><h2>${esc(capS(s.name))}</h2></div><div class="meta">Founded by ${hl(s.founder, s.fName)} in ${esc(s.home)}, after the ${ordinal(s.ed)} exam${par ? ` · a branch of <a data-school="${par.id}">${esc(par.name)}</a>` : ''}</div></div>
       <div style="display:flex;gap:8px;align-items:center"><button class="btn" id="mClose">Close</button></div></div>
     <p class="sch-pr">“${esc(s.pr[0])}”<small>Students grow in ${s.pr[1].map(k => ATTR_LABEL[k]).join(' and ')}</small></p>
-    <div class="hcard"><div><small>Status</small><b>${s.st === 'open' ? 'Teaching' : s.st === 'dormant' ? 'Dormant' : 'Closed'}</b></div><div><small>In the field</small><b>${live.length}</b></div><div><small>Students, all time</small><b>${all.length}</b></div><div><small>Average rank</small><b>${st}</b></div><div><small>Fallen in the field</small><b>${s.dead || 0}</b></div><div><small>Peak</small><b>${s.peak || live.length}</b></div><div><small>Branches</small><b>${kids.length ? kids.map(k => `<a data-school="${k.id}">${esc(k.name)}</a>`).join(', ') : '—'}</b></div><div><small>Rival</small><b>${riv ? `<a data-school="${riv.id}">${esc(riv.name)}</a>${s.wins ? ` · ${s.wins} duel${s.wins === 1 ? '' : 's'} won` : ''}` : '—'}</b></div></div>
+    <div class="hcard"><div><small>Status</small><b>${s.st === 'open' ? 'Teaching' : s.st === 'dormant' ? 'Dormant' : 'Closed'}</b></div><div><small>In the field</small><b>${live.length}</b></div><div><small>Students, all time</small><b>${all.length}</b></div><div><small>Average rank</small><b>${st}</b></div><div><small>Fallen in the field</small><b>${s.dead || 0}</b></div><div><small>Peak</small><b>${s.peak || live.length}</b></div><div><small>Sent to the exam</small><b>${s.sent || 0}${s.sent ? ` · ${s.passed || 0} licensed (${Math.round((s.passed || 0) / s.sent * 100)}%)` : ''}</b></div><div><small>Branches</small><b>${kids.length ? kids.map(k => `<a data-school="${k.id}">${esc(k.name)}</a>`).join(', ') : '—'}</b></div><div><small>Rival</small><b>${riv ? `<a data-school="${riv.id}">${esc(riv.name)}</a>${s.wins ? ` · ${s.wins} duel${s.wins === 1 ? '' : 's'} won` : ''}` : '—'}</b></div></div>
     <div><div class="section-h">Masters</div><div class="sch-line">${s.heads.map((x, i) => `<span><small>${i ? ordinal(i + 1) : 'Founder'}</small>${hl(x.lic, x.name)} <span class="muted">${ordinal(x.from)}–${x.to != null ? ordinal(x.to) : 'today'}</span></span>`).join('')}</div></div>
     ${top.length ? `<div><div class="section-h">Leading students</div><div class="sch-line">${top.map(h => `<span>${hl(h.license)} ${hStars(h) ? `<span class="stars">${starStr(hStars(h))}</span>` : ''}<small>${esc((h.career || '').replace(' Hunter', ''))}${h.master ? ` · under ${hLic(h.master) ? esc(hLic(h.master).name) : '—'}` : ''}</small></span>`).join('')}</div></div>` : ''}
     ${(s.hist || []).length ? `<div><div class="section-h">History</div><div class="bulletin">${s.hist.slice().reverse().map(x => `<div class="bl school"><i>⛩</i><span><span class="muted">${ordinal(x.ed)}</span> ${autoLink(esc(x.t))}</span></div>`).join('')}</div></div>` : ''}
@@ -377,4 +391,49 @@ function chroniclesYear(prev, ed, add, items){
   try { casesYear(prev, ed, add, items); } catch(e){ console.error(e); }
   try { schoolsYear(ed, add, items); } catch(e){ console.error(e); }
   try { relicsYear(prev, ed, add, items); } catch(e){ console.error(e); }
+}
+
+/* ---------- the dojos: a school's pupils who are not Hunters yet ----------
+   Some applicants come from a school. The school trains their body and mind; a few (like Wing's Zushi) already know some Nen.
+   If they pass, they go straight back to the school's master; if they fail, they keep the school's name and may return. */
+const DOJO_BOOST = 8;   // the school's two attributes, on top of a general +1–2
+function schoolsEnter(S){
+  const open = (WORLD.schools || []).filter(s => s.st === 'open'); if(!open.length) return;
+  const byS = new Map(), nenKids = [];
+  const tie = (c, s) => {
+    c.dojo = {id: s.id, name: s.name}; s.sent = (s.sent || 0) + 1;
+    // years of discipline: every attribute a little, the school's own two a lot
+    Object.keys(c.a).forEach(k => { c.a[k] = Math.min(97, c.a[k] + 2 + Math.floor(Math.random() * 3)); });
+    s.pr[1].forEach(k => { if(c.a[k] != null) c.a[k] = Math.min(97, c.a[k] + DOJO_BOOST + Math.floor(Math.random() * 4)); });
+    if(Math.random() < 0.12){ c.dojoNen = true; ['perception', 'determination', 'combat'].forEach(k => { if(c.a[k] != null) c.a[k] = Math.min(97, c.a[k] + 3); }); nenKids.push([c, s]); }
+    c.notes.unshift({p: 0, text: `Trained at ${capS(s.name)}${c.dojoNen ? ', where someone has already been teaching ' + PR(c).them + ' Nen' : ''}`});
+    (byS.get(s) || byS.set(s, []).get(s)).push(c);
+  };
+  // returning candidates kept their school; the children of a school's people often train there
+  S.candidates.filter(c => c.dojo && c.status === 'Active').forEach(c => { const s = schOf(c.dojo.id); if(s && s.st === 'open') (byS.get(s) || byS.set(s, []).get(s)).push(c); else delete c.dojo; });
+  S.candidates.filter(c => c.heir && !c.dojo && c.status === 'Active').forEach(c => { const p = c.heir.parents.map(hLic).find(h => h && schOf(h.school) && schOf(h.school).st === 'open'); if(p && Math.random() < 0.7) tie(c, schOf(p.school)); });
+  const free = S.candidates.filter(c => c.status === 'Active' && !c.dojo && !c.heir && c.age >= 12 && c.age <= 32 && !mtOf(c.id));
+  // a dojo picks its promising pupils: the stronger tiers are chosen more often
+  const tw = c => c.tier === 'Elite' ? 2 : c.tier === 'Skilled' ? 4 : c.tier === 'Trained' ? 3 : 1;
+  open.forEach(s => { const r = Math.random(), n = r < 0.45 ? 0 : r < 0.8 ? 1 : r < 0.95 ? 2 : 3;
+    for(let i = 0; i < n && free.length; i++){ const c = wpickM(free, tw); free.splice(free.indexOf(c), 1); tie(c, s); } });
+  // registration: each school's group, the ones who already feel aura, and rival schools face to face
+  byS.forEach((L, s) => { const hd = schHead(s), H = hd && hLic(hd.lic);
+    log(S, 0, 'story', `${capS(s.name)} sends ${andList(L.map(c => c.name))} to the exam.${H && hActive(H) ? pickR([` ${H.name} does not come to watch. Officially.`, ` ${H.name} sees ${L.length > 1 ? 'them' : PR(L[0]).them} off at the gate and says nothing useful.`, ` Word is ${H.name} has a bet on ${L.length > 1 ? 'one of them' : PR(L[0]).them}.`]) : ''}`, L.map(c => c.id)); });
+  nenKids.forEach(([c, s]) => log(S, 0, 'event', pickR([`${c.name} sits apart at registration, breathing slowly. One of the examiners notices the aura around ${PR(c).them} and frowns: someone at ${s.name} has been teaching Nen to a candidate.`, `A cup tips over near ${c.name} without anyone touching it. ${c.first || c.name} apologises. A Hunter in the crowd recognises the habits of ${s.name}.`]), [c.id]));
+  const ent = [...byS.entries()];
+  ent.forEach(([s, A]) => ent.forEach(([t, B]) => { if(s.rival !== t.id || s.id > t.id) return; const a = A[0], b = B[0]; if(!a || !b) return;
+    addGrudge(a, b, `trains at the rival school, ${t.name}`); addGrudge(b, a, `trains at the rival school, ${s.name}`);
+    log(S, 0, 'rival', `${a.name} of ${s.name} and ${b.name} of ${t.name} spot each other at registration. Their masters never got along either.`, [a.id, b.id]); }));
+}
+// a licensed pupil of a dojo goes back to the school's master
+function dojoReturn(h, ed, add, act){
+  const s = schOf(h.dojo); if(!s) return false;
+  if(!h.dojoDone){ h.dojoDone = ed; s.passed = (s.passed || 0) + 1; }
+  if(s.st !== 'open') return false;
+  const hd = schHead(s), H = hd && hLic(hd.lic), m = H && hActive(H) && H !== h ? H : act.find(x => x !== h && x.school === s.id && hStars(x) >= 1);
+  if(!m) return false;
+  h.master = m.license; h.mEd = ed; h.school = s.id; m.pupilsN = (m.pupilsN || 0) + 1;
+  add(h, 'school', `${h.name} goes back to ${s.name} with a Hunter License. ${m.name} takes ${PR(h).them} on as a full student.`, 5, m);
+  return true;
 }

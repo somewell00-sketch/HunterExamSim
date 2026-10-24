@@ -32,7 +32,7 @@ No build step, no server, no dependencies. Open `index.html` and it runs.
 - Dark Continent expeditions, crises, and places with a history.
 - Elections for Chairman and the Zodiac.
 - Cases before the council: accusations, investigations, trials, verdicts, and old cases reopened decades later.
-- Schools of Nen: masters take students, found schools, pass them on, and sometimes split them in two.
+- Schools of Nen: masters take students, found schools, pass them on, and sometimes split them in two. Their dojos send candidates to the exam; a few already know some Nen.
 - The missing who come back find their seat taken, their spouse remarried, or a case still waiting for them.
 - Thirty-four relics, each with a gift and a price: found on the Dark Continent or in old ruins, inherited, stolen, sealed, forged.
 - Advance +1, +10 or +50 years without watching each exam; the run stops when something you care about happens.

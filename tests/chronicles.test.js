@@ -16,6 +16,7 @@ const YEARS = +(process.env.YEARS || 300);
       returns: has(/comes home|walks back into the Association|hands .* back to|keeps .* that .* lost by vanishing|married to/), letGo: has(/take off the ring|takes off the ring/),
       relics: (() => { const R = Object.values(WORLD.relics || {}); return {known: R.filter(r => r.st !== 'hidden').length, held: R.filter(r => r.st === 'held').length, multi: R.filter(r => (r.n || 0) >= 3).length, maxOwners: Math.max(0, ...R.map(r => r.n || 0)), st: R.reduce((a, r) => (a[r.st] = (a[r.st] || 0) + 1, a), {}), fakes: (WORLD.fakes || []).length, lines: has(/Ferryman|Waking Horn|Turning Coin|Twin Rings|Honest Scales|Constellation|Do Not|Moon-Pale|One-Wick|Reins/)}; })(),
       sample: {relic: Object.values(WORLD.relics || {}).sort((a, b) => (b.n || 0) - (a.n || 0))[0], relicLines: logs.filter(t => /Ferryman|Waking Horn|Turning Coin|Twin Rings|Honest Scales|Constellation|"Do Not"|Moon-Pale|One-Wick|Reins|forger|Copy|auction/.test(t)).slice(0, 12), school: Sc.filter(s => s.heads.length >= 3)[0], names: Sc.map(s => s.name), cases: C.filter(c => c.re).slice(0, 2).map(c => c.hist), ret: logs.filter(t => /comes home|walks back|hands .* back|lost by vanishing|married to|stopped waiting/.test(t)).slice(0, 6)},
+      dojo: (() => { const Sc = WORLD.schools || []; return {sent: Sc.reduce((a, s) => a + (s.sent || 0), 0), licensed: HUNTERS.filter(h => h.dojo).length, nen: HUNTERS.filter(h => h.dojoNen).length}; })(),
       yearly: (WORLD.yearly || []).length, statsDrawn: (() => { try { return statsHtml().includes('Statistics') && relicsHtml().includes('Relics') && schoolsHtml().length > 0; } catch(e){ return String(e); } })(),
       saveKB: Math.round(JSON.stringify({WORLD, HUNTERS}).length / 1024)
     };
@@ -31,4 +32,5 @@ const YEARS = +(process.env.YEARS || 300);
   assert.ok(r.relics.multi >= 2, 'relics change hands');
   assert.ok(r.yearly >= YEARS - 1, 'one statistics row a year');
   assert.strictEqual(r.statsDrawn, true, 'World and History sections draw');
+  assert.ok(r.dojo.sent > 0 && r.dojo.licensed > 0, 'schools send candidates and some pass');
 })().catch(e => { console.error(e.message); process.exit(1); });

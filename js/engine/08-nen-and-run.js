@@ -712,7 +712,12 @@ function generateNen(S, c, used){
       counterplay: [C ? C[3] : null, A[2], vows[0] ? 'exploiting the vow: ' + vows[0][0].toLowerCase() : null].filter(Boolean).map(x => x.charAt(0).toUpperCase() + x.slice(1)).join('; ') + '.'
     };
   }
-  return { category: cat, potential, mastery, capacity, output, control, status, efficiency: eff,
+  // each person's own shape: the natural category stays at 100, the others lean up to ±10 with the body and mind behind them
+  // (its own random stream, so the Hatsu drawn above comes out the same as before)
+  const vr = makeRng((h ^ 0x51ED27A3 ^ S.seed) >>> 0), mean = NEN_CATS.filter(k => k !== 'Specialization').reduce((s, k) => s + w[k], 0) / 5, effMine = {};
+  NEN_CATS.forEach(k => { const b = eff[k]; if(k === cat || b === 0){ effMine[k] = b; return; }
+    const sig = k === 'Specialization' ? 0 : clamp((w[k] - mean) / 6, -1, 1); effMine[k] = clamp(b + clamp(Math.round(sig * 6 + vr.gauss(0, 3)), -10, 10), 20, 95); });
+  return { category: cat, potential, mastery, capacity, output, control, status, efficiency: effMine,
     techniques: NEN_TECH.filter(t => mastery >= t[1]).map(t => t[0]), hatsu: ability };
 }
 function awakenHunters(S, p){
@@ -721,7 +726,7 @@ function awakenHunters(S, p){
     c.nen = generateNen(S, c, used);
     c.career = hunterCareer(c);
     const n = c.nen;
-    c.notes.push({p, text:`After the exam: awakened Nen as a${/^[AEIOU]/.test(n.category) ? 'n' : ''} ${n.category} user. Hatsu: ${n.hatsu.alias} (${n.hatsu.name})`});
+    c.notes.push({p, text: c.dojoNen && c.dojo ? `After the exam: the Nen ${c.first || c.name} had been learning at ${c.dojo.name} comes into the open: a${/^[AEIOU]/.test(n.category) ? 'n' : ''} ${n.category} user. Hatsu: ${n.hatsu.alias} (${n.hatsu.name})` : `After the exam: awakened Nen as a${/^[AEIOU]/.test(n.category) ? 'n' : ''} ${n.category} user. Hatsu: ${n.hatsu.alias} (${n.hatsu.name})`});
     log(S, p, 'nen', `${c.name} awakens Nen after the exam: ${n.category}, Hatsu "${n.hatsu.alias}" (${n.hatsu.name}) — and sets out as a ${c.career}.`, [c.id]);
     c.notes.push({p, text:`Chose a career as a ${c.career}`});
   });

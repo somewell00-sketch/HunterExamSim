@@ -179,7 +179,7 @@ const hasGrudge = (a, b) => !!(a && b && (a.grudges || []).some(g => g.id === b.
 function addGrudge(c, o, why){
   if(!c || !o || c.id === o.id || o.id === 'examiner') return;
   c.grudges = c.grudges || [];
-  if(!c.grudges.some(g => g.id === o.id)) c.grudges.push({id: o.id, name: o.name, why: pro(why, c)});
+  if(!c.grudges.some(g => g.id === o.id)) c.grudges.push({id: o.id, name: o.name, why: pro(why, c), ed: typeof S !== 'undefined' && S ? S.edition : undefined});   // ed: when it started, so it can fade
 }
 const NICK = {
   ace: ['Ace','Comet','Prodigy','Natural','Bullet','Flash','Wonder'],
