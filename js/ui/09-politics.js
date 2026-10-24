@@ -637,11 +637,25 @@ function dcHtml(){
   const E = WORLD.exped; const hb = l => { const h = HUNTERS.find(x => x.license === l); return h ? `<a data-hunter="${esc(h.license)}">${esc(h.name)}</a>` : '—'; };
   return `<div class="dc"><div class="section-h">Dark Continent</div>${E ? `<p class="dc-y">${E.rescue ? 'Rescue expedition · ' : ''}Year <b>${E.year + 1}</b> of ${Math.max(E.len || 3, E.year + 1)}${E.goal ? ` · sent ${esc(E.goal)}` : ''}</p><div class="dc-team">${E.members.map(l => { const h = HUNTERS.find(x => x.license === l), ok = h && hActive(h); return `<span class="${ok ? '' : 'lost'}"><i>${ok ? '▲' : '✝'}</i>${hb(l)}${h && !ok ? ` <small>${esc(h.status.toLowerCase())}</small>` : ''}</span>`; }).join('')}</div>` : '<p class="muted" style="margin:0;font-size:13px">No expedition is out. The last one is still talked about.</p>'}</div>`;
 }
+let wdTab = (() => { try { return localStorage.getItem('hxsim-wtab') || 'herald'; } catch(e){ return 'herald'; } })();
 function renderWorld(){
   const el = $('pane-world'), n = BULLETINS.length, i = wdYear == null ? n - 1 : clamp(wdYear, 0, n - 1), b = BULLETINS[i];
   const herald = b ? `<div class="herald"><div class="hd-mast"><button type="button" class="hd-nav" data-wdy="${i - 1}" ${i > 0 ? '' : 'disabled'} aria-label="Earlier issue">‹</button><div><b>The Hunter Herald</b><small>No. ${b.edition} · the year after the ${ordinal(b.edition)} exam${i < n - 1 ? ' · <span class="hd-old">back issue</span>' : ''}</small></div><button type="button" class="hd-nav" data-wdy="${i + 1}" ${i < n - 1 ? '' : 'disabled'} aria-label="Later issue">›</button></div>${bulletinHtml(b)}</div>`
     : '<div class="herald"><div class="hd-mast"><span></span><div><b>The Hunter Herald</b><small>The first issue comes out after the first exam</small></div><span></span></div></div>';
-  el.innerHTML = `${pageHead('Beyond the exam', 'World', '#e0703a')}${advanceBarHtml()}${herald}<div class="wd-two">${wantedHtml() || '<div><div class="section-h">Blacklist</div><p class="muted" style="margin:0">Nobody is wanted right now.</p></div>'}${dcHtml()}</div>${typeof underworldHtml === 'function' ? underworldHtml() : ''}${atlasHtml() || '<div><div class="section-h">Regions</div><p class="muted" style="margin:0">Everywhere is quiet, for now.</p></div>'}${marksHtml()}${relicsHtml()}${schoolsHtml()}${docketHtml()}${originHtml()}`;
+  // the World in parts, one at a time, with the same tabs as the exam
+  const none = (h, t) => `<div><div class="section-h">${h}</div><p class="muted" style="margin:0">${t}</p></div>`;
+  const P = {
+    herald: () => herald,
+    underworld: () => (wantedHtml() || none('Blacklist', 'Nobody is wanted right now.')) + (typeof underworldHtml === 'function' ? underworldHtml() || none('Groups', 'No organised group is known.') : ''),
+    atlas: () => dcHtml() + (atlasHtml() || none('Regions', 'Everywhere is quiet, for now.')) + marksHtml(),
+    relics: () => relicsHtml() || none('Relics', 'No relic has been found yet.'),
+    schools: () => schoolsHtml() || none('Schools of Nen', 'No school has been founded yet.'),
+    council: () => (docketHtml() || none('The council', 'No case is open.')) + originHtml()
+  };
+  const LBL = {herald: 'Herald', underworld: 'Underworld', atlas: 'Atlas', relics: 'Relics', schools: 'Schools', council: 'Council'};
+  if(!P[wdTab]) wdTab = 'herald';
+  el.innerHTML = `${pageHead('Beyond the exam', 'World', '#e0703a')}${advanceBarHtml()}<div class="tabs wd-tabs" role="tablist" aria-label="The world">${Object.keys(P).map(k => `<button type="button" class="tab" role="tab" data-wtab="${k}" aria-selected="${k === wdTab}">${LBL[k]}</button>`).join('')}</div><div class="wd-pane">${P[wdTab]()}</div>`;
+  el.querySelectorAll('[data-wtab]').forEach(x => x.onclick = () => { wdTab = x.dataset.wtab; try { localStorage.setItem('hxsim-wtab', wdTab); } catch(e){} renderWorld(); });
   el.querySelectorAll('[data-wdy]').forEach(x => x.onclick = () => { wdYear = +x.dataset.wdy; renderWorld(); });
 }
 document.addEventListener('click', e => { const g = e.target.closest('[data-gosec]'); if(g){ showTab(g.dataset.gosec); window.scrollTo(0, 0); } });

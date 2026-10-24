@@ -324,8 +324,10 @@ function relWhere(r){
 function relicsHtml(){
   const R = WORLD.relics || {}, known = RELICS.filter(d => R[d.id] && R[d.id].st !== 'hidden'), hid = RELICS.length - known.length;
   if(!known.length) return '';
-  const card = d => { const r = R[d.id]; return `<button type="button" class="rl rl-${r.st}" data-relic="${d.id}">${relicIcon(d.id, 34)}<small>${d.fam === 'dc' ? 'Dark Continent' : 'Constellation'}</small><b>${esc(capS(d.name))}</b><span class="rl-st">${RST[r.st] || ''}</span><span class="rl-w">${relWhere(r)}</span><em>${r.n || 0} owner${r.n === 1 ? '' : 's'}</em></button>`; };
-  return `<div><div class="section-h">Relics</div><div class="rl-grid">${known.map(card).join('')}${hid ? `<div class="rl unknown"><b>${hid}</b><span>${hid === 1 ? 'relic is' : 'relics are'} still only stories</span></div>` : ''}</div></div>`;
+  // one short line per relic: icon, name, where it is; who holds it and its story live in the relic's page
+  const row = d => { const r = R[d.id]; return `<button type="button" class="rl rl-row rl-${r.st}" data-relic="${d.id}" title="${esc(capS(d.name))}: ${esc(relWhere(r).replace(/<[^>]+>/g, ''))}">${relicIcon(d.id, 22)}<b>${esc(capS(d.name))}</b><span class="rl-st">${RST[r.st] || ''}</span></button>`; };
+  const grp = (fam, label) => { const L = known.filter(d => d.fam === fam); return L.length ? `<div class="rl-fam"><small>${label} · ${L.length}</small><div class="rl-grid rl-compact">${L.map(row).join('')}</div></div>` : ''; };
+  return `<div><div class="section-h">Relics</div>${grp('dc', 'The Dark Continent')}${grp('old', 'The Constellation')}${hid ? `<p class="muted" style="margin:6px 0 0;font-size:12.5px">${hid} ${hid === 1 ? 'relic is' : 'relics are'} still only stories.</p>` : ''}</div>`;
 }
 function openRelic(id){
   const d = RDEF[id], r = (WORLD.relics || {})[id]; if(!d || !r || r.st === 'hidden') return;

@@ -18,7 +18,7 @@ const YEARS = +(process.env.YEARS || 300);
       sample: {relic: Object.values(WORLD.relics || {}).sort((a, b) => (b.n || 0) - (a.n || 0))[0], relicLines: logs.filter(t => /Ferryman|Waking Horn|Turning Coin|Twin Rings|Honest Scales|Constellation|"Do Not"|Moon-Pale|One-Wick|Reins|forger|Copy|auction/.test(t)).slice(0, 12), school: Sc.filter(s => s.heads.length >= 3)[0], names: Sc.map(s => s.name), cases: C.filter(c => c.re).slice(0, 2).map(c => c.hist), ret: logs.filter(t => /comes home|walks back|hands .* back|lost by vanishing|married to|stopped waiting/.test(t)).slice(0, 6)},
       dojo: (() => { const Sc = WORLD.schools || []; return {sent: Sc.reduce((a, s) => a + (s.sent || 0), 0), licensed: HUNTERS.filter(h => h.dojo).length, nen: HUNTERS.filter(h => h.dojoNen).length}; })(),
       uw: (() => { try { const G = WORLD.gangs || [], g = G[0]; if(g){ openGang(g.id); const w = gangMembers(g)[0]; if(w) openOutlaw(w.id); document.getElementById('mClose') && document.getElementById('mClose').click(); }
-        return {gangs: G.length, drawn: !G.length || underworldHtml().includes('The Underworld'), orphans: (WORLD.wanted || []).filter(w => w.gang && !gangOf(w.gang)).length}; } catch(e){ return {err: String(e)}; } })(),
+        return {gangs: G.length, drawn: !G.length || underworldHtml().includes('Groups'), orphans: (WORLD.wanted || []).filter(w => w.gang && !gangOf(w.gang)).length}; } catch(e){ return {err: String(e)}; } })(),
       yearly: (WORLD.yearly || []).length, statsDrawn: (() => { try { return statsHtml().includes('Statistics') && relicsHtml().includes('Relics') && schoolsHtml().length > 0; } catch(e){ return String(e); } })(),
       saveKB: Math.round(JSON.stringify({WORLD, HUNTERS}).length / 1024)
     };

@@ -328,7 +328,7 @@ function underworldHtml(){
   const L = WORLD.gangs || []; if(!L.length) return '';
   const act = L.filter(g => g.end == null), past = L.filter(g => g.end != null).slice(-12).reverse();
   const wl = w => w ? `<a data-outlaw="${w.id}">${esc(w.name)}</a>` : '—';
-  return `<div><div class="section-h">The Underworld</div>${act.length ? `<div class="tablebox"><table class="hatable sch-t"><thead><tr><th>Group</th><th>Leader</th><th>Since</th><th>At large</th><th>Hunters killed</th></tr></thead><tbody>
+  return `<div><div class="section-h">Groups</div>${act.length ? `<div class="tablebox"><table class="hatable sch-t"><thead><tr><th>Group</th><th>Leader</th><th>Since</th><th>At large</th><th>Hunters killed</th></tr></thead><tbody>
     ${act.map(g => { const m = gangMembers(g), live = m.filter(uwLive).length; return `<tr data-gang="${g.id}"><td>${gangCrest(g, 40)}<b>${esc(g.name)}</b><br><small class="muted">${esc(UW_EMB[g.emb])}${UW_THEMES[g.theme].label ? ' · ' + esc(UW_THEMES[g.theme].label) : ''}</small></td><td>${wl(uwW(g.lead))}</td><td>${ordinal(g.ed)}</td><td>${live} of ${g.size}</td><td>${g.kills || 0}</td></tr>`; }).join('')}
     </tbody></table></div>` : '<p class="muted" style="margin:0">No organised group is known to be active.</p>'}
     ${past.length ? `<details class="bn-brief"><summary>${past.length} group${past.length === 1 ? '' : 's'} in the records</summary><div class="bulletin">${past.map(g => `<div class="bl hunt"><i>☠</i><span><a data-gang="${g.id}">${esc(g.name)}</a> <span class="muted">${ordinal(g.ed)}–${ordinal(g.end)} · ${esc(g.endHow || 'ended')}</span></span></div>`).join('')}</div></details>` : ''}</div>`;
