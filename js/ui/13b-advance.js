@@ -9,7 +9,7 @@ let ADV = {on: false};
 function advanceBarHtml(){
   return `<div class="adv"><button type="button" class="btn more" data-advmenu aria-label="More actions" aria-expanded="false" title="More actions">⋯</button>
     <div class="adv-menu" hidden><small>Advance the world</small>${[1, 10, 50].map(n => `<button type="button" class="btn" data-adv="${n}">+${n} year${n === 1 ? '' : 's'}</button>`).join('')}
-    <details class="adv-stops"><summary>Stop when…</summary><div>${Object.keys(ADV_STOP_DEF).map(k => `<label><input type="checkbox" data-advstop="${k}" ${ADV_STOPS[k] ? 'checked' : ''}> ${ADV_STOP_LBL[k]}</label>`).join('')}</div></details></div></div>`;
+    <details class="adv-stops" open><summary>Stop when…</summary><div>${Object.keys(ADV_STOP_DEF).map(k => `<label><input type="checkbox" data-advstop="${k}" ${ADV_STOPS[k] ? 'checked' : ''}> ${ADV_STOP_LBL[k]}</label>`).join('')}</div></details></div></div>`;
 }
 document.addEventListener('click', e => {
   const b = e.target.closest('[data-advmenu]');

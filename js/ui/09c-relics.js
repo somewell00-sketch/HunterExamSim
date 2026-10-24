@@ -321,7 +321,7 @@ function relWhere(r){
 function relicsHtml(){
   const R = WORLD.relics || {}, known = RELICS.filter(d => R[d.id] && R[d.id].st !== 'hidden'), hid = RELICS.length - known.length;
   if(!known.length) return '';
-  const card = d => { const r = R[d.id]; return `<button type="button" class="rl rl-${r.st}" data-relic="${d.id}"><small>${d.fam === 'dc' ? 'Dark Continent' : 'Constellation'}</small><b>${esc(capS(d.name))}</b><span class="rl-st">${RST[r.st] || ''}</span><span class="rl-w">${relWhere(r)}</span><em>${r.n || 0} owner${r.n === 1 ? '' : 's'}</em></button>`; };
+  const card = d => { const r = R[d.id]; return `<button type="button" class="rl rl-${r.st}" data-relic="${d.id}">${relicIcon(d.id, 34)}<small>${d.fam === 'dc' ? 'Dark Continent' : 'Constellation'}</small><b>${esc(capS(d.name))}</b><span class="rl-st">${RST[r.st] || ''}</span><span class="rl-w">${relWhere(r)}</span><em>${r.n || 0} owner${r.n === 1 ? '' : 's'}</em></button>`; };
   return `<div><div class="section-h">Relics</div><div class="rl-grid">${known.map(card).join('')}${hid ? `<div class="rl unknown"><b>${hid}</b><span>${hid === 1 ? 'relic is' : 'relics are'} still only stories</span></div>` : ''}</div></div>`;
 }
 function openRelic(id){
@@ -330,7 +330,7 @@ function openRelic(id){
   const fakes = (WORLD.fakes || []).filter(f => f.of === id && f.st !== 'out');
   const yrs = o => (o.to ?? S.edition) - o.from;
   showModal(`<div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(capS(d.name))}">
-    <div class="sheet-head"><div><div class="meta">Relic · ${d.fam === 'dc' ? 'from the Dark Continent' : 'one of the twelve of the Constellation'}</div><div class="sh-t"><h2>${esc(capS(d.name))}</h2></div><div class="meta">${esc(d.look)}</div></div>
+    <div class="sheet-head"><div class="sch-head"><span class="rl-pop-ic">${relicIcon(id, 66)}</span><div><div class="meta">Relic · ${d.fam === 'dc' ? 'from the Dark Continent' : 'one of the twelve of the Constellation'}</div><div class="sh-t"><h2>${esc(capS(d.name))}</h2></div><div class="meta">${esc(d.look)}</div></div></div>
       <div style="display:flex;gap:8px;align-items:center"><button class="btn" id="mClose">Close</button></div></div>
     <div class="rl-gc"><div><small>What it gives</small><p>${esc(d.gift)}</p></div><div><small>What it takes</small><p>${esc(d.cost)}</p></div></div>
     <div class="hcard"><div><small>Status</small><b>${RST[r.st] || '—'}</b></div><div><small>Where</small><b style="font-weight:400;font-size:13px">${relWhere(r)}</b></div><div><small>Owners</small><b>${r.n || 0}</b></div><div><small>First found</small><b style="font-weight:400;font-size:13px">${r.found ? `${r.found.by ? hl(r.found.lic, r.found.by) + ', ' : ''}${esc(r.found.how)}${r.found.how === 'before the records' ? '' : ` · ${ordinal(r.found.ed)}`}` : '—'}</b></div><div><small>Forgeries caught</small><b>${fakes.length}</b></div></div>
@@ -343,7 +343,7 @@ function relicRowHtml(h){
   const R = WORLD.relics || {}, now = RELICS.filter(d => R[d.id] && (R[d.id].st === 'held' || R[d.id].st === 'missing') && (R[d.id].holder === h.license || R[d.id].holder2 === h.license));
   const once = RELICS.filter(d => R[d.id] && !now.includes(d) && (R[d.id].owners || []).some(o => o.lic === h.license));
   if(!now.length && !once.length) return '';
-  const a = d => `<a class="golink" data-relic="${d.id}" title="Open the relic">${esc(capS(d.name))} ›</a>`;
+  const a = d => `${relicIcon(d.id, 20)} <a class="golink" data-relic="${d.id}" title="Open the relic">${esc(capS(d.name))} ›</a>`;
   return `<div><div class="section-h">Relics</div>${now.length ? `<p class="h-fam"><span>⚱</span> Holds ${now.map(a).join(', ')}</p>` : ''}${once.length ? `<p class="h-fam"><span>⚱</span> Once held ${once.map(a).join(', ')}</p>` : ''}</div>`;
 }
 document.addEventListener('click', e => { const r = e.target.closest('[data-relic]'), h = e.target.closest('[data-hunter]'); if(r && (!h || h.contains(r))){ e.preventDefault(); e.stopPropagation(); openRelic(r.dataset.relic); } }, true);

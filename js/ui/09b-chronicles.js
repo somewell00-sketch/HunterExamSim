@@ -175,12 +175,17 @@ function schName(f, cat, home, taken){
   }
   return `the ${sur} School of ${schPlace(home)}`;
 }
+// a branch is named after the ROOT school, never after its parent, so names never nest ("the X line of the Y line of…");
+// a branch of a branch also leans towards a name of its own (Moreira-ryū), keeping only the link to where it all began
 const schBranchName = (s, taken, f) => {
-  const base0 = s.name.replace(/^the /, ''), base = s.parent ? base0.replace(new RegExp('^(' + SCH_PRE.join('|') + ') '), '') : base0, words = new Set(base.split(/[ -]/)), pre = SCH_PRE.filter(p => !words.has(p));
-  const sur = f.name.split(' ').slice(-1)[0], line = `the ${sur} line of ${/^[A-Z]/.test(s.name) ? s.name : 'the ' + base}`;
-  const opts = [`the ${pickR(pre)} ${base}`, `the ${pickR(pre)} ${base}`, line];
-  for(let t = 0; t < 10; t++){ const n = s.parent && t === 0 ? line : pickR(opts); if(!taken.has(n)) return n; }
-  return `${line} (${ordinal((WORLD.schools || []).length)})`;
+  let root = s, g = 0; while(root.parent && g++ < 8){ const p = schOf(root.parent); if(!p) break; root = p; }
+  const strip = n => n.replace(/^the /, '').replace(/^.+? line of (the )?/, '').replace(new RegExp('^(' + SCH_PRE.join('|') + ') '), '');
+  const base = strip(root.name), words = new Set(base.split(/[ -]/)), pre = SCH_PRE.filter(p => !words.has(p));
+  const sur = f.name.split(' ').slice(-1)[0], rootN = /^[A-Z]/.test(base) && !/^the /.test(root.name) ? base : 'the ' + base;
+  const deep = !!s.parent;   // the parent is itself a branch
+  const opts = deep ? [`${sur}-ryū`, `the ${sur} School`, `the ${pickR(pre)} ${base}`, `the ${sur} line of ${rootN}`] : [`the ${pickR(pre)} ${base}`, `the ${pickR(pre)} ${base}`, `the ${sur} line of ${rootN}`];
+  for(let t = 0; t < 12; t++){ const n = pickR(opts); if(!taken.has(n)) return n; }
+  return `the ${sur} School of ${schPlace(f.home || s.home)}`;
 };
 // the category a school pushes its students towards: one of the two neighbours of its own Nen, picked by its principle
 function schLean(s){ const i = NEN_CATS.indexOf(s.cat), nb = [NEN_CATS[(i + 5) % 6], NEN_CATS[(i + 1) % 6]], pi = Math.max(0, (SCH_PR[s.cat] || []).findIndex(p => p[0] === s.pr[0])); return nb[pi % 2]; }
@@ -203,6 +208,7 @@ function schFound(m, ed, add, items, parent){
   return s;
 }
 function schoolsYear(ed, add, items){
+  if(!WORLD.schNameFix){ WORLD.schNameFix = 1; (WORLD.schools || []).forEach(x => { x.name = x.name.replace(/^(the \S+ line of )(?:.*? line of )+/i, '$1'); }); }   // older saves: "the X line of the Y line of Z" becomes "the X line of Z"
   const S0 = WORLD.schools = WORLD.schools || [], act = chAct(), byLic = new Map(HUNTERS.map(h => [h.license, h]));
   const pupils = new Map(); act.forEach(h => { if(h.master) (pupils.get(h.master) || pupils.set(h.master, []).get(h.master)).push(h); });
   const free = m => (pupils.get(m.license) || []).filter(p => ed - (p.mEd || ed) <= 3).length < SCH_PUPILS;
@@ -228,6 +234,16 @@ function schoolsYear(ed, add, items){
   act.forEach(h => { if(!h.master || !h.attrs || ed - (h.mEd || ed) > 3 || ed === h.mEd || Math.random() >= 0.45) return;
     const s = schOf(h.school), m = byLic.get(h.master), k = s ? pickR(s.pr[1]) : m && m.attrs ? Object.entries(m.attrs).sort((a, b) => b[1] - a[1])[0][0] : null;
     if(k && h.attrs[k] != null) h.attrs[k] = Math.min(99, h.attrs[k] + 1 + (m && RX(m, 'a5') && Math.random() < RX(m, 'a5') ? 1 : 0)); if(s) schMark(h, s); });
+  // students of the same master, training in the same years: they get to know each other, for better or worse
+  pupils.forEach((L, ml) => { const T = L.filter(p => hActive(p) && ed - (p.mEd || ed) <= 3); const m = byLic.get(ml);
+    for(let i = 0; i < T.length; i++) for(let j = i + 1; j < T.length; j++){ const a = T[i], b = T[j];
+      tieUp(a, b);   // years in the same dojo count, like years of shared contracts (and can end in a wedding)
+      const bonded = (a.bonds || []).some(x => x.id === b.cid), rivals = (a.rivals || []).includes(b.cid), r = Math.random();
+      if(!bonded && !rivals && r < 0.06){ (a.bonds = a.bonds || []).push({id: b.cid, name: b.name, ed}); (b.bonds = b.bonds || []).push({id: a.cid, name: a.name, ed});
+        add(a, 'bond', pickR([`${a.name} and ${b.name}, both students of ${m ? m.name : 'the same master'}, swear to watch each other's backs. They mean it.`, `Years of sparring under ${m ? m.name : 'the same master'} leave ${a.name} and ${b.name} closer than family.`]), 6, b); }
+      else if(!bonded && !rivals && r < 0.10){ [[a, b], [b, a]].forEach(([x, y]) => { (x.rivals = x.rivals || []).push(y.cid); (x.rivalWhy = x.rivalWhy || {})[y.cid] = `${m ? m.name + "'s" : 'the master\'s'} favour`; });
+        add(a, 'rival', pickR([`${a.name} and ${b.name} compete for ${m ? m.name + "'s" : 'their master\'s'} approval in every lesson. Neither ever gets it first.`, `${m ? m.name : 'Their master'} praises ${b.name} in front of ${a.name} once too often. The rivalry starts that day.`]), 5, b); }
+    } });
   // ⛩ a master with enough students founds a school; a star of another school may leave to found a rival
   const openN = () => S0.filter(s => s.st !== 'closed').length;
   act.forEach(m => { if(!canTeach(m) || (m.pupilsN || 0) < 3 || openN() >= SCH_OPEN_MAX) return;
@@ -295,7 +311,7 @@ function schoolsHtml(){
   const ord = {open: 0, dormant: 1, closed: 2}, rows = L.slice().sort((a, b) => ord[a.st] - ord[b.st] || a.ed - b.ed);
   const top = s => HUNTERS.filter(h => h.school === s.id && hActive(h) && !(schHead(s) && schHead(s).lic === h.license)).sort((a, b) => hStars(b) - hStars(a) || (b.rp || 0) - (a.rp || 0)).slice(0, 3);
   return `<div><div class="section-h">Schools of Nen</div><div class="tablebox"><table class="hatable sch-t"><thead><tr><th>School</th><th>Founder</th><th>Founded</th><th>Master</th><th>Leading students</th></tr></thead><tbody>
-    ${rows.map(s => { const hd = schHead(s), T = top(s); return `<tr data-school="${s.id}" class="${s.st}"><td><b>${esc(capS(s.name))}</b>${s.parent ? ' <span class="muted" title="Branch">⑂</span>' : ''}<br><small class="muted">${nenChip(s.cat)}${s.st !== 'open' ? ` · ${s.st}` : ''}</small></td><td>${hl(s.founder)}</td><td>${ordinal(s.ed)}</td><td>${hd ? hl(hd.lic) : '<span class="muted">—</span>'}</td><td>${T.length ? T.map(h => hl(h.license) + (hStars(h) ? ` <span class="stars">${starStr(hStars(h))}</span>` : '')).join(', ') : '<span class="muted">—</span>'}</td></tr>`; }).join('')}
+    ${rows.map(s => { const hd = schHead(s), T = top(s); return `<tr data-school="${s.id}" class="${s.st}"><td>${schoolCrest(s, 40)}<b>${esc(capS(s.name))}</b>${s.parent ? ' <span class="muted" title="Branch">⑂</span>' : ''}<br><small class="muted">${nenChip(s.cat)}${s.st !== 'open' ? ` · ${s.st}` : ''}</small></td><td>${hl(s.founder)}</td><td>${ordinal(s.ed)}</td><td>${hd ? hl(hd.lic) : '<span class="muted">—</span>'}</td><td>${T.length ? T.map(h => hl(h.license) + (hStars(h) ? ` <span class="stars">${starStr(hStars(h))}</span>` : '')).join(', ') : '<span class="muted">—</span>'}</td></tr>`; }).join('')}
   </tbody></table></div></div>`;
 }
 function openSchool(id){
@@ -305,7 +321,7 @@ function openSchool(id){
   const kids = (WORLD.schools || []).filter(x => x.parent === s.id), par = schOf(s.parent), riv = schOf(s.rival);
   const top = live.slice().sort((a, b) => hStars(b) - hStars(a) || (b.rp || 0) - (a.rp || 0)).slice(0, 6);
   showModal(`<div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(capS(s.name))}">
-    <div class="sheet-head"><div><div class="meta">School of Nen · ${nenChip(s.cat)}</div><div class="sh-t"><h2>${esc(capS(s.name))}</h2></div><div class="meta">Founded by ${hl(s.founder, s.fName)} in ${esc(s.home)}, after the ${ordinal(s.ed)} exam${par ? ` · a branch of <a data-school="${par.id}">${esc(par.name)}</a>` : ''}</div></div>
+    <div class="sheet-head"><div class="sch-head">${schoolCrest(s, 120)}<div><div class="meta">School of Nen · ${nenChip(s.cat)}</div><div class="sh-t"><h2>${esc(capS(s.name))}</h2></div><div class="meta">Founded by ${hl(s.founder, s.fName)} in ${esc(s.home)}, after the ${ordinal(s.ed)} exam${par ? ` · a branch of <a data-school="${par.id}">${esc(par.name)}</a>` : ''}</div></div></div>
       <div style="display:flex;gap:8px;align-items:center"><button class="btn" id="mClose">Close</button></div></div>
     <p class="sch-pr">“${esc(s.pr[0])}”<small>Students grow in ${s.pr[1].map(k => ATTR_LABEL[k]).join(' and ')}</small></p>
     <div class="hcard"><div><small>Status</small><b>${s.st === 'open' ? 'Teaching' : s.st === 'dormant' ? 'Dormant' : 'Closed'}</b></div><div><small>In the field</small><b>${live.length}</b></div><div><small>Students, all time</small><b>${all.length}</b></div><div><small>Average rank</small><b>${st}</b></div><div><small>Fallen in the field</small><b>${s.dead || 0}</b></div><div><small>Peak</small><b>${s.peak || live.length}</b></div><div><small>Sent to the exam</small><b>${s.sent || 0}${s.sent ? ` · ${s.passed || 0} licensed (${Math.round((s.passed || 0) / s.sent * 100)}%)` : ''}</b></div><div><small>Branches</small><b>${kids.length ? kids.map(k => `<a data-school="${k.id}">${esc(k.name)}</a>`).join(', ') : '—'}</b></div><div><small>Rival</small><b>${riv ? `<a data-school="${riv.id}">${esc(riv.name)}</a>${s.wins ? ` · ${s.wins} duel${s.wins === 1 ? '' : 's'} won` : ''}` : '—'}</b></div></div>
@@ -319,7 +335,7 @@ function schoolRowHtml(h){
   const m = hLic(h.master), s = schOf(h.school), P = HUNTERS.filter(x => x.master === h.license);
   if(!m && !s && !P.length) return '';
   const hl = x => `<a data-hunter="${esc(x.license)}">${esc(x.name)}</a>`;
-  return `<div><div class="section-h">Nen lineage</div>${m ? `<p class="h-fam"><span>⛩</span> Trained by ${hl(m)}${h.mEd ? ` <span class="muted">from the ${ordinal(h.mEd)}</span>` : ''}</p>` : ''}${s ? `<p class="h-fam"><span>⛩</span> ${schHead(s) && schHead(s).lic === h.license ? 'Master of' : s.founder === h.license ? 'Founder of' : 'Student of'} <a class="golink" data-school="${s.id}" title="Open the school">${esc(capS(s.name))} ›</a></p>` : ''}${P.length ? `<p class="h-fam"><span>⛩</span> Students: ${P.slice(0, 8).map(hl).join(', ')}${P.length > 8 ? ` and ${P.length - 8} more` : ''}</p>` : ''}</div>`;
+  return `<div><div class="section-h">Nen lineage</div>${m ? `<p class="h-fam"><span>⛩</span> Trained by ${hl(m)}${h.mEd ? ` <span class="muted">from the ${ordinal(h.mEd)}</span>` : ''}</p>` : ''}${s ? `<p class="h-fam"><span>⛩</span> ${schHead(s) && schHead(s).lic === h.license ? 'Master of' : s.founder === h.license ? 'Founder of' : 'Student of'} ${schoolCrest(s, 22)} <a class="golink" data-school="${s.id}" title="Open the school">${esc(capS(s.name))} ›</a></p>` : ''}${P.length ? `<p class="h-fam"><span>⛩</span> Students: ${P.slice(0, 8).map(hl).join(', ')}${P.length > 8 ? ` and ${P.length - 8} more` : ''}</p>` : ''}</div>`;
 }
 // capture phase: a school link inside a Hunter's row opens the school, not the Hunter
 document.addEventListener('click', e => { const s = e.target.closest('[data-school]'), h = e.target.closest('[data-hunter]'); if(s && (!h || h.contains(s))){ e.preventDefault(); e.stopPropagation(); openSchool(s.dataset.school); } }, true);

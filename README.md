@@ -32,7 +32,7 @@ No build step, no server, no dependencies. Open `index.html` and it runs.
 - Dark Continent expeditions, crises, and places with a history.
 - Elections for Chairman and the Zodiac.
 - Cases before the council: accusations, investigations, trials, verdicts, and old cases reopened decades later.
-- Schools of Nen: masters take students, found schools, pass them on, and sometimes split them in two. Their dojos send candidates to the exam; a few already know some Nen.
+- Schools of Nen: masters take students, found schools, pass them on, and sometimes split them in two. Their dojos send candidates to the exam; a few already know some Nen. Each school has a crest that tells its story; branches carry their parent's arms with a mark of difference.
 - The missing who come back find their seat taken, their spouse remarried, or a case still waiting for them.
 - Thirty-four relics, each with a gift and a price: found on the Dark Continent or in old ruins, inherited, stolen, sealed, forged.
 - Advance +1, +10 or +50 years without watching each exam; the run stops when something you care about happens.
@@ -76,6 +76,7 @@ js/ui/                  everything on screen
   09-politics.js        Chairman, Vice-Chairman, Zodiac
   09b-chronicles.js     cases and trials, schools of Nen, coming back from missing
   09c-relics.js         the 34 relics: gifts, prices, owners, thefts, forgeries, the Atlas
+  09d-crests.js         school crests (shape, field, colours and charge from the school's story) and relic icons
   10-herald.js          the newspaper
   11-exam-views.js      trial pages, Zevil Island, the Final
   12-association.js     the Hunter register

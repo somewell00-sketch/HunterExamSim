@@ -71,14 +71,22 @@ function lineage(lic, cid){
     .concat(HUNTERS.filter(x => x.hParent === l && !H.some(k => k.cid === x.cid)).map(x => ({lic: x.license, kid: null})));
   const uniq = arr => { const m = new Map(); arr.forEach(p => { const k = key(p); if(k && !m.has(k)) m.set(k, p); }); return [...m.values()]; };
   [me].forEach(p => seen.add(key(p))); if(me.kid) seen.add(me.kid.id); if(me.lic) seen.add(me.lic);
-  const add = (p, rel) => { const k = key(p); if(!k || seen.has(k) || (p.kid && seen.has(p.kid.id))) return; seen.add(k); if(p.kid) seen.add(p.kid.id); if(p.lic) seen.add(p.lic);
-    const h = p.lic && hLic(p.lic), gd = (h && h.gender) || (p.kid && p.kid.gender); out.push(p.kid ? {rel: rel(gd), k: p.kid, h: h || null} : {rel: rel(gd), h}); };
+  const add = (p, rel, step) => { const k = key(p); if(!k || seen.has(k) || (p.kid && seen.has(p.kid.id))) return false; seen.add(k); if(p.kid) seen.add(p.kid.id); if(p.lic) seen.add(p.lic);
+    const h = p.lic && hLic(p.lic), gd = (h && h.gender) || (p.kid && p.kid.gender); out.push(Object.assign(p.kid ? {rel: rel(gd), k: p.kid, h: h || null} : {rel: rel(gd), h}, step ? {step: true} : {})); return true; };
+  // step ties run through a marriage that lasted: to the end, or still going; a divorce or a new marriage ends them on both sides, so the tree does not fill up over the centuries
+  const wed = (a, b) => a && b && ((a.spouse === b.license && (b.spouse === a.license || (!b.spouse && b.widowOf === a.license))) || (b.spouse === a.license && !a.spouse && a.widowOf === b.license));
+  const spouses = l => { const h = l && hLic(l); if(!h) return []; return [h.spouse, !h.spouse && h.widowOf].filter(x => x && wed(h, hLic(x))).map(ofLic).filter(Boolean); };
   const P = parents(me), PL = P.map(p => p.lic);
   P.forEach(p => add(p, x => g(x, 'father', 'mother', 'parent')));
+  const SP = uniq(P.flatMap(p => spouses(p.lic))).filter(s => !PL.includes(s.lic)).filter(p => add(p, x => g(x, 'stepfather', 'stepmother', 'step-parent'), 1));
   const GP = uniq(P.flatMap(parents)); GP.forEach(p => add(p, x => g(x, 'grandfather', 'grandmother', 'grandparent')));
-  uniq(GP.flatMap(p => children(p.lic))).filter(p => !PL.includes(p.lic) && !P.some(q => q.kid && p.kid && q.kid.id === p.kid.id)).forEach(p => add(p, x => g(x, 'uncle', 'aunt', "parent's sibling")));
-  uniq(P.flatMap(p => children(p.lic))).forEach(s => { const sp = parents(s).map(q => q.lic), full = sp.length === PL.length && PL.every(l => sp.includes(l)); add(s, x => (full ? '' : 'half-') + g(x, 'brother', 'sister', 'sibling')); });
+  const AU = uniq(GP.flatMap(p => children(p.lic))).filter(p => !PL.includes(p.lic) && !P.some(q => q.kid && p.kid && q.kid.id === p.kid.id)).filter(p => add(p, x => g(x, 'uncle', 'aunt', "parent's sibling")));
+  const SIB = uniq(P.flatMap(p => children(p.lic))).filter(s => { const sp = parents(s).map(q => q.lic), full = sp.length === PL.length && PL.every(l => sp.includes(l)); return add(s, x => (full ? '' : 'half-') + g(x, 'brother', 'sister', 'sibling')); });
+  uniq(SP.flatMap(p => children(p.lic))).forEach(p => add(p, x => g(x, 'stepbrother', 'stepsister', 'step-sibling'), 1));
+  uniq(AU.flatMap(p => children(p.lic))).forEach(p => add(p, () => 'cousin'));
+  uniq(SIB.flatMap(p => children(p.lic))).forEach(p => add(p, x => g(x, 'nephew', 'niece', "sibling's child")));
   const K = uniq(children(me.lic)); K.forEach(p => add(p, x => g(x, 'son', 'daughter', 'child')));
+  uniq(spouses(me.lic).flatMap(p => children(p.lic))).forEach(p => add(p, x => g(x, 'stepson', 'stepdaughter', 'stepchild'), 1));
   uniq(K.flatMap(p => children(p.lic))).forEach(p => add(p, x => g(x, 'grandson', 'granddaughter', 'grandchild')));
   return out;
 }
@@ -104,7 +112,7 @@ function lineageHtml(lic, cid, pre){
         if(k.entered && k.fate && k.fate.st === 'Deceased') return `died in the ${ordinal(k.entered)} exam, at ${k.entered - k.born}`;
         if(k.entered) return `${ED - k.entered >= 3 ? `took the ${ordinal(k.entered)} exam · chose another life` : `did not pass the ${ordinal(k.entered)} exam`}${age}`;
         return k.never ? `chose another life${age}` : a > 80 ? `born after the ${ordinal(k.born)} exam` : age.slice(3); })();
-    return `<div${!h && !c ? ' class="fam-civ"' : ''}><span style="color:var(--gold)">✦</span> ${link} <span class="muted">— ${esc(r.rel)} · ${st}</span></div>`; };
+    return `<div${!h && !c ? ' class="fam-civ"' : r.step ? ' class="fam-step"' : ''}><span style="color:var(--gold)">✦</span> ${link} <span class="muted">— ${esc(r.rel)} · ${st}</span></div>`; };
   return `<div><div class="section-h">Family</div><div class="grs">${pre || ''}${L.map(row).join('')}</div></div>`;
 }
 function familyHtml(c){ const LP = legendKnown(c) && hLic(c.hParent) ? (() => { const H = hLic(c.hParent); return `<div><div class="section-h">Family</div><div class="grs"><div><span style="color:var(--gold)">✦</span> <a data-hunter="${esc(H.license)}">${esc(H.name)}</a> <span class="muted">— parent · ${H.status === 'Active Hunter' ? 'Hunter' : esc((H.status || '').toLowerCase())} · licensed in the ${ordinal(H.edition)}${hStars(H) ? ' · ' + starStr(hStars(H)) : ''}</span></div></div></div>`; })() : '';
@@ -254,6 +262,22 @@ function familyLine(c){
   }
   return t;
 }
+const LEAD_NUM = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve'];
+function storyLead(c){
+  const A = (c.attempts || []).filter(x => x.status === 'Completed' && x.edition < S.edition), n = attemptsOf(c);
+  // a long road: five tries or more
+  if(n >= 5 && A.length){
+    const best = A.slice().sort((x, y) => (y.stage || 0) - (x.stage || 0) || (y.phase || 0) - (x.phase || 0))[0];
+    const fails = n - 1, fw = String(fails < LEAD_NUM.length ? LEAD_NUM[fails] : fails);
+    return `This is attempt ${n} for ${c.first}. ${fw.charAt(0).toUpperCase() + fw.slice(1)} exams have ended without a license${best && best.phaseName ? `, the closest ${/Island$/.test(best.phaseName) ? 'on' : 'in the'} ${best.phaseName}, in the ${ordinal(best.edition)}` : ''}.`;
+  }
+  // a score to settle, and the other one is here too
+  const m = cmap(S), g = (c.grudges || []).find(g => g.ed === S.edition - 1 && m[g.id] && m[g.id].status === 'Active' && /^(\w+ed|took|stole|beat|left|cost|broke|threw|sold|hit|ran|gave|made|won|caught|fought|lied|tore|swore|shot|cut|struck|knocked|led|let|kept|sent|told|stood|spat|bit)\b/.test(g.why || ''));   // a past deed only: "took Rumi's own badge", not "trains at the rival school"
+  if(g) return `Last year, ${g.name} ${g.why.replace(/(\w+)'s own /, "$1's ")}. Both are back.`;
+  // sent by a school
+  if(c.dojo && c.dojo.name) return `${c.first} was sent to the exam by ${c.dojo.name}.`;
+  return '';
+}
 function storyOf(c){
   persona(c); const b = background(c);
   const h = k => nhash(c.id + ':' + k), pk = (arr, k) => arr[h(k) % arr.length];
@@ -261,8 +285,10 @@ function storyOf(c){
   const nick = c.nick ? ` — "${c.nick}" —` : '';
   if(legendKnown(c) && hLic(c.hParent)){ const H = hLic(c.hParent); parts.push(`${c.first || c.name} is the child of ${H.name}, and the whole exam knows it now.`); }
   if(c.heir){ const P = c.heir.parents.map(hLic).filter(Boolean); if(P.length) parts.push(`${c.first || c.name} is the child of Hunter${P.length > 1 ? 's' : ''} ${P.map(h => h.name).join(' and ')}, and has heard about the exam at every dinner {they} can remember.`); }
+  // the strongest fact about this candidate opens the story, before the portrait
+  const lead = storyLead(c); if(lead) parts.push(lead);
   parts.push(pk([
-    `${c.name}${nick} is a ${c.age}-year-old ${traitNoun(c.trait)}: ${traitDesc(c.trait)}.`,
+    `${c.name}${nick} is ${/^(8|11|18|8\d)$/.test(String(c.age)) ? 'an' : 'a'} ${c.age}-year-old ${traitNoun(c.trait)}: ${traitDesc(c.trait)}.`,
     `${c.name}${c.nick ? `, known as "${c.nick}",` : ''} is ${c.age} and ${aN(traitNoun(c.trait))} through and through: ${traitDesc(c.trait)}.`
   ], 's1'));
   const famT = c.fam || (c.family && c.family.type && attemptsOf(c) === 1) ? familyLine(c) : '';
@@ -302,7 +328,13 @@ function grudgesHtml(c){
     const link = h ? `<a data-hunter="${esc(h.license)}">${esc(g.name)}</a> <span class="xtag sm sp">Hunter</span>` : o ? `<a data-id="${o.id}">${esc(g.name)}</a>` : `<span class="fam-civ-n">${esc(g.name)}</span>`;
     const st = h ? ` · ${h.status === 'Active Hunter' ? 'Hunter' : esc(h.status)}${hStars(h) ? ' · ' + starStr(hStars(h)) : ''}` : o ? '' : w ? ' (now on the Blacklist)' : ' (did not come back)';
     return `<div${gone ? ' class="fam-civ"' : ''}>${link} <span class="muted">— ${esc(g.why)}${st}</span></div>`; };
-  return `<div><div class="section-h">Grudges</div><div class="grs">${show.map(row).join('')}${faded ? `<p class="muted" style="margin:4px 0 0;font-size:12px">${faded} older grudge${faded === 1 ? '' : 's'} faded with time.</p>` : ''}</div></div>`;
+  // the same grievance against several people reads as one line ("took Rumi's own badge on Zevil Island" four times becomes one row with four names)
+  const byWhy = new Map(); show.forEach(g => { const k = g.why || ''; byWhy.set(k, (byWhy.get(k) || []).concat([g])); });
+  const many = gs => { const names = gs.map(g => { const {o, h} = who(g); return h ? `<a data-hunter="${esc(h.license)}">${esc(g.name)}</a>` : o ? `<a data-id="${o.id}">${esc(g.name)}</a>` : `<span class="fam-civ-n">${esc(g.name)}</span>`; });
+    const nH = gs.filter(g => who(g).h).length;
+    return `<div>${names.slice(0, -1).join(', ')} and ${names[names.length - 1]} <span class="muted">— ${esc(gs[0].why)}${nH ? ` · ${nH === gs.length ? 'all' : nH} Hunter${nH === 1 ? '' : 's'} now` : ''}</span></div>`; };
+  const rows = [...byWhy.values()].map(gs => gs.length > 1 && gs[0].why ? many(gs) : gs.map(row).join(''));
+  return `<div><div class="section-h">Grudges</div><div class="grs">${rows.join('')}${faded ? `<p class="muted" style="margin:4px 0 0;font-size:12px">${faded} older grudge${faded === 1 ? '' : 's'} faded with time.</p>` : ''}</div></div>`;
 }
 function bondsHtml(c){
   const B = c.bonds || []; if(!B.length) return '';
@@ -376,7 +408,7 @@ function openProfile(id){
     <div><div class="section-h">Story</div><p class="story-p">${autoLink(esc(storyOf(c)), c.id)}</p>${bgHtml(c)}<p class="muted" style="margin:6px 0 0;font-size:12.5px">Best at ${top.map(k => ATTR_LABEL[k]).join(', ')}; weakest in ${low.map(k => ATTR_LABEL[k]).join(' and ')}.${ALIVE(c.status) ? state : ''}</p></div>
     ${bondsHtml(c)}
     ${grudgesHtml(c)}
-    ${c.dojo && schOf(c.dojo.id) ? `<p class="h-fam"><span>⛩</span> ${c.dojoNen ? 'Already taught some Nen at' : 'Trained at'} <a class="golink" data-school="${c.dojo.id}" title="Open the school">${esc(capS(schOf(c.dojo.id).name))} ›</a></p>` : ''}
+    ${c.dojo && schOf(c.dojo.id) ? `<p class="h-fam"><span>⛩</span> ${c.dojoNen ? 'Already taught some Nen at' : 'Trained at'} ${schoolCrest(schOf(c.dojo.id), 22)} <a class="golink" data-school="${c.dojo.id}" title="Open the school">${esc(capS(schOf(c.dojo.id).name))} ›</a></p>` : ''}
     ${familyHtml(c)}
     ${allianceHtml(c)}
     ${connectionsHtml(c)}
