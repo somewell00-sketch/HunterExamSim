@@ -282,3 +282,16 @@ function finChapterHtml(){
   return {html: `<div class="fch-nav" role="toolbar" aria-label="Chapters of the final">${chips}</div>${body}`, col};
 }
 document.addEventListener('click', e => { const b = e.target.closest && e.target.closest('[data-fch]'); if(!b) return; FCH.k = b.dataset.fch; FCH.manual = true; renderBracket(); const n = document.querySelector('.fch-nav'); if(n && n.getBoundingClientRect().top < 0) n.scrollIntoView({block: 'start'}); });
+// before the bell: who made it, as they walk in (no results yet)
+function fcRosterHtml(){
+  const cm = cmap(S), B = S.bracket; if(!B) return '';
+  const fin = [...new Set(bracketMatches().flatMap(m => [m.a, m.b]))].map(id => cm[id]).filter(Boolean);
+  const zv = c => { const t = fcNotes(c).find(x => /^Finished with \d+ badges, \d+ points/.test(x)); return t ? t.match(/(\d+) badges, (\d+) points/).slice(1).map(Number) : [(c.badges || []).length, 0]; };
+  const first = c => bracketMatches().filter(m => (m.a === c.id || m.b === c.id) && !(m.bye && !m.examiner)).sort((x, y) => x.seq - y.seq)[0];
+  const card = c => { const [b, p] = zv(c), m = first(c), o = m ? (m.examiner ? null : cm[m.a === c.id ? m.b : m.a]) : null, att = (c.attempts || []).length + 1;
+    const vs = m ? (m.id.startsWith('P') ? 'Preliminary' : m.id === 'EX' || m.examiner ? 'License bout' : 'Round ' + m.round) + (o ? ` vs ${esc(o.name)}` : m.examiner ? ' vs the examiner' : '') : 'Bye';
+    return `<div class="fcx-c${fcFollowed(c) ? ' fol' : ''}"><a data-id="${c.id}">${esc(c.name)}</a><small>${c.age} · ${esc(traitNoun(c.trait || ''))}</small><span class="fcx-o">${vs}</span></div>`; };
+  const L = fin.slice().sort((a, b) => (fcFollowed(b) ? 1 : 0) - (fcFollowed(a) ? 1 : 0) || zv(b)[1] - zv(a)[1]);
+  const many = L.length > 16;
+  return `<div class="fcx-sec"><div class="section-h">Who made it · ${L.length} finalist${L.length === 1 ? '' : 's'}</div><div class="fcx-rs">${L.slice(0, many ? 12 : 99).map(card).join('')}</div>${many ? `<details class="fcx-whole"><summary>All ${L.length} finalists</summary><div class="fcx-rs">${L.slice(12).map(card).join('')}</div></details>` : ''}</div>`;
+}

@@ -355,9 +355,14 @@ function renderBracket(){
   const heads = G.rounds.map((round, r) => `<span style="left:${r * (CW + GAP)}px;width:${CW}px">${r === R - 1 ? 'Last match' : 'Round ' + (r + 1)}</span>`).join('');
   return R ? `<div class="bwrap"><div class="bheads" style="width:${W}px">${heads}</div><div class="bracket" style="width:${W}px;height:${H}px"><svg width="${W}" height="${H}" aria-hidden="true">${lines}</svg>${cards}</div></div>` : '';
   };
-  const trees = B.groups ? B.groups.map(g => `<div class="section-h" style="margin-top:14px">${esc(g.name)}${g.eliminated && !hiddenFinal().has(g.eliminated) ? ` <span class="muted" style="font-weight:400">· one falls here</span>` : ''}</div>${g.solo ? `<div class="pre">${matchCard(g.solo, {a:true,b:true})}</div>` : ''}${drawTree(g)}`).join('') : drawTree(B);
-  const prelim = B.prelim.length ? `<div><div class="section-h">Preliminary round</div><p class="muted" style="margin:-2px 0 10px;font-size:13px;max-width:75ch">Too many finalists for the bracket, so the ones with the weakest exam record fight first. No second chances here: every loser in this round leaves the exam, and only the winners move on to the bracket.</p><div class="pre">${B.prelim.map(m => matchCard(m, {a:true, b:true})).join('')}</div></div>` : '';
-  const solo = B.solo ? `<div><div class="section-h">License bout</div><div class="pre">${matchCard(B.solo, {a:true,b:true})}</div></div>` : '';
+  // the bracket as it stands; drawn a second time with nothing revealed for the draw shown before the bell
+  const bracketParts = () => {
+    const trees = B.groups ? B.groups.map(g => `<div class="section-h" style="margin-top:14px">${esc(g.name)}${g.eliminated && !hiddenFinal().has(g.eliminated) ? ` <span class="muted" style="font-weight:400">· one falls here</span>` : ''}</div>${g.solo ? `<div class="pre">${matchCard(g.solo, {a:true,b:true})}</div>` : ''}${drawTree(g)}`).join('') : drawTree(B);
+    const prelim = B.prelim.length ? `<div><div class="section-h">Preliminary round</div><p class="muted" style="margin:-2px 0 10px;font-size:13px;max-width:75ch">Too many finalists for the bracket, so the ones with the weakest exam record fight first. No second chances here: every loser in this round leaves the exam, and only the winners move on to the bracket.</p><div class="pre">${B.prelim.map(m => matchCard(m, {a:true, b:true})).join('')}</div></div>` : '';
+    const solo = B.solo ? `<div><div class="section-h">License bout</div><div class="pre">${matchCard(B.solo, {a:true,b:true})}</div></div>` : '';
+    return {trees, prelim, solo};
+  };
+  const {trees, prelim, solo} = bracketParts();
   // --- outcome
   const hide = hiddenFinal();
   const fin = S.candidates.filter(c => c.out === FINAL_P || (c.status === 'Approved'));
@@ -375,16 +380,23 @@ function renderBracket(){
     ${S.finished ? castEndHtml() : ''}
     </div>`;   // who lost, died or was disqualified is already in the bracket above
   const FC = (typeof finChapterHtml === 'function' && finChapterHtml()) || {}; el.dataset.fr = FC.col || '';
+  const sumH = (() => { const lost = S.candidates.filter(c => c.out === FINAL_P && !hide.has(c.id) && /last match/i.test(c.reason || '')); const dq = removed.length;
+      return passed.length ? `<p class="fin-sum"><b>${passed.length} new Hunter${passed.length === 1 ? '' : 's'}</b>${lost.length ? ` · ${lost.map(c => `<a data-id="${c.id}">${esc(c.name)}</a>`).join(', ')} ${lost.length === 1 ? 'fails' : 'fail'} the last match` : ''}${dq ? ` · ${dq} removed for killing or dying` : ''}</p>` : ''; })();
   el.innerHTML = `<div class="rep-head"><div><h2>Final Tournament</h2>${phTests(PHASES[FINAL_P])}${PHASES[FINAL_P].ex ? `<div class="exline">${exChip(PHASES[FINAL_P].ex)}</div>` : ''}</div>
 </div>
-    ${(() => { const lost = S.candidates.filter(c => c.out === FINAL_P && !hide.has(c.id) && /last match/i.test(c.reason || '')); const dq = removed.length;
-      return passed.length ? `<p class="fin-sum"><b>${passed.length} new Hunter${passed.length === 1 ? '' : 's'}</b>${lost.length ? ` · ${lost.map(c => `<a data-id="${c.id}">${esc(c.name)}</a>`).join(', ')} ${lost.length === 1 ? 'fails' : 'fail'} the last match` : ''}${dq ? ` · ${dq} removed for killing or dying` : ''}</p>` : ''; })()}
+    ${RP.active || !FC.col ? sumH : ''}
     <details class="fin-rules"><summary>How the final works</summary><p class="muted" style="margin:6px 0 0;max-width:75ch">${B.groups ? `The Jubilee splits the finalists into four brackets that run side by side, each with its own last match. ` : ``}Win one match and you pass; lose and you fight again. Only the finalist who loses the last match fails. The best performers of the exam start in round 1, with more chances.</p></details>
-    ${FC.html || ''}${FC.col === 'SC' ? starCupHtml() : ''}
-    ${prelim}${solo}
-    ${trees}
-    ${FC.col === 'SC' ? '' : starCupHtml()}
-    ${outcome}`;
+    ${FC.html || ''}
+    ${(() => {
+      // each chapter shows what belongs to it: the room and the draw before the bell, the bracket for a round, the star's own bracket, and everything at the end
+      const brk = prelim + solo + trees, whole = (open, lab) => `<details class="fcx-whole"${open ? ' open' : ''} ontoggle="layoutBracket(BRK[0], BRK[1])"><summary>${lab}</summary>${brk}</details>`;
+      if(RP.active || !FC.col) return brk + starCupHtml() + outcome;
+      if(FC.col === 'pre'){ const keep = {active: RP.active, idx: RP.idx, ex: RP.ex, view: RP.view}; Object.assign(RP, {active: true, idx: 0, ex: 0, view: null}); let d; try { d = bracketParts(); } finally { Object.assign(RP, keep); }
+        return fcRosterHtml() + `<div class="fcx-sec"><div class="section-h">${B.prelim.length ? 'The draw' : 'The draw · Round 1'}</div>${d.prelim}${d.solo}${d.trees}</div>`; }
+      if(FC.col === 'SC') return starCupHtml() + whole(false, 'See the whole bracket');
+      if(FC.col === 'ep') return sumH + outcome + `<div class="fcx-sec">${whole(true, 'The whole bracket')}</div>`;
+      return brk;
+    })()}`;
   layoutBracket(CW, GAP);
   const lx = $('lx'); if(lx) lx.scrollTop = lx.scrollHeight;
 }

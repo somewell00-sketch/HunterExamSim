@@ -42,7 +42,6 @@
 .fch-nav .rnd i{font-style:normal;color:var(--red);font-size:9px;vertical-align:1px}.fch-nav .rnd.on i{color:#7a1d10}
 .wt2.fch{margin:6px 0 10px}
 #pane-phase .slot,#pane-phase .pre .mc{transition:opacity .25s}
-#pane-phase[data-fr="pre"] .slot,#pane-phase[data-fr="pre"] .pre .mc{opacity:.55}
 #pane-phase[data-fr="P"] .slot,#pane-phase[data-fr="EX"] .slot{opacity:.28}
 #pane-phase[data-fr^="r"] .pre .mc{opacity:.28}
 #pane-phase[data-fr="r0"] .slot:not([data-r="0"]){opacity:.28}
@@ -55,3 +54,17 @@
 #pane-phase[data-fr="r7"] .slot:not([data-r="7"]){opacity:.28}
 #pane-phase[data-fr="SC"] .slot,#pane-phase[data-fr="SC"] .pre .mc{opacity:.28}
 .fch-nav .rnd[data-fch="SC"]{color:var(--gold)}.fch-nav .rnd[data-fch="SC"].on{color:#111}
+/* the final: the text keeps its measure, the big beats run the full width */
+.wt2.fch{max-width:none}
+.wt2.fch .wt-scene,.wt2.fch .wt-prev,.wt2.fch .wt2-h,.wt2.fch .more{max-width:720px}
+.wt2.fch .wt-splash blockquote{max-width:30em}
+.fcx-sec{margin-top:22px}
+.fcx-rs{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px}
+.fcx-c{border:2px solid var(--ink);box-shadow:3px 3px 0 var(--ink);background:var(--panel);padding:10px 12px;display:flex;flex-direction:column;gap:3px}
+.fcx-c.fol{border-color:var(--gold)}
+.fcx-c a{font-family:var(--f-title);font-size:17px;color:var(--fg);text-decoration:none}
+.fcx-c small{font-family:var(--f-mono);font-size:11px;color:var(--muted)}
+.fcx-b{color:var(--gold);font-size:11px;letter-spacing:2px}.fcx-b em{font-style:normal;font-family:var(--f-mono);color:var(--muted);letter-spacing:0;margin-left:6px}
+.fcx-o{font-family:var(--f-mono);font-size:11.5px;color:var(--fg);border-top:1px dashed var(--line);padding-top:5px;margin-top:3px}
+.fcx-whole{margin-top:22px;border:2px dashed var(--line);padding:10px 14px}.fcx-whole summary{cursor:pointer;font-family:var(--f-mono);font-size:12px;color:var(--gold)}.fcx-whole[open] summary{margin-bottom:12px}
+.fcx-sec .fcx-whole{margin-top:0}
