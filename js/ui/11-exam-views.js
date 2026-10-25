@@ -42,7 +42,7 @@ function toggleFav(id){
 const favBtn = id => `<button class="btn small favbtn" data-fav="${esc(id)}" aria-pressed="${isFav(id)}" title="Follow this candidate across exams">${isFav(id) ? '★ Favorite' : '☆ Favorite'}</button>`;
 function favLog(p, text, id){ S.log.push({p, type:'fav', text, ids: id ? [id] : []}); }
 function runFav(){
-  if(!S.started) scLock(true);   // picks still open when the exam starts: lock them as they are
+  if(!S.started){ if(!scEx().pool) scPool(); scLock(true); }   // the ones to watch are drawn even if the Scout's Table was never opened; open picks lock as they are
   const before = {}; S.candidates.forEach(c => { if(FAV[c.id]) before[c.id] = c.status; });
   if(S.cat && S.phase === S.cat.p && !S.cat.stage) S.cat.wait = !MT_AUTO && !MENTOR.off && mtHere().some(({c}) => c.status === 'Active');
   if(S.cat && S.cat.stage === 'impact') mtHere().forEach(({a, c}) => { if(!S.cat.mt[c.id]) S.cat.mt[c.id] = a.posture === 'cautious' ? 'run' : a.posture === 'aggressive' ? 'hold' : 'help'; });
@@ -465,7 +465,7 @@ function renderZevil(st){
   // one standings table: everyone ranked, the ones you follow always shown, the rest behind a toggle
   const keep = r => isFav(r.c.id) || !!mtOf(r.c.id);
   const zrow = (r, k) => { const gone = (snap.gone || {})[r.c.id], out = (end && zDay > 0 && r.p < 6) || gone, al = (snap.allies && snap.allies[r.c.id]) || [];
-    return `<div class="zr ${gone === 'Deceased' ? 'dead' : out ? 'out' : r.p >= 6 ? 'ok' : ''}"><span class="rk">${k + 1}</span><span class="zn"><a data-id="${r.c.id}">${esc(r.c.name)}</a>${al.length ? `<small>with ${al.map(id => map[id] ? esc(map[id].first) : '').join(', ')}</small>` : ''}</span><span class="inv">${invOf(r)}</span><span class="zpts">${bar(r.p)}<b>${r.p}</b><small>/6</small></span><span class="zst">${gone === 'Deceased' ? 'Killed' : gone ? 'DQ' : out ? 'Out' : r.p >= 6 ? (end ? 'Through' : 'Safe') : ''}</span></div>`; };
+    return `<div class="zr ${gone === 'Deceased' ? 'dead' : out ? 'out' : r.p >= 6 ? 'ok' : ''}"><span class="rk">${k + 1}</span><span class="zn"><a data-id="${r.c.id}">${esc(r.c.name)}</a>${al.length ? `<small>with ${al.map(id => map[id] ? esc(map[id].first) : '').join(', ')}</small>` : ''}</span><span class="inv">${invOf(r)}</span><span class="zpts"><b>${r.p}</b><small>/6</small></span><span class="zst">${gone === 'Deceased' ? 'Killed' : gone ? 'DQ' : out ? 'Out' : r.p >= 6 ? (end ? '<i class="zok" title="Through">✓</i>' : 'Safe') : ''}</span></div>`; };
   // every row shows its own badge and its target, held or not, then whatever else was taken
   const invOf = r => { const id = r.c.id, tg = Z.targets[id], has = b => r.b.includes(b);
     const slot = (b, kind, missT) => has(b) ? badge(id, b) : `<span class="bdg ${kind} miss" title="${missT}">${reg(b)}</span>`;
@@ -477,8 +477,7 @@ function renderZevil(st){
     <div class="zhead"><div class="zdays">${days}</div><div class="zcount"><b>${left}</b> day${left === 1 ? '' : 's'} remaining</div></div>
     <div class="rep-grid">
       <div class="rep-col">
-        <div><div class="section-h">Event feed · ${zDay === 0 ? 'arrival' : 'day ' + zDay}</div><div class="story scroll log zfeed">${feed || '<div class="muted" style="padding:10px">A quiet day on the island.</div>'}</div></div>
-        ${zCamp}${zEnd}
+        ${zChapterHtml(zDay, zDay === 0 ? campL : [], end ? endL : [])}
       </div>
       <div class="rep-col">
         <div><div class="section-h">Standings · ${zDay === 0 ? 'on arrival' : end ? 'final' : 'end of day ' + zDay}</div><p class="zkey"><span class="bdg own">#</span><span class="bdg tgt">#</span> own or target 3 pts · <span class="bdg any">#</span> other 1 pt · <span class="bdg tgt miss">#</span> not held · 6 to qualify</p>${table}</div>
@@ -677,7 +676,6 @@ function renderPhase0(){
         return `<div class="rn2"><div class="rn-h"><b>${fmt(st.after)}</b> of ${fmt(st.before)} go on</div><div class="rn-bar" role="img" aria-label="${Math.round(pct)}% go on"><i style="width:${pct}%"></i></div><div class="rn-s">${cut ? `${fmt(cut)} out` : 'nobody out'}${rescued ? ` · ${rescued} rescued` : ''}${dead ? ` <span class="rn-d" title="${dead} died">✝ ${dead}</span>` : ''}</div></div>`; })()}</div>
     <div class="rep-grid">
       <div class="rep-col">
-        ${moment ? `<div class="moment"><span class="mo-h">Moment of the trial</span><p>${linkNames(moment.text, moment.ids)}</p></div>` : ''}
         ${(() => {
           // the phase in three layers: what mattered, the mood around it, and the bonds that formed
           const all = key.concat(eliteR), flav = all.filter(e => e.type === 'story'), bonds = all.filter(e => e.type === 'bond');
@@ -688,13 +686,8 @@ function renderPhase0(){
               const cs = hi.filter(e => e.type !== 'castout' && (e.ids || []).some(id => cast.has(id))).slice(0, 3).filter(e => hi.indexOf(e) >= at + co.length + 3);   // the cast's scenes are seen, not folded away
               cs.forEach(e => hi.splice(hi.indexOf(e), 1)); hi.splice(at + co.length, 0, ...cs); } }   // the cast's falls come right after the opening   // an heir sits right after the trial's own opening line
           const hf = foldSame(hi), top = hf.slice(0, 5), more = hf.slice(5);
-          return sec('What happened', story(top) + (more.length ? `<details class="ally-more"><summary>${more.length} more from this trial</summary>${story(more, more.length > 8, true)}</details>` : ''))
-            + (flav.length ? `<div class="camp"><h4 class="camp-t">Around the camp</h4><p>${(() => {
-              // the trial is named once; after that the camp says "this trial" or "this one"
-              let n = 0; const re = new RegExp(`\\b([Tt])he ${ph.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'g');
-              const tame = t => t.replace(re, (m, T) => { if(++n === 1) return m; const alt = n % 2 ? 'this one' : 'this trial'; return T === 'T' ? alt[0].toUpperCase() + alt.slice(1) : alt; });
-              return flav.map(e => linkNames(tame(trimPh(e.text)), e.ids)).join(' '); })()}</p></div>` : '')
-            + sec('Bonds &amp; alliances', bondsHtml(bonds, ph.zevil ? [] : allies));
+          // what happened and the camp around it, told as one chapter
+          return chapterHtml(i) + sec('Bonds &amp; alliances', bondsHtml(bonds, ph.zevil ? [] : allies));
         })()}
         ${ph.zevil ? sec('Island log, day by day', story(ev.filter(e => allies.includes(e) || duels.includes(e)), true)) : ''}
         ${sec('Teams', teamsHtml(teams))}
@@ -870,7 +863,8 @@ function castEndHtml(){
 function castStripHtml(i){
   const m = cmap(S), L = (S.castEver || []).filter(x => x.p <= i).map(x => m[x.id]).filter(c => c && !(c.out != null && c.out <= i && c.status !== 'Approved'));
   if(!L.length) return '';
-  // the opening ones in the order the first trial's report shows them (moment first), then each newcomer in the trial they joined
+  // in the order they first show up in this trial's chapter; anyone the chapter leaves out keeps their place at the end
+  if(typeof chOrder === 'function' && !PHASES[i].zevil && !PHASES[i].final){ const o = chOrder(i), at = c => { const k = o.indexOf(c.id); return k < 0 ? 1e3 + L.indexOf(c) : k; }; L.sort((a, b) => at(a) - at(b)); }
   const tag = c => c.nick ? `“${c.nick}”` : (c.attempts || []).length > 1 ? 'returning' : c.hParent || c.heir ? 'heir' : c.crusher ? 'rookie crusher' : traitNoun(c.trait || '');
   return `<div><div class="section-h">Ones to watch</div><div class="standouts">${L.slice(0, 10).map(c => `<div><a data-id="${c.id}">${esc(c.name)}</a><span>${esc(tag(c))}</span></div>`).join('')}</div></div>`;
 }

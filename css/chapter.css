@@ -1,0 +1,30 @@
+/* chapters: one trial, or one Zevil day, told as an episode under the usual header */
+.wt2{display:flex;flex-direction:column;gap:18px;max-width:720px}
+.wt2-h{display:flex;flex-direction:column;gap:4px}
+.wt2-h>span{font-family:var(--f-mono);font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--gold)}
+.wt2-h h3{margin:0;font-family:var(--f-title);font-weight:400;font-size:clamp(26px,4vw,36px);line-height:1.05}
+.wt2 .cast{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.wt2 .cast a{width:28px;height:28px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-family:var(--f-mono);font-size:10.5px;color:var(--fg);background:var(--raise);border:2px solid var(--ink);box-shadow:1px 1px 0 var(--ink);text-decoration:none}
+.wt2 .cast a.fol{background:var(--gold);color:#111}
+.wt-prev{margin:0;font-style:italic;color:var(--muted);font-size:14px;line-height:1.5;border-left:3px solid var(--gold);padding-left:12px}
+.wt-prev a{color:inherit}
+.wt-turn{margin:0;font-family:var(--f-title);font-size:20px;line-height:1.35;color:var(--fg)}
+.wt-time{display:inline-block;font-family:var(--f-mono);font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--bg);background:var(--fg);padding:3px 10px;margin-bottom:10px;transform:skewX(-10deg)}
+.wt-scene p,.wt-vig p,.wt2 .more p{font-size:16.5px;line-height:1.75;margin:0 0 12px;color:color-mix(in srgb,var(--fg) 92%,var(--muted))}
+.wt2 a{color:var(--fg);font-weight:600;text-decoration:none;border-bottom:1.5px solid color-mix(in srgb,var(--gold) 65%,transparent)}
+.wt2 p.drop::first-letter{float:left;font-family:var(--f-title);font-size:56px;line-height:.85;margin:6px 10px 0 0;color:var(--gold)}
+.wt-vig{border-left:3px solid var(--line);padding-left:14px}
+.wt-who{display:block;font-family:var(--f-title);font-size:19px;margin-bottom:6px}
+.wt-splash{position:relative;overflow:hidden;margin:2px 0;padding:34px 26px;border:3px solid var(--ink);box-shadow:5px 5px 0 var(--ink);background:repeating-conic-gradient(from 0deg at 82% 50%,rgba(255,255,255,.06) 0 2deg,transparent 2deg 7deg),var(--panel)}
+.wt-splash.zv{background:repeating-conic-gradient(from 0deg at 82% 50%,rgba(79,176,232,.08) 0 2deg,transparent 2deg 7deg),#0f171b}
+.wt-splash .sfx{position:absolute;right:18px;top:50%;transform:translateY(-50%) rotate(-8deg);font-family:var(--f-title);font-size:clamp(56px,9vw,100px);color:transparent;-webkit-text-stroke:2px color-mix(in srgb,var(--gold) 40%,transparent);pointer-events:none}
+.wt-splash .mo-k{position:relative;display:block;font-family:var(--f-mono);font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--gold);margin-bottom:8px}
+.wt-splash blockquote{position:relative;margin:0;font-family:var(--f-title);font-size:clamp(20px,3.2vw,27px);line-height:1.3;text-shadow:2px 2px 0 #000;max-width:24em}
+.wt2 .more{border:2px dashed var(--line);padding:10px 14px}.wt2 .more summary{cursor:pointer;font-family:var(--f-mono);font-size:12px;color:var(--gold)}.wt2 .more[open] summary{margin-bottom:10px}
+.wt2 .more p{font-size:14.5px;line-height:1.6}
+.wt2 .next{border:2.5px solid var(--ink);background:var(--fg);color:var(--bg);padding:12px 18px 12px 16px;box-shadow:4px 4px 0 var(--ink);clip-path:polygon(0 0,100% 0,calc(100% - 14px) 100%,0 100%)}
+.wt2 .next span{font-family:var(--f-mono);font-size:10.5px;letter-spacing:.16em;text-transform:uppercase}
+.wt2 .next p{margin:4px 0 0;font-family:var(--f-title);font-size:20px;line-height:1.25}
+.wt2 .next a{color:inherit;border-color:currentColor}
+.zr .zst .zok{font-style:normal;color:var(--green);font-size:15px;font-weight:700}
+@media (max-width:600px){.wt-scene p,.wt-vig p{font-size:15.5px}.wt2 p.drop::first-letter{font-size:46px}}
