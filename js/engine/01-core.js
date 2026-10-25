@@ -680,7 +680,7 @@ const FALL_SC = {
     intelligence: ['The map was upside down for an hour before {F} noticed. Then it was dark.', '{F} decoded the map perfectly, for the wrong island.'],
     determination: ['{F} dug until sunset, gave up, and the next candidate found the chest a spade below.', 'Three empty holes and {F} put the shovel down for good.']},
   prisoner: {}, guardians: {}, bandits: {},
-  centennial: {endurance: ['{F} reached the hundredth stair on {their} knees and could not stand to take it.', 'One stair for every exam before {them}. {F} ran out of legs at ninety-one.'],
+  centennial: {endurance: ['{F} reached the hundredth stair on {their} knees and could not stand to take it.', 'One stair for every exam since the last centenary. {F} ran out of legs at ninety-one.'],
     courage: ['{F} read the names on the gate, one of them familiar, and turned around.', 'The gate of names asked {F} to add {their} own. {F} would not.'],
     strategy: ['At the fork of a hundred years {F} chose the old road. It ended in a wall.', '{F} followed the map of a Hunter long dead. The road had moved since.'],
     perception: ['The hidden exit was in plain sight. {F} walked past it twice.', '{F} searched the whole hall for a door and never looked up.'],

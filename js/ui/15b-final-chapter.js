@@ -191,7 +191,7 @@ function fcRound(x, i, all){
   if(nx && nx.ms.length && (!RP.active || x.shown.length === x.ms.length)){ const nb = nx.ms.map(m => fcBeat(m, nx.k)).sort((a, b) => b.score - a.score)[0];
     const known = nb && (!RP.active || [nb.m.a, nb.m.b].every(id => !id || id === 'examiner' || bracketMatches().some(m => m.seq < RP.idx && (m.l === id || m.a === id && nx.r === 0))));
     nxt = {k: 'Next · ' + nx.lab, t: nb && known ? (nb.h && nb.h.w >= 6 ? nb.h.t : nb.b ? `${fcF(nb.a)} draws ${fcF(nb.b)}.` : `${fcF(nb.a)} faces the examiner.`) : 'The draw is still being made.'}; }
-  else if(!nx && x.shown.length === x.ms.length && S.finished && !RP.active && S.starCup && !S.starCup.solo) nxt = {k: 'Next · ★ Centennial Star', t: 'The best new Hunters of the hundredth exam fight once more, for a star.'};
+  else if(!nx && x.shown.length === x.ms.length && S.finished && !RP.active && S.starCup && !S.starCup.solo) nxt = {k: 'Next · ★ Centennial Star', t: `The best new Hunters of the ${ordinal(S.edition)} exam fight once more, for a star.`};
   else if(!nx && x.shown.length === x.ms.length && S.finished && !RP.active) nxt = {k: 'Next · Epilogue', t: (n => `${fcCap(fcNum(Math.min(n, 99)))} new Hunter${n === 1 ? '' : 's'}, and what they leave with.`)(S.candidates.filter(c => c.status === 'Approved').length)};
   if(RP.active && x.shown.length < x.ms.length) nxt = {k: 'Live', t: `${fcCap(fcNum(x.ms.length - x.shown.length))} bout${x.ms.length - x.shown.length === 1 ? '' : 's'} still to fight in this round.`};
   const tk = x.k === 'P' ? 'P' : x.k === 'EX' ? 'EX' : x.last ? 'last' : x.r === 0 ? 'r' : 'mid';
@@ -211,11 +211,11 @@ function fcStar(){
     {at: 'This time it happens on the 200th floor of Heavens Arena, borrowed for one afternoon.', mood: 'The regulars cannot believe who is on their floor.'},
     {at: 'This time it happens in a stadium in Yorknew City, built for the occasion and torn down the week after.', mood: 'Every seat is sold. Half the crowd has never seen a Hunter fight.'},
     {at: 'This time it happens in the courtyard of the Association headquarters in Swardani City.', mood: 'Hunters lean out of every window. Most of them pretend they just happened to be passing.'},
-    {at: 'This time it happens on a stage built over the lake where the very first exam ended, a hundred exams ago.', mood: 'The water is so still the fighters can see themselves in it.'},
+    {at: `This time it happens on a stage built over the lake where the very first exam ended, ${S.edition % 100 === 0 && S.edition <= 2000 ? FC_NUM[S.edition / 100] + ' hundred' : 'so many'} exams ago.`, mood: 'The water is so still the fighters can see themselves in it.'},
     {at: 'This time it happens in an old arena carved into a mountain, opened once a century.', mood: 'The dust of the last centenary is still on the stone benches.'},
     {at: 'This time it happens on the deck of the Association\'s own airship, high above the clouds.', mood: 'There is a rail, and below it, nothing at all.'}
   ], 'venue' + S.edition);
-  const scenes = [{l: 'Weeks later', ps: [C.solo ? `${champ ? fcA(champ) : 'One new Hunter'} is the only new Hunter of the centenary. Nobody is left to fight.` : `A few weeks after the exam, the Association calls ${(n => n === 2 ? 'its two' : 'its ' + fcNum(n))((C.seeds || []).length || semis.length * 2)} best new Hunters back for one more fight. ${V.at} ${V.mood} Some of them have not seen each other since the last match. No license is at stake: only a star, and the hundredth exam's name next to theirs.`]}];
+  const scenes = [{l: 'Weeks later', ps: [C.solo ? `${champ ? fcA(champ) : 'One new Hunter'} is the only new Hunter of the centenary. Nobody is left to fight.` : `A few weeks after the exam, the Association calls ${(n => n === 2 ? 'its two' : 'its ' + fcNum(n))((C.seeds || []).length || semis.length * 2)} best new Hunters back for one more fight. ${V.at} ${V.mood} Some of them have not seen each other since the last match. No license is at stake: only a star, and the ${ordinal(S.edition)} exam's name next to theirs.`]}];
   semis.forEach((x, i) => { const a = cm[x.a], b = cm[x.b], h = fcHook(a, b, 'sc' + i); scenes.push({l: semis.length > 1 ? `Semi-final ${i + 1}` : 'The semi-final', ps: [[h ? h.t : '', autoLink(esc(tale(x, 3).join(' '))), res(x)].filter(Boolean).join(' ')]}); });
   const byeId = C.seeds && C.seeds.length === 3 ? C.seeds[0] : null;
   if(byeId && cm[byeId]) scenes.push({l: 'Waiting', ps: [`${fcA(cm[byeId])} was the best of the exam, and waits for the final, watching the others fight for the right to face ${PR(cm[byeId]).them}.`]});
@@ -225,7 +225,7 @@ function fcStar(){
     if(cut > 0) scenes.push({l: 'The final', ps: [autoLink(esc(ft.slice(0, cut).join(' ')))]}); sp.at = scenes.length; }
   if(champ) scenes.push({l: 'After', ps: [`${fcA(champ)} starts ${PR(champ).their} career with a star already on the license. ${fcCap(PR(champ).they)} will be asked about this day for the rest of ${PR(champ).their} life.`]});
   const lastM = bracketMatches().filter(m => m.root).map(m => fcBout(m)).find(b => b.res);
-  return fcArticle('Final · The Centennial Star', fcPick(['One Star', 'No License at Stake', 'The Best of the Hundredth', 'For the Star'], 'sct' + S.edition),
+  return fcArticle('Final · The Centennial Star', fcPick(['One Star', 'No License at Stake', 'The Best of the Century', 'For the Star'], 'sct' + S.edition),
     lastM ? 'Previously: ' + linkNames(fcClean(lastM.res.text), lastM.ids) : null, scenes, sp, {k: 'Next · Epilogue', t: `${fcCap(fcNum(Math.min(lic, 99)))} new Hunter${lic === 1 ? '' : 's'}, and what they leave with.`});
 }
 function fcEpilogue(){

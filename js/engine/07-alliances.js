@@ -695,7 +695,7 @@ function starCup(S, p, rng){
   if(ap.length < 2){ if(ap.length === 1){ ap[0].starCup = 'champion'; S.starCup = {matches: [], champ: ap[0].id, solo: true}; log(S, p, 'major', `${ap[0].name} is the only new Hunter of the centenary and receives the Centennial Star unopposed.`, [ap[0].id]); } return; }
   const C = S.starCup = {matches: [], champ: null, seeds: ap.map(c => c.id)};
   const bout = (A, Bc, round) => { const r = fight(S, A, Bc, p, rng); C.matches.push({round, a: A.id, b: Bc.id, w: r.w.id, l: r.l.id, how: r.how, ex: r.ex, tale: boutTale(r, A, Bc, {star: true, round})}); return r; };
-  log(S, p, 'major', `For the hundredth exam, the ${ap.length} best new Hunters fight once more — not for a license, but for the Centennial Star.`, ap.map(c => c.id));
+  log(S, p, 'major', `For the ${ordinal(S.edition)} exam, the ${ap.length} best new Hunters fight once more — not for a license, but for the Centennial Star.`, ap.map(c => c.id));
   let finA, finB;
   if(ap.length === 4){ const s1 = bout(ap[0], ap[3], 'Semi-final'), s2 = bout(ap[1], ap[2], 'Semi-final'); finA = s1.w; finB = s2.w;
     log(S, p, 'fight', `Centennial Star, semi-finals: ${s1.w.name} beats ${s1.l.name} by ${s1.how}; ${s2.w.name} beats ${s2.l.name} by ${s2.how}.`, [s1.w.id, s1.l.id, s2.w.id, s2.l.id]); }

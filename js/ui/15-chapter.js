@@ -30,7 +30,7 @@ const CH_OPEN = {
   shadows: ['Not everyone at the start line is who they say they are.', 'The examiner counts the candidates and gets a different number each time.', 'A new face in the crowd. Nobody remembers seeing it at the gate.'],
   wild: ['Something is moving in the trees before the signal.', 'The animals are restless this year, and so are the candidates.', 'Somebody finds claw marks on the gate. Fresh ones.']
 };
-const CH_OPEN_SP = {centenary: ['A hundred exams have walked this road before this one.', 'The old stones remember every candidate. Today they get a few more.'], jubilee: ['A Jubilee year: more licenses, more noise, the same danger.', 'The whole Association is watching this one.']};
+const CH_OPEN_SP = {centenary: ['Another hundred exams since the last centenary, and this road remembers every one of them.', 'The old stones remember every candidate. Today they get a few more.'], jubilee: ['A Jubilee year: more licenses, more noise, the same danger.', 'The whole Association is watching this one.']};
 const CH_LABEL = {
   clock: [['Dawn', 'Morning', 'Nightfall'], ['First light', 'The long middle', 'After dark'], ['Before the signal', 'Halfway', 'By the fire']],
   mood: [['The calm', 'The turn', 'The cost'], ['The waiting', 'The rush', 'The quiet after'], ['Nerves', 'Chaos', 'The count']],
