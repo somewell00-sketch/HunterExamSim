@@ -190,8 +190,8 @@ function boutTale(r, A, B, ctx){
   if(Math.abs(A.age - B.age) >= 12){ const o = A.age > B.age ? A : B, y = o === A ? B : A; ctxs.push(`${o.age - y.age} years between them: ${o.first} was fighting before ${y.first} could walk.`); }
   if(star){ ctxs.length = 0;
     if((A.bonds || []).some(b => b.id === B.id)) ctxs.push(`They passed the exam side by side. Today one of them has to win.`, `Best friends, forced to try their hardest against each other. Both are grinning.`);
-    ctxs.push(`A few days ago they were fighting to survive. Today it is only about pride.`, `Neither has slept properly since the exam ended. Neither cares.`);
-    if(A.nen && B.nen) ctxs.push(`Both woke their Nen days ago. Neither knows yet what the other can do.`); }
+    ctxs.push(`A few weeks ago they were fighting to survive. Today it is only about pride.`, `They have not seen each other since the exam ended. Both have changed.`);
+    if(A.nen && B.nen) ctxs.push(`Both have woken their Nen since the exam. Neither knows yet what the other can do.`); }
   if(ctxs.length) L.push(ctxs[h('ctx') % ctxs.length]);
   // how it went
   const wA = w === A, wh = wA ? last.ha : last.hb, lh = wA ? last.hb : last.ha;
@@ -207,7 +207,7 @@ function boutTale(r, A, B, ctx){
   else L.push(pick([`They trade evenly for a while, feeling each other out.`, `A careful start. Then ${w.first} starts to find the gaps.`, `Neither gives much away early.`], 'arc'));
   // the moment
   const big = ex.reduce((b, e) => (e.dmg || 0) > ((b && b.dmg) || 0) ? e : b, null), wn = w.nen && w.nen.hatsu && w.nen.status !== 'Partially Awakened';
-  if(star && w.nen && w.nen.hatsu && h('sn') % 5 < 3) L.push(pick([`${w.first} reaches for a Hatsu barely days old: "${w.nen.hatsu.alias}". It is clumsy, raw, and it works.`, `Then ${w.first} tries "${w.nen.hatsu.alias}" for the first time against someone who can fight back. ${l.first} did not see it coming.`], 'sn2'));
+  if(star && w.nen && w.nen.hatsu && h('sn') % 5 < 3) L.push(pick([`${w.first} reaches for a Hatsu only weeks old: "${w.nen.hatsu.alias}". It is clumsy, raw, and it works.`, `Then ${w.first} tries "${w.nen.hatsu.alias}" for the first time against someone who can fight back. ${l.first} did not see it coming.`], 'sn2'));
   else if(wn && (trailed || swings >= 2 || r.rounds >= 7)) L.push(`Then ${w.first} shows ${P(w).their} Hatsu for the first time in public: "${w.nen.hatsu.alias}". The examiners lean forward.`);
   else if(big && big.text && h('big') % 3) L.push(`The moment everyone remembers: ${big.text.replace(/\.$/, '')}${brutal ? ', and the sound carries to the back rows.' : '.'}`);
   // how it ended
@@ -218,7 +218,7 @@ function boutTale(r, A, B, ctx){
   else if(/judges/.test(r.how)) L.push(pick([`No knockout, no surrender. The judges decide, and the crowd argues about it for an hour.`, `Time runs out with both still standing. The judges give it to ${w.first}, narrowly.`], 'end'));
   // what it leaves
   const close = wh - lh < 20, grudge = (l.grudges || []).some(g => g.id === w.id);
-  if(star) L.push(proud ? pick([`${l.first} wants a rematch. Next year, as Hunters, somewhere with no judges.`, `${l.first} will be thinking about this one for a long time.`], 'sa') : pick([`${w.first} lifts ${l.first}'s hand too, and the crowd loves it.`, `They will be colleagues by tomorrow. Today they were rivals, and it was beautiful.`, `${l.first} is the first to congratulate ${w.first}.`], 'sa'));
+  if(star) L.push(proud ? pick([`${l.first} wants a rematch. Next year, as Hunters, somewhere with no judges.`, `${l.first} will be thinking about this one for a long time.`], 'sa') : pick([`${w.first} lifts ${l.first}'s hand too, and the crowd loves it.`, `They are colleagues now. Today they were rivals, and it was beautiful.`, `${l.first} is the first to congratulate ${w.first}.`], 'sa'));
   else if(proud && !close) L.push(pick([`${l.first} does not take the offered hand.`, `${l.first} leaves without a word. This is not over.`], 'aft'));
   else if(close && !grudge && h('aft') % 2) L.push(pick([`They shake hands at the end, and it looks like it means something.`, `${w.first} helps ${l.first} up. Neither says anything. Neither needs to.`], 'aft'));
   else if(brutal && h('aft2') % 2) L.push(pick([`Both of them leave the ring limping.`, `The floor needs cleaning before the next match.`], 'aft'));
