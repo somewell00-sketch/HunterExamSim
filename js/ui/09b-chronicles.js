@@ -306,14 +306,15 @@ function schoolsYear(ed, add, items){
 }
 // World page: a table of schools, and a popup for each
 function schoolsHtml(){
-  const L = (WORLD.schools || []).filter(s => s.st !== 'closed' || (s.end && S.edition - s.end < 30));
+  const L = WORLD.schools || [];   // closed schools stay listed (faded, at the bottom) until the world forgets them
   if(!L.length) return '';
   const hl = l => { const h = hLic(l); return h ? `<a data-hunter="${esc(h.license)}">${esc(h.name)}</a>` : '—'; };
   const ord = {open: 0, dormant: 1, closed: 2}, rows = L.slice().sort((a, b) => ord[a.st] - ord[b.st] || a.ed - b.ed);
   const top = s => HUNTERS.filter(h => h.school === s.id && hActive(h) && !(schHead(s) && schHead(s).lic === h.license)).sort((a, b) => hStars(b) - hStars(a) || (b.rp || 0) - (a.rp || 0)).slice(0, 3);
-  return `<div><div class="section-h">Schools of Nen</div><div class="tablebox"><table class="hatable sch-t"><thead><tr><th>School</th><th>Founder</th><th>Founded</th><th>Master</th><th>Leading students</th></tr></thead><tbody>
-    ${rows.map(s => { const hd = schHead(s), T = top(s); return `<tr data-school="${s.id}" class="${s.st}"><td>${schoolCrest(s, 40)}<b>${esc(capS(s.name))}</b>${s.parent ? ' <span class="muted" title="Branch">⑂</span>' : ''}<br><small class="muted">${nenChip(s.cat)}${s.st !== 'open' ? ` · ${s.st}` : ''}</small></td><td>${hl(s.founder)}</td><td>${ordinal(s.ed)}</td><td>${hd ? hl(hd.lic) : '<span class="muted">—</span>'}</td><td>${T.length ? T.map(h => hl(h.license) + (hStars(h) ? ` <span class="stars">${starStr(hStars(h))}</span>` : '')).join(', ') : '<span class="muted">—</span>'}</td></tr>`; }).join('')}
-  </tbody></table></div></div>`;
+  const row = s => { const hd = schHead(s), T = top(s); return `<tr data-school="${s.id}" class="${s.st}"><td>${schoolCrest(s, 40)}<b>${esc(capS(s.name))}</b>${s.parent ? ' <span class="muted" title="Branch">⑂</span>' : ''}<br><small class="muted">${nenChip(s.cat)}${s.st !== 'open' ? ` · ${s.st}${s.st === 'closed' && s.end ? ' after the ' + ordinal(s.end) : ''}` : ''}</small></td><td>${hl(s.founder)}</td><td>${ordinal(s.ed)}</td><td>${hd ? hl(hd.lic) : '<span class="muted">—</span>'}</td><td>${T.length ? T.map(h => hl(h.license) + (hStars(h) ? ` <span class="stars">${starStr(hStars(h))}</span>` : '')).join(', ') : '<span class="muted">—</span>'}</td></tr>`; };
+  const live = rows.filter(s => s.st !== 'closed'), shut = rows.filter(s => s.st === 'closed').sort((a, b) => (b.end || 0) - (a.end || 0));
+  const table = R => `<div class="tablebox"><table class="hatable sch-t"><thead><tr><th>School</th><th>Founder</th><th>Founded</th><th>Master</th><th>Leading students</th></tr></thead><tbody>${R.map(row).join('')}</tbody></table></div>`;
+  return `<div><div class="section-h">Schools of Nen</div>${live.length ? table(live) : ''}${shut.length ? `<details class="sch-closed"${live.length ? '' : ' open'}><summary>Closed schools · ${shut.length}</summary>${table(shut)}</details>` : ''}</div>`;
 }
 function openSchool(id){
   const s = schOf(id); if(!s) return;
