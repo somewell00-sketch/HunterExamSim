@@ -374,14 +374,16 @@ function renderBracket(){
     <div class="ofull"><div class="section-h">New Hunters · ${passed.length}</div><div class="cards">${passed.map(lic).join('') || '<span class="muted">No one has passed yet.</span>'}</div></div>
     ${S.finished ? castEndHtml() : ''}
     </div>`;   // who lost, died or was disqualified is already in the bracket above
+  const FC = (typeof finChapterHtml === 'function' && finChapterHtml()) || {}; el.dataset.fr = FC.col || '';
   el.innerHTML = `<div class="rep-head"><div><h2>Final Tournament</h2>${phTests(PHASES[FINAL_P])}${PHASES[FINAL_P].ex ? `<div class="exline">${exChip(PHASES[FINAL_P].ex)}</div>` : ''}</div>
 </div>
     ${(() => { const lost = S.candidates.filter(c => c.out === FINAL_P && !hide.has(c.id) && /last match/i.test(c.reason || '')); const dq = removed.length;
       return passed.length ? `<p class="fin-sum"><b>${passed.length} new Hunter${passed.length === 1 ? '' : 's'}</b>${lost.length ? ` · ${lost.map(c => `<a data-id="${c.id}">${esc(c.name)}</a>`).join(', ')} ${lost.length === 1 ? 'fails' : 'fail'} the last match` : ''}${dq ? ` · ${dq} removed for killing or dying` : ''}</p>` : ''; })()}
     <details class="fin-rules"><summary>How the final works</summary><p class="muted" style="margin:6px 0 0;max-width:75ch">${B.groups ? `The Jubilee splits the finalists into four brackets that run side by side, each with its own last match. ` : ``}Win one match and you pass; lose and you fight again. Only the finalist who loses the last match fails. The best performers of the exam start in round 1, with more chances.</p></details>
+    ${FC.html || ''}${FC.col === 'SC' ? starCupHtml() : ''}
     ${prelim}${solo}
     ${trees}
-    ${starCupHtml()}
+    ${FC.col === 'SC' ? '' : starCupHtml()}
     ${outcome}`;
   layoutBracket(CW, GAP);
   const lx = $('lx'); if(lx) lx.scrollTop = lx.scrollHeight;

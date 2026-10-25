@@ -565,6 +565,23 @@ const CL_CLIMB = [o => `${o.c.name} was ${ordinal(o.pr)} of ${o.pn} after the ${
 const PH_COURSE = new Set(['sea', 'nighttrain', 'cliffpath', 'marathon', 'stairs', 'wetlands', 'desert', 'nighthunt', 'mountain', 'egg', 'treasure', 'tower', 'maze', 'raft', 'centennial', 'ridge', 'blankmap', 'mute', 'pairs', 'feeding', 'mirror']);
 // trials that happen indoors or underground: no trees, no sky, no hot springs
 const PH_INDOOR = new Set(['nighttrain', 'auction', 'tower', 'maze', 'marathon', 'hall', 'mirror', 'banquet', 'dice', 'guardians', 'centennial', 'prisoner']);
+// where a trial happens, so colour lines do not put thorn bushes on a ship: each setting lists the words that cannot be there
+const PH_ENV = {sea:'boat', bandits:'boat', raft:'river', nighttrain:'train', auction:'indoor', tower:'indoor', prisoner:'indoor', cooking:'indoor', banquet:'indoor', hall:'indoor', mirror:'indoor', dice:'indoor', quiz:'path', final:'arena',
+  maze:'under', marathon:'under', stairs:'under', guardians:'under', mute:'under', centennial:'under', desert:'desert'};
+const ENV_NO = (() => { const veg = 'trees?|bush(?:es)?|thorns?|undergrowth|roots?|hillside|beetles?|frogs?|birds?|hot springs?|moss|forest|woods|canopy|nest';
+  return {boat: new RegExp(`\\b(?:${veg}|mud|tents?|footprints|shortcut|trail|dirt|campfire|fire\\b|loose stone|cave|road|the land)\\b`),
+    train: new RegExp(`\\b(?:${veg}|mud|tents?|footprints|shortcut|trail|dirt|campfire|swims?|dolphins?|waves?|the land)\\b`),
+    river: /\b(?:tents?|footprints|hot springs?|hillside|dirt|road)\b/,
+    indoor: new RegExp(`\\b(?:${veg}|mud|tents?|campfire|moonlight|sky|stars|rain|the land|hillside)\\b`),
+    under: /\b(?:trees?|bush(?:es)?|thorns?|undergrowth|birds?|sky|moonlight|stars|sunset|sunrise|campfire|tents?|hillside|rain|canopy|the land)\b/,
+    arena: new RegExp(`\\b(?:${veg}|mud|tents?|campfire|shortcut|footprints|trail)\\b`),
+    path: /\b(?:tents?|hot springs?)\b/,
+    desert: /\b(?:mud|frogs?|swims?|undergrowth|moss|forest|woods|canopy|hot springs?)\b/i}; })();
+// does this line (or the source of a line template) fit the trial it lands in?
+const phFits = (id, src) => { const no = ENV_NO[PH_ENV[id]]; if(!no) return true;
+  // names (Moss, Rain, the Night Forest Chase) do not count; a capital at the start of a sentence does
+  const t = String(src).replace(/(^|[.!?:]["”]? |`)([A-Z])(?=[a-z]+(?:,| (?![A-Z])))/g, (m, a, b) => a + b.toLowerCase()).replace(/\b[A-Z][a-z]+(?: [A-Z][a-z]+)*\b/g, '');
+  return !no.test(t); };
 const phKind = ph => !ph ? 'test' : ph.zevil ? 'island' : ph.final ? 'final' : ph.xp === 'duel3' ? 'duel' : PH_COURSE.has(ph.id) || ph.course ? 'course' : 'test';
 const CL_HAIR = [o => `${o.c.name} makes the cut in the ${o.ph} by almost nothing.`, o => `${o.c.name} scrapes through the ${o.ph}. ${o.P.They} know${o.P.s} how close it was.`, o => `The examiner checks ${o.c.name}'s result twice. Through, barely.`, o => `${o.c.name} crosses the line in the ${o.ph} with nothing left, and nothing to spare.`];
 const CL_SLIP = [o => `${o.c.name}, ${ordinal(o.pr)} after the ${o.prev}, gets through the ${o.ph} in ${ordinal(o.r)}. Something is off.`, o => `${o.c.name} drops from ${ordinal(o.pr)} to ${ordinal(o.r)} in the ${o.ph}. Still in, but rattled.`];
@@ -592,7 +609,9 @@ function ordOnly(S, type, ids){
   return ids.every(id => { const c = m.by.get(id); return c && c.tier === 'Ordinary' && !spNotable(c); });
 }
 function storyKey(S, text, ids){ let t = text; (ids || []).forEach(id => { const c = S.candidates.find(x => x.id === id); if(c){ t = t.split(c.name).join('~'); if(c.first) t = t.split(c.first).join('~'); } }); PHASES.forEach(ph => { t = t.split(ph.name).join('§'); }); return nhash(t.replace(/\d+/g, '#').slice(0, 70)).toString(36); }
-function storyLine(S, text, ids){
+function storyLine(S, text, ids, p){
+  const pid = typeof PHASES !== 'undefined' && PHASES[p] ? PHASES[p].id : null;
+  if(text && pid && !phFits(pid, text)) return null;   // camp colour that cannot happen here (rain underground, a campfire on a train) is left out
   if(!text || text.indexOf('"') >= 0 || text.indexOf('“') >= 0) return text;   // named things (nicknames, quotes) always stay as they are
   const k = storyKey(S, text, ids), M = S.smem = S.smem || {}, seen = M[k], h = nhash(S.seed + ':' + k + ':' + S.log.length);
   if(seen === S.edition) return null;   // never twice in one exam
@@ -601,11 +620,11 @@ function storyLine(S, text, ids){
   const one = (text.match(/[.!?](\s|$)/g) || []).length === 1, first = text.split(' ')[0], named = (ids || []).some(id => { const c = S.candidates.find(x => x.id === id); return c && text.startsWith(c.first || c.name); });
   const r = (h >>> 8) % 100;
   if(r < 26 && one && !ST_STATE.test(text) && !/^(At|Before|After|By|During|In|On|When|While|Halfway|Somewhere|From|Last|This|Every|Nobody|Everyone|Someone|Two|Three|Meanwhile)\b/.test(text) && !/:/.test(text.slice(0, 30)))
-    return `${ST_OPEN[(h >>> 4) % ST_OPEN.length]} ${named || /^[A-Z][a-z]+ [A-Z]/.test(text) ? text : text.charAt(0).toLowerCase() + text.slice(1)}`;
+    return `${(O => O[(h >>> 4) % O.length])(pid ? ST_OPEN.filter(o => phFits(pid, o)) : ST_OPEN)} ${named || /^[A-Z][a-z]+ [A-Z]/.test(text) ? text : text.charAt(0).toLowerCase() + text.slice(1)}`;
   if(r >= 26 && r < 42 && one && named && !ST_STATE.test(text) && !ST_GRIM.test(text)) return `${text} ${ST_TAIL[(h >>> 4) % ST_TAIL.length]}`;
   return text;
 }
-function log(S, p, type, text, ids, detail){ if(!detail && ordOnly(S, type, ids)) detail = true; if(type === 'story' && !detail){ text = storyLine(S, text, ids); if(text === null) return; } const e = {p, type, text: chairT(proIds(S, text, ids)), ids: ids || [], d: !!detail}; if(MATCH_TAG) e.mt = MATCH_TAG; S.log.push(e); if(typeof castNote === 'function') castNote(S, e); }
+function log(S, p, type, text, ids, detail){ if(!detail && ordOnly(S, type, ids)) detail = true; if(type === 'story' && !detail){ text = storyLine(S, text, ids, p); if(text === null) return; } const e = {p, type, text: chairT(proIds(S, text, ids)), ids: ids || [], d: !!detail}; if(MATCH_TAG) e.mt = MATCH_TAG; S.log.push(e); if(typeof castNote === 'function') castNote(S, e); }
 
 
 /* ---------- how a candidate's exam ended, told as a moment: the trial's own scene, then one detail that is theirs ---------- */

@@ -1,7 +1,7 @@
 /* ===== Drama: set pieces, injuries, debts, promises, rookie crushers ===== */
 const injPen = c => c.injury ? c.injury.pen : 0;
 const dmod = c => (c.pmod || 0) - injPen(c);
-function dlog(S, p, type, text, ids, dr){ if(type === 'story'){ text = storyLine(S, text, ids); if(text === null) return; } const e = {p, type, text: chairT(proIds(S, text, ids)), ids: ids || [], d: ordOnly(S, type, ids), dr}; if(MATCH_TAG) e.mt = MATCH_TAG; S.log.push(e); if(typeof castNote === 'function') castNote(S, e); }
+function dlog(S, p, type, text, ids, dr){ if(type === 'story'){ text = storyLine(S, text, ids, p); if(text === null) return; } const e = {p, type, text: chairT(proIds(S, text, ids)), ids: ids || [], d: ordOnly(S, type, ids), dr}; if(MATCH_TAG) e.mt = MATCH_TAG; S.log.push(e); if(typeof castNote === 'function') castNote(S, e); }
 const gNames = arr => arr.length <= 3 ? andList(arr.map(c => c.name)) : arr.slice(0, 3).map(c => c.name).join(', ') + (arr.length === 4 ? ' and one other' : ` and ${arr.length - 3} others`);
 const INJURIES = ['twisted ankle','cracked rib','sprained wrist','wrenched shoulder','gashed leg','swollen knee','mild concussion','burned hand','torn hamstring','dislocated finger'];
 function injure(S, c, p, rng, sev){
@@ -524,6 +524,7 @@ const TEV_MORE = {
 };
 Object.entries(TEV_MORE).forEach(([k, v]) => { TEV[k] = (TEV[k] || []).concat(v); });
 function runSetPiece(S, ph, p, rng, active, e, used){
+  if(e.t && !phFits(ph.id, e.t)) return false;   // a year's scene that cannot happen here (a thorn bush on a ship) waits for another trial
   if(e.secret){
     const c = active.find(x => x.secret && !x.secret.revealed && !used.has(x.id)); if(!c) return false;
     used.add(c.id); revealSecret(S, c, p, rng); return true;

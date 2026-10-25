@@ -28,3 +28,30 @@
 .wt2 .next a{color:inherit;border-color:currentColor}
 .zr .zst .zok{font-style:normal;color:var(--green);font-size:15px;font-weight:700}
 @media (max-width:600px){.wt-scene p,.wt-vig p{font-size:15.5px}.wt2 p.drop::first-letter{font-size:46px}}
+
+.wt-year{border:2.5px solid var(--ink);box-shadow:4px 4px 0 var(--ink);background:var(--panel);padding:12px 16px;display:flex;flex-direction:column;gap:6px}
+.wt-year>span{font-family:var(--f-mono);font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--gold)}
+.wt-year p{margin:0;font-size:15px;line-height:1.6}
+.wt-year.sp{background:repeating-linear-gradient(-45deg,color-mix(in srgb,var(--gold) 7%,transparent) 0 8px,transparent 8px 16px),var(--panel);border-color:var(--gold)}
+.wt-year.sp p:first-of-type{font-family:var(--f-title);font-size:19px;line-height:1.35}
+
+/* the final in chapters: round chips above the chapter; the round being read lights up in the bracket */
+.fch-nav{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0 0}
+.fch-nav .rnd{white-space:nowrap;font-family:var(--f-mono);font-size:12px;padding:6px 11px;border:2px solid var(--ink);background:var(--panel);color:var(--muted);cursor:pointer;box-shadow:2px 2px 0 var(--ink)}
+.fch-nav .rnd.on{background:var(--gold);color:#111}
+.fch-nav .rnd i{font-style:normal;color:var(--red);font-size:9px;vertical-align:1px}.fch-nav .rnd.on i{color:#7a1d10}
+.wt2.fch{margin:6px 0 10px}
+#pane-phase .slot,#pane-phase .pre .mc{transition:opacity .25s}
+#pane-phase[data-fr="pre"] .slot,#pane-phase[data-fr="pre"] .pre .mc{opacity:.55}
+#pane-phase[data-fr="P"] .slot,#pane-phase[data-fr="EX"] .slot{opacity:.28}
+#pane-phase[data-fr^="r"] .pre .mc{opacity:.28}
+#pane-phase[data-fr="r0"] .slot:not([data-r="0"]){opacity:.28}
+#pane-phase[data-fr="r1"] .slot:not([data-r="1"]){opacity:.28}
+#pane-phase[data-fr="r2"] .slot:not([data-r="2"]){opacity:.28}
+#pane-phase[data-fr="r3"] .slot:not([data-r="3"]){opacity:.28}
+#pane-phase[data-fr="r4"] .slot:not([data-r="4"]){opacity:.28}
+#pane-phase[data-fr="r5"] .slot:not([data-r="5"]){opacity:.28}
+#pane-phase[data-fr="r6"] .slot:not([data-r="6"]){opacity:.28}
+#pane-phase[data-fr="r7"] .slot:not([data-r="7"]){opacity:.28}
+#pane-phase[data-fr="SC"] .slot,#pane-phase[data-fr="SC"] .pre .mc{opacity:.28}
+.fch-nav .rnd[data-fch="SC"]{color:var(--gold)}.fch-nav .rnd[data-fch="SC"].on{color:#111}

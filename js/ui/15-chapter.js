@@ -89,7 +89,9 @@ function chapterOf(i){
   const ph = PHASES[i], ev = S.log.filter(e => e.p === i && !e.d), cm = cmap(S), F = chFollowed(i);
   const moment = momentOf(S.log.filter(e => e.p === i));
   const SKIP = ['phase', 'examiner', 'fav', 'ally', 'split', 'help', 'family', 'team', 'duel', 'fight', 'info', 'veteran', 'bond', 'rescue'];
-  const pool = ev.filter(e => e !== moment && !SKIP.includes(e.type) && !/alliances? (form|forms) or grow/.test(e.text));
+  // the first chapter opens on the year itself: a Jubilee or Centenary opening and the year's theme, set apart from the scenes
+  const tn = THEMES[S.theme || 'classic'], yearL = i === 0 ? ev.filter(e => isOpening(e) || (tn && e.text.startsWith(tn.name + ':'))).sort((a, b) => (b.sp ? 1 : 0) - (a.sp ? 1 : 0)) : [];
+  const pool = ev.filter(e => e !== moment && !yearL.includes(e) && !SKIP.includes(e.type) && !/alliances? (form|forms) or grow/.test(e.text));
   const firstAct = ev.findIndex(e => ['event', 'help', 'rescue', 'veteran', 'team', 'duel'].includes(e.type));
   const leadAt = ev.findIndex(e => e.type === 'major' && (e.ids || []).length === 1 && /front of the pack|keeps up|look easy|mark one name|First through/i.test(e.text));
   const at = e => ev.indexOf(e);
@@ -102,7 +104,7 @@ function chapterOf(i){
   // the people the reader follows always get a beat, even on a trial where the engine wrote nothing about them
   const W = chWatchBeats(i, ph, ev, F, cm, used); W.forEach(w => { used.add(w.src || w); (w.out ? A : D).push(w); });
   const rest = pool.filter(e => !used.has(e));
-  return {i, ph, moment, B, D, A, rest, cm, F};
+  return {i, ph, moment, B, D, A, rest, cm, F, yearL};
 }
 const CH_WATCH = {
   top: [n => `${n} is near the front all trial and never looks worried.`, n => `${n} finishes among the first, barely out of breath.`, n => `Nobody has to ask where ${n} is: up front, as usual.`, n => `${n} makes it look easy. Some of the others start to hate that.`, n => `The examiner writes down ${n}'s name early, and keeps watching.`],
@@ -203,7 +205,8 @@ function chapterHtml(i){
   // the opening: the year's mood, the examiner, or the person this chapter follows
   const ex = ph.ex ? ph.ex.name : null, st = S.stats.find(s => s.p === i);
   let lead = chIntro(i, ph), known = null;
-  if(shape === 'pov' && cast[0]){ const c = cast[0]; known = c.id; lead = chPick([`This is ${c.first}'s trial, whether ${PR(c).they} like${PR(c).s} it or not.`, `Keep an eye on ${c.name} today.`, `${c.name} does not know it yet, but this is ${PR(c).their} day.`], 'pov' + i); }
+  if(shape === 'pov' && cast[0] && !(ph.ex && ph.ex.legend)){ const c = cast[0]; known = c.id; lead = chPick([`This is ${c.first}'s trial, whether ${PR(c).they} like${PR(c).s} it or not.`, `Keep an eye on ${c.name} today.`, `${c.name} does not know it yet, but this is ${PR(c).their} day.`], 'pov' + i); }
+  else if(ex && ph.ex.legend) lead = chPick([`${legendName(ex, ph.ex.legend).replace(/,$/, '')} examines this one in person. Nobody talks above a whisper.`, `The examiner today is ${legendName(ex, ph.ex.legend).replace(/,$/, '')}. Half the candidates forget to breathe.`, `${ex} does not usually examine anyone. This year, ${ex} does.`], 'lg' + i);
   else if(ex && CH_H('exo' + i) % 4 === 0) lead = chPick([`${ex} watches ${fmt(st.before)} candidates walk in. ${fmt(st.after)} will walk out.`, `${ex} has a notebook, and by nightfall it is full.`], 'ex' + i);
   let body;
   if(shape === 'cold') body = splash + scene(labels[0], B.concat(D), 'drop', chPick(['It had started like any other trial.', 'A few hours earlier, nobody saw it coming.', 'Rewind to the start.'], 'cold' + i)) + scene(labels[2], A);
@@ -211,7 +214,8 @@ function chapterHtml(i){
   const more = C.rest.length ? `<details class="more"><summary>Read the full chapter · ${C.rest.length} more moment${C.rest.length === 1 ? '' : 's'}</summary>${chPara(tidy(C.rest).map(e => ({text: e.text, ids: e.ids || []})))}</details>` : '';
   // previously: the last thing the previous chapter left open, in one line
   const pl = prev ? (prev.A[prev.A.length - 1] || prev.moment) : null;
-  const prevT = pl ? `<p class="wt-prev">Previously: ${linkNames(chTidy(pl.text, prev.ph), pl.ids || [])}</p>` : '';
+  const prevT = pl ? `<p class="wt-prev">Previously: ${linkNames(chTidy(pl.text, prev.ph), pl.ids || [])}</p>`
+    : C.yearL.length ? `<div class="wt-year${S.special ? ' sp' : ''}"><span>${esc(examName(S).replace(/^the /, 'The '))}${!S.special && THEMES[S.theme || 'classic'] ? ' · ' + esc(THEMES[S.theme || 'classic'].name) : ''}</span>${C.yearL.map(e => `<p>${linkNames(e.text.replace(THEMES[S.theme || 'classic'] ? THEMES[S.theme || 'classic'].name + ': ' : '\u0000', ''), e.ids || [])}</p>`).join('')}</div>` : '';
   return `<article class="wt2"><div class="wt2-h"><span>Chapter ${i + 1}</span><h3>${esc(chTitle(i, C))}</h3></div>`
     + prevT + body + more + (nx ? `<div class="next"><span>Next · ${esc(nx.to)}</span><p>${linkNames(nx.text, [])}</p></div>` : '') + `</article>`;
 }
