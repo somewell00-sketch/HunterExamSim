@@ -304,3 +304,6 @@ function fcRosterHtml(){
   const many = L.length > 16;
   return `<div class="fcx-sec"><div class="section-h">Who made it · ${L.length} finalist${L.length === 1 ? '' : 's'}</div><div class="fcx-rs">${L.slice(0, many ? 12 : 99).map(card).join('')}</div>${many ? `<details class="fcx-whole"><summary>All ${L.length} finalists</summary><div class="fcx-rs">${L.slice(12).map(card).join('')}</div></details>` : ''}</div>`;
 }
+
+// how far the bracket may show while reading a round: every bout up to the end of that round, nothing after it
+function fcUpTo(col){ const R = fcRounds(), i = R.findIndex(r => (r.r != null ? 'r' + r.r : r.k) === col); if(i < 0) return null; const set = new Set(); R.slice(0, i + 1).forEach(r => r.ms.forEach(m => set.add(m.id))); bracketMatches().forEach(m => { if(m.bye && !m.examiner && R.slice(0, i + 1).some(r => r.r != null && m.round === r.r + 1)) set.add(m.id); }); return set; }

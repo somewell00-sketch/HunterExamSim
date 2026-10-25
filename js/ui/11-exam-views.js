@@ -247,12 +247,13 @@ const RP = {active:false, idx:0, ex:0, timer:null, view:null}; // replay state
 let FINAL_P = PHASES.length - 1;
 function bracketMatches(){ const B = S.bracket; if(!B) return []; return B.prelim.concat(B.rounds.flat(), B.solo ? [B.solo] : [], ...(B.groups || []).map(g => g.rounds.flat().concat(g.solo ? [g.solo] : []))); }
 function matchById(id){ return bracketMatches().find(m => m.id === id); }
-const revealed = m => !RP.active || m.seq < RP.idx;
+let REVEAL_SET = null;   // while drawing the bracket for one chapter of the final: only the bouts up to that chapter count as played
+const revealed = m => REVEAL_SET ? REVEAL_SET.has(m.id) : !RP.active || m.seq < RP.idx;
 function hiddenFinal(){
   // ids whose final outcome is not yet shown during the replay
   const hide = new Set();
-  if(!RP.active || !S.bracket) return hide;
-  bracketMatches().forEach(m => { if(m.seq >= RP.idx){ if(m.w) hide.add(m.w); if(m.dq) hide.add(m.dq); if(m.l && (m.root || m.id.startsWith('P') || m.examiner)) hide.add(m.l); } });
+  if((!RP.active && !REVEAL_SET) || !S.bracket) return hide;
+  bracketMatches().forEach(m => { if(!revealed(m)){ if(m.w) hide.add(m.w); if(m.dq) hide.add(m.dq); if(m.l && (m.root || m.id.startsWith('P') || m.examiner)) hide.add(m.l); } });
   return hide;
 }
 function startReplay(){
@@ -391,11 +392,14 @@ function renderBracket(){
       // each chapter shows what belongs to it: the room and the draw before the bell, the bracket for a round, the star's own bracket, and everything at the end
       const brk = prelim + solo + trees, whole = (open, lab) => `<details class="fcx-whole"${open ? ' open' : ''} ontoggle="layoutBracket(BRK[0], BRK[1])"><summary>${lab}</summary>${brk}</details>`;
       if(RP.active || !FC.col) return brk + starCupHtml() + outcome;
-      if(FC.col === 'pre'){ const keep = {active: RP.active, idx: RP.idx, ex: RP.ex, view: RP.view}; Object.assign(RP, {active: true, idx: 0, ex: 0, view: null}); let d; try { d = bracketParts(); } finally { Object.assign(RP, keep); }
+      const asOf = set => { REVEAL_SET = set; try { return bracketParts(); } finally { REVEAL_SET = null; } };
+      if(FC.col === 'pre'){ const d = asOf(new Set());
         return fcRosterHtml() + `<div class="fcx-sec"><div class="section-h">${B.prelim.length ? 'The draw' : 'The draw · Round 1'}</div>${d.prelim}${d.solo}${d.trees}</div>`; }
       if(FC.col === 'SC') return starCupHtml() + whole(false, 'See the whole bracket');
       if(FC.col === 'ep') return sumH + outcome + `<div class="fcx-sec">${whole(true, 'The whole bracket')}</div>`;
-      return brk;
+      // a round shows the bracket as it stood when that round ended: later bouts are still to come
+      const up = typeof fcUpTo === 'function' ? fcUpTo(FC.col) : null; if(!up) return brk;
+      const d = asOf(up); return d.prelim + d.solo + d.trees;
     })()}`;
   layoutBracket(CW, GAP);
   const lx = $('lx'); if(lx) lx.scrollTop = lx.scrollHeight;
