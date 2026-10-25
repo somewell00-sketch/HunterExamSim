@@ -394,12 +394,13 @@ function renderBracket(){
       if(RP.active || !FC.col) return brk + starCupHtml() + outcome;
       const asOf = set => { REVEAL_SET = set; try { return bracketParts(); } finally { REVEAL_SET = null; } };
       if(FC.col === 'pre'){ const d = asOf(new Set());
-        return fcRosterHtml() + `<div class="fcx-sec"><div class="section-h">${B.prelim.length ? 'The draw' : 'The draw · Round 1'}</div>${d.prelim}${d.solo}${d.trees}</div>`; }
+        return fcRosterHtml() + `<div class="fcx-sec"><div class="section-h">${B.prelim.length ? 'The draw · Preliminary' : 'The draw · Round 1'}</div>${B.prelim.length ? d.prelim : d.solo + d.trees}</div>`; }
       if(FC.col === 'SC') return starCupHtml() + whole(false, 'See the whole bracket');
       if(FC.col === 'ep') return sumH + outcome + `<div class="fcx-sec">${whole(true, 'The whole bracket')}</div>`;
       // a round shows the bracket as it stood when that round ended: later bouts are still to come
       const up = typeof fcUpTo === 'function' ? fcUpTo(FC.col) : null; if(!up) return brk;
-      const d = asOf(up); return d.prelim + d.solo + d.trees;
+      // the preliminary only on its own page; the rounds show the bracket (and the license bout) without it
+      const d = asOf(up); return FC.col === 'P' ? d.prelim : FC.col === 'EX' ? d.solo : d.trees;
     })()}`;
   layoutBracket(CW, GAP);
   const lx = $('lx'); if(lx) lx.scrollTop = lx.scrollHeight;
