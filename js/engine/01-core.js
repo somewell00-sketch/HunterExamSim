@@ -300,12 +300,12 @@ const PHASE_DEFS = {
   maze:{name:'Underground Labyrinth', stage:3, xp:'team3', w:{intelligence:.35,perception:.35,teamwork:.3}, T:51, team:true, fatigue:15, obstacle:true,
    flavor:{done:'found the exit', timeout:'Still lost when the 72 hours ran out', inside:'in the labyrinth', within:'found the exit within 72 hours'},
    fail:{intelligence:'team never cracked the labyrinth\'s pattern', perception:'team walked in circles past the same marks', teamwork:'team split up and lost each other'}},
-  guardians:{name:'Labyrinth Guardians', stage:3, xp:'duel3', w:{combat:.4,intelligence:.3,strategy:.3}, prisoner:true, rest:true, npc:'guardian', npcs:['Stone Warden','Old Sphinx','Mirror Knight','Lamp Keeper','Twin Masks','Grey Hound','The Locksmith','Gatekeeper Ume','Brass Golem'],
+  guardians:{name:'Labyrinth Guardians', stage:3, xp:'duel3', w:{combat:.4,intelligence:.3,strategy:.3}, prisoner:true, rest:true, npc:'guardian', npcs:['Stone Warden','Old Sphinx','Mirror Knight','Lamp Keeper','Twin Masks','Grey Hound','The Locksmith','Gatekeeper Ume','Brass Golem','The Weigher','Hollow Monk','Bell Ringer','Salt Widow','Iron Abbot','The Cartographer'],
    fail:{combat:'was beaten by a labyrinth guardian', intelligence:'failed the guardian\'s riddle', strategy:'chose the wrong door and was sealed out'}},
   raft:{name:'River Rafting', stage:3, xp:'team3', w:{strength:.3,teamwork:.4,courage:.3}, T:51, team:true, fatigue:25, obstacle:true,
    flavor:{done:'reached the delta', timeout:'Still on the river when the 72 hours ran out', inside:'on the river', within:'reached the delta within 72 hours'},
    fail:{strength:'team could not hold the raft against the rapids', teamwork:'team paddled against each other and capsized', courage:'team refused to run the waterfall'}},
-  bandits:{name:'River Bandits', stage:3, xp:'duel3', w:{combat:.4,intelligence:.3,strategy:.3}, prisoner:true, rest:true, npc:'bandit', npcs:['One-Eye Rourk','The Ferryman','Salt Jack','Mad Coral','Hook Ilsa','Captain Dredge','Brine Sister','Old Weasel'],
+  bandits:{name:'River Bandits', stage:3, xp:'duel3', w:{combat:.4,intelligence:.3,strategy:.3}, prisoner:true, rest:true, npc:'bandit', npcs:['One-Eye Rourk','The Ferryman','Salt Jack','Mad Coral','Hook Ilsa','Captain Dredge','Brine Sister','Old Weasel','Tallow Finn','Red Margo','Pike','Gull Annet','Barrel Tom','Silt','The Widow Hask'],
    fail:{combat:'was beaten by a river bandit', intelligence:'lost the bandit\'s riddle toll', strategy:'paid the toll with {their} remaining hours'}},
   centennial:{name:'Centennial Trial', stage:3, w:{endurance:.2,courage:.2,strategy:.2,perception:.2,determination:.2}, T:50, fatigue:30, rest:true, obstacle:true, rescue:'pulled {v} out of the collapsing passage',
    fail:{endurance:'collapsed on the last of the hundred stairs', courage:'turned back at the gate of names', strategy:'took the wrong road at the fork of a hundred years', perception:'never saw the trial\'s hidden exit', determination:'sat down beside the old stone and stayed there'}},
@@ -409,6 +409,9 @@ function lineupOf(S){
   if(L && L.spec === S.phaseSpec) return L.arr;
   const spec = S.phaseSpec || CLASSIC.map(id => ({id, cref: CLASSIC_REF[id] || 0, ex: null}));
   const arr = spec.map(sp => applyExaminer({...PHASE_DEFS[sp.id], cref: sp.cref}, sp.ex));
+  // a team trial and the duels inside it read as one trial: the second half takes the first one's name
+  const PAIRS = {tower: ['prisoner', 'hall'], maze: ['guardians', 'gate'], raft: ['bandits', 'toll bank']};
+  arr.forEach((ph, i) => { const pr = PAIRS[ph.id], nx = arr[i + 1]; if(pr && nx && nx.id === pr[0]) arr[i + 1] = {...nx, name: `${ph.name} (the ${pr[1]})`, group: ph.group, half: i}; });
   _lineups.set(S, {spec: S.phaseSpec, arr});
   return arr;
 }
@@ -718,7 +721,9 @@ const NPC_EPI = {
   'Stone Warden': 'a guardian who does not blink', 'Old Sphinx': 'the labyrinth\'s oldest riddler', 'Mirror Knight': 'who fights with your own moves', 'Lamp Keeper': 'who guards the only light', 'Twin Masks': 'two guardians who speak as one',
   'Grey Hound': 'a guardian faster than he looks', 'The Locksmith': 'who keeps every door', 'Gatekeeper Ume': 'who bets on every door', 'Brass Golem': 'a guardian of metal and patience',
   'One-Eye Rourk': 'the bandit chief', 'The Ferryman': 'who charges for every crossing', 'Salt Jack': 'a bandit with loaded dice', 'Mad Coral': 'a bandit who fights laughing', 'Hook Ilsa': 'a bandit with a riddle for every toll',
-  'Captain Dredge': 'who runs the river', 'Brine Sister': 'a bandit nobody has beaten twice', 'Old Weasel': 'a bandit who bets on anything'
+  'Captain Dredge': 'who runs the river', 'Brine Sister': 'a bandit nobody has beaten twice', 'Old Weasel': 'a bandit who bets on anything',
+  'The Weigher': 'who weighs every answer on a scale', 'Hollow Monk': 'who has not spoken aloud in years', 'Bell Ringer': 'whose bell rings at every wrong answer', 'Salt Widow': 'who sets riddles about the sea', 'Iron Abbot': 'who prays before every trial', 'The Cartographer': 'who drew the labyrinth and forgot half of it',
+  'Tallow Finn': 'who bets candles against hours', 'Red Margo': 'who wins at cards and loses at nothing else', Pike: 'who swims faster than he talks', 'Gull Annet': 'who can throw a knife through a coin', 'Barrel Tom': 'who rolls his dice in a barrel', Silt: 'a bandit who never smiles', 'The Widow Hask': 'who keeps a list of every raft that paid'
 };
 const npcIntro = n => NPC_EPI[n] ? `${n}, ${NPC_EPI[n]},` : n;
 // two losses of the same kind read as one defeat; two kinds as one after another

@@ -290,7 +290,57 @@ function runScored(S, ph, p, rng, pool){
   }
 }
 
+/* ---------- a team's way down: one door per level, the vote at each, and when they got there ---------- */
+// six doors take a team from the top (level 0) to the way out (level 6). Kinds: agreed, split (a tie, hours lost),
+// short (a hidden way that skips a level), trap (hours lost), stuck (the door they never got through)
+const TEAM_DOORS = {
+  tower: ['Left door', 'Right door', 'The stairs', 'Long hall', 'Bridge over nothing', 'Mirror room', 'Spiked corridor', 'Flooded room', 'Dice room', 'Silent room', 'Narrow shaft', 'Chained door'],
+  maze: ['Left fork', 'Right fork', 'Low tunnel', 'Painted gallery', 'Echo chamber', 'Dry well', 'Bone gallery', 'Water passage', 'Collapsed hall', 'Root tunnel', 'Lantern hall', 'Spiral stair'],
+  raft: ['Left channel', 'Right channel', 'Portage', 'Whirlpool', 'Narrows', 'Rapids', 'Sandbar', 'Gorge', 'Reed maze', 'Fallen tree', 'Broken weir', 'Fog bank']};
+const TEAM_LAST = {tower: 'The last door', maze: 'The last gate', raft: 'The falls'};
+const TEAM_SHORT = {tower: ['Hidden passage', 'Secret chute'], maze: ['Hidden passage', 'Crawlway'], raft: ['Side channel', 'Shortcut chute']};
+const TEAM_TRAP = {tower: ['Pit', 'Falling ceiling', 'Sleeping gas'], maze: ['Pit', 'Dead end', 'Rockfall'], raft: ['Capsize', 'Snag', 'Undertow']};
+function teamRoute(S, ph, p, rng, o){
+  const k = TEAM_DOORS[ph.id] ? ph.id : 'tower', n = o.team.length;
+  // paired with its duels, the trial stops halfway (between levels 2 and 3): a team that fails never gets that far
+  const stuck = o.ok ? 6 : o.merged ? clamp(2 - Math.floor(Math.max(0, o.TT - o.score) / 6), 1, 2) : clamp(5 - Math.floor(Math.max(0, o.TT - o.score) / 3), 1, 5);   // the level they ended on
+  const pool = rng.shuffle(TEAM_DOORS[k].slice());
+  const doors = [];
+  let lvl = 0, splits = Math.min(o.lost + (o.loner ? 1 : 0), 4), shortUsed = !o.shortcut, trapLeft = rng() < 0.3 ? 1 : 0;
+  const vote = split => { if(n < 2) return [1, 0]; if(split) return [Math.floor(n / 2), Math.ceil(n / 2)]; const no = rng() < 0.35 ? rng.int(1, Math.max(1, Math.floor((n - 1) / 2))) : 0; return [n - no, no]; };
+  while(lvl < stuck){
+    const left = stuck - lvl, canShort = !shortUsed && left >= 2 && rng() < 0.5;
+    if(canShort){ shortUsed = true; const [f, a] = vote(false); doors.push({d: rng.pick(TEAM_SHORT[k]), f, a, k: 'short', by: o.brain.id, to: lvl + 2}); lvl += 2; continue; }
+    if(splits && rng() < 0.55){ splits--; const [f, a] = vote(true); doors.push({d: o.loner ? `${o.loner.first || o.loner.name} says no` : 'Deadlock', f, a, k: 'split', to: lvl + 1}); lvl++; continue; }
+    if(trapLeft && rng() < 0.4){ trapLeft = 0; const [f, a] = vote(false); doors.push({d: rng.pick(TEAM_TRAP[k]), f, a, k: 'trap', to: lvl + 1}); lvl++; continue; }
+    const [f, a] = vote(false); doors.push({d: lvl === 5 ? TEAM_LAST[k] : pool.pop() || 'Door', f, a, k: 'ok', to: lvl + 1}); lvl++;
+  }
+  if(!o.ok){ const [f, a] = vote(!!o.loner || o.lost > 0); doors.push({d: o.loner ? `${o.loner.first || o.loner.name} says no` : pool.pop() || 'Door', f, a, k: 'stuck', to: lvl}); }
+  // when: each door costs time by its kind; a team that made it is out at 72 minus its spare hours
+  const end = o.ok ? clamp(72 - o.hoursLeft, 20, 72) : 72, W = {ok: 1, short: 0.8, trap: 1.8, split: 2.6, stuck: 0};
+  const passed = doors.filter(d => d.k !== 'stuck'), tot = passed.reduce((s, d) => s + W[d.k] * (0.8 + rng() * 0.5), 0) || 1;
+  const span = o.ok ? end - 1 : (55 + rng() * 12) - 1;
+  let h = 1, acc = 0; const path = [[0, 0]];
+  passed.forEach(d => { acc += W[d.k] * (0.8 + rng() * 0.4); h = Math.min(o.ok ? end : 70, Math.round(1 + span * acc / tot)); d.h = h; path.push([h, d.to]); });
+  if(o.ok) path[path.length - 1][0] = Math.round(end); else path.push([72, stuck]);
+  // paired with its duels, the first half leaves room on the clock for the stop and the rest of the way
+  if(o.merged){ const sq = h => Math.round(h * 0.72); path.forEach((x, j) => { if(!(j === path.length - 1 && !o.ok)) x[0] = sq(x[0]); }); doors.forEach(d => { if(d.h) d.h = sq(d.h); }); }
+  const nameOf = o.M.alliance ? o.M.alliance.name : null;
+  (S.teamRun = S.teamRun || {})[p] = S.teamRun[p] || {k, teams: []};
+  if(o.merged) S.teamRun[p].merged = p + 1;
+  const route = o.merged ? (rng() < 0.45 ? 'vote' : 'other') : undefined;
+  S.teamRun[p].teams.push({n: o.T, name: nameOf, formed: !nameOf ? 'strangers' : /Family$/.test(nameOf) ? 'family' : 'alliance', rec: (o.M.recruits || []).map(c => c.id), ids: o.team.map(c => c.id), lead: o.leader.id, loner: o.loner ? o.loner.id : undefined,
+    ok: o.ok, spare: o.ok ? Math.max(0, Math.round(72 - path[path.length - 1][0])) : null, end: stuck, path, doors, ...(route ? {route, obst: route === 'other' ? rng.pick(TEAM_OTHER[k]) : undefined} : {})});
+}
+// the team trials that carry their duels inside them, as in the manga: the Trick Tower's prisoners wait halfway down
+const TEAM_PAIR = {tower: 'prisoner', maze: 'guardians', raft: 'bandits'};
+const teamMerged = (ph, p) => !!(TEAM_PAIR[ph.id] && PHASES[p + 1] && PHASES[p + 1].id === TEAM_PAIR[ph.id]);
+const TEAM_STOP_W = {tower: 'hall', maze: 'gate', raft: 'toll bank'};
+const TEAM_OTHER = {tower: ['a room that slowly fills with sand', 'a corridor of pressure plates', 'a mirror maze with one real door', 'a long drop into dark water', 'a staircase that only moves when nobody speaks'],
+  maze: ['an underground river', 'a collapsed gallery', 'a stretch with no light at all', 'a hall of echoes', 'a flooded stair'],
+  raft: ['the rapids', 'the flooded forest', 'the mill race', 'a channel choked with reeds', 'a stretch where the river runs underground']};
 function runTower(S, ph, p, rng, active){
+  const merged = teamMerged(ph, p);
   const raise = crowdRaise(ph, active.length);
   let TT = Math.round(ph.T + raise);
   if(raise >= 1) log(S, p, 'info', `With ${active.length} candidates entering, the ${ph.name}\'s routes are rigged to be harder than usual.`);
@@ -337,7 +387,8 @@ function runTower(S, ph, p, rng, active){
     const hoursLeft = Math.round(clamp((score - TT) * 2.2, -40, 40));
     const names = team.map(c => c.name);
     const M = meta[ti] || {};
-    log(S, p, 'team', `Team ${T}${M.alliance ? ' · ' + M.alliance.name : ''} (${names.join(', ')}) — led by ${leader.name}.${M.alliance && M.recruits.length ? ` Recruited ${M.recruits.map(r => r.name).join(' and ')} to fill the team.` : ''}${allyPairs ? ` ${allyPairs} allies vote as one.` : ''} ${votes ? `${votes - lost} of ${votes} majority votes passed. ` : ''}${ok ? `${ph.flavor.done.charAt(0).toUpperCase() + ph.flavor.done.slice(1)} with ${hoursLeft}h to spare.` : `${ph.flavor.timeout}.`}`, team.map(c => c.id), true);
+    log(S, p, 'team', `Team ${T}${M.alliance ? ' · ' + M.alliance.name : ''} (${names.join(', ')}) — led by ${leader.name}.${M.alliance && M.recruits.length ? ` Recruited ${M.recruits.map(r => r.name).join(' and ')} to fill the team.` : ''}${allyPairs ? ` ${allyPairs} allies vote as one.` : ''} ${votes ? `${votes - lost} of ${votes} majority votes passed. ` : ''}${ok ? (merged ? `Through the first half; the ${TEAM_STOP_W[ph.id]} is next.` : `${ph.flavor.done.charAt(0).toUpperCase() + ph.flavor.done.slice(1)} with ${hoursLeft}h to spare.`) : `${ph.flavor.timeout}.`}`, team.map(c => c.id), true);
+    teamRoute(S, ph, p, rng, {T, team, M, leader, loner, brain, shortcut, lost, ok, hoursLeft, score, TT, merged});
     if(loner) log(S, p, 'info', `Majority votes stall: ${loner.name} keeps refusing to cooperate with team ${T}.`, [loner.id]);
     if(shortcut) log(S, p, 'major', `${brain.name} finds a hidden shortcut for team ${T}.`, [brain.id]);
     if(vetBonus) { log(S, p, 'veteran', `${vet.c.name} has been through the ${ph.name} before and guides team ${T} past the traps they remember.`, [vet.c.id], true); vet.c.notes.push({p, text:`Guided team ${T} using what ${PR(vet.c).they} remembered of the ${ph.name}`}); giveNick(S, vet.c, 'hand', `for guiding team ${T} through the ${ph.name}`, p, 0.06); }
@@ -346,7 +397,7 @@ function runTower(S, ph, p, rng, active){
     team.forEach(c => {
       c.scores[ph.id] = score; c.team = T;
       const mates = names.filter(n => n !== c.name).join(', ');
-      if(ok) c.notes.push({p, text:`${ph.name}: team ${T} with ${mates || 'nobody'}, ${ph.flavor.done} with ${hoursLeft}h to spare`});
+      if(ok) c.notes.push({p, text: merged ? `${ph.name}: team ${T} with ${mates || 'nobody'}, through the first half` : `${ph.name}: team ${T} with ${mates || 'nobody'}, ${ph.flavor.done} with ${hoursLeft}h to spare`});
       else {
         const why = loner && c !== loner ? `team was crippled by ${loner.name}'s refusal to cooperate` : teamWhy || ph.fail[weakest(c, ph.w)];
         eliminate(S, c, p, `${ph.name}: ${why}; out of time (team ${T})`);
@@ -364,7 +415,10 @@ function runTower(S, ph, p, rng, active){
     if(score > bestScore){ bestScore = score; bestTeam = {T, names, hoursLeft}; }
   });
   log(S, p, 'info', `${teams.length} teams formed ${ph.flavor.inside}; ${passed} ${ph.flavor.within}.`);
-  if(bestTeam) log(S, p, 'major', `Fastest descent: team ${bestTeam.T} (${bestTeam.names.join(', ')}) with ${bestTeam.hoursLeft}h left.`);
+  if(bestTeam && !merged) log(S, p, 'major', `Fastest descent: team ${bestTeam.T} (${bestTeam.names.join(', ')}) with ${bestTeam.hoursLeft}h left.`);
+  // at least one team finds the path of the vote, so the duels have someone to play
+  const R = S.teamRun && S.teamRun[p];
+  if(merged && R && !R.teams.some(t => t.ok && t.route === 'vote')){ const t = R.teams.find(x => x.ok); if(t){ t.route = 'vote'; delete t.obst; } }
 }
 
 const PRISONER_KINDS = [
@@ -374,7 +428,94 @@ const PRISONER_KINDS = [
 ];
 let PR_BASE = 57;
 const PRISONER_NAMES = ['Bendot','Sedokan','Majitani','Johness','Leroute','Tompa','Brodo','Gazul','Murk','Vexa','Old Kreel','Sabbath','Dorran','Grisette','Hask'];
+/* ---------- the duels inside a team trial: each team that reached the halfway stop plays there together ---------- */
+// One bout per member against the stop's own five; the team needs a majority (a tie: the leader plays once more).
+// Only the dreaded game costs time (a lost wager in the tower, a wrong riddle in the labyrinth, a lost bet on the river):
+// hours held while the 72-hour clock keeps running. Teams on other routes face an obstacle that costs time instead.
+// After the stop the descent goes on; the last door is the long, easy way or the short, hard one.
+const TEAM_STOP = {tower: {dread: 'Wager', kinds: {Combat: .45, Riddle: .2, Wager: .35}}, maze: {dread: 'Riddle', kinds: {Combat: .25, Riddle: .5, Wager: .25}}, raft: {dread: 'Wager', kinds: {Combat: .25, Riddle: .25, Wager: .5}}};
+let PR_TEAM = 7.5, OB_TEAM = -14;   // calibration: keeps the pass rate of the two halves close to the old two phases
+function stopHalls(ph){ const L = (ph.npcs && ph.npcs.length ? ph.npcs : PRISONER_NAMES_DEF).slice(), H = []; for(let i = 0; i + 5 <= L.length && H.length < 3; i += 5) H.push(L.slice(i, i + 5)); if(!H.length){ const x = L.slice(); while(x.length < 5) x.push(...L); H.push(x.slice(0, 5)); } return H; }
+function runTeamStop(S, ph, p, rng, active, R){
+  const k = R.k, cfg = TEAM_STOP[k] || TEAM_STOP.tower, halls = stopHalls(ph), act = new Set(active.map(c => c.id)), cm = cmap(S), sw = TEAM_STOP_W[k] || 'hall';
+  const fieldXp = active.length ? active.reduce((s, c) => s + expBonus(S, c, p) * 0.8, 0) / active.length : 0;
+  const base = PR_BASE + crowdRaise(ph, active.length) + fieldXp + ph.exT - themeEase() - PR_TEAM;
+  const KW = Object.entries(cfg.kinds), pickKind = () => { let x = rng(), acc = 0; for(const [kk, w] of KW){ acc += w; if(x < acc) return PRISONER_KINDS.find(q => q.k === kk); } return PRISONER_KINDS[0]; };
+  const handled = new Set(); let upset = null, passed = 0, held = 0;
+  R.teams.forEach(t => {
+    if(!t.ok) return;
+    const M = t.ids.map(id => cm[id]).filter(c => c && act.has(c.id)); if(!M.length) return;
+    M.forEach(c => handled.add(c.id));
+    const lead = M.find(c => c.id === t.lead) || M[0], hx = (t.path.find(([, f]) => f >= 3) || t.path[t.path.length - 1])[0];
+    t.hx = hx; let delay;
+    if(t.route === 'other'){
+      const avg = M.reduce((s, c) => s + weighted(c, ph.w) + dmod(c) * 0.6 - c.fatigue * 0.2, 0) / M.length, sc = avg + rng.gauss(0, 8);
+      t.cell = Math.round(clamp(10 + (base - OB_TEAM - sc) * 1.4 + rng.gauss(0, 4), 2, 48)); t.ob = t.cell <= 8 ? 'ok' : 'slow'; delay = t.cell;
+      log(S, p, 'team', `Team ${t.n}${t.name ? ' · ' + t.name : ''} takes another way: ${t.obst}${t.ob === 'ok' ? ', and gets through it quickly' : `, and loses ${t.cell} hours to it`}.`, M.map(c => c.id), true);
+    } else {
+      const hall = rng.int(0, halls.length - 1), PRs = halls[hall]; t.hall = hall + 1; t.bouts = [];
+      const bout = (c, pr, dec) => {
+        const kind = dec && k === 'raft' ? PRISONER_KINDS[0] : pickKind(), rating = rng.gauss(base, 9 * ph.exNoise);
+        const tipper = kind.k !== 'Combat' ? M.find(o => o !== c && o.a.intelligence >= c.a.intelligence + 10) : null;
+        const score = weighted(c, kind.w) + rng.gauss(0, 8) - c.fatigue * 0.2 + (tipper ? 3 : 0) + expBonus(S, c, p) * 0.8 + dmod(c) * 0.7;
+        const b = {id: c.id, npc: pr, k: kind.k, w: score >= rating ? 1 : 0};
+        if(dec) b.dec = 1;
+        else if(c !== lead && c.a.teamwork < 30 && rng() < 0.3){ b.w = 0; b.sab = 1; }
+        if(b.w && kind.k === 'Combat' && score - rating > 14 && rng() < (THEME === 'blood' ? 0.5 : 0.2)) b.kill = 1;
+        if(!b.w && kind.k === cfg.dread) b.lock = rng.int(10, 24);
+        if(b.w && rating - weighted(c, kind.w) > 12) upset = {c, pr, kind};
+        t.bouts.push(b); return b; };
+      M.forEach((c, j) => bout(c, PRs[j % PRs.length]));
+      let w = t.bouts.filter(b => b.w).length, l = t.bouts.length - w;
+      if(w === l){ const b = bout(lead, k === 'raft' ? PRs[0] : PRs[M.length % PRs.length], true); w += b.w; l += 1 - b.w; }
+      t.w = w; t.l = l; t.cell = t.bouts.reduce((s, b) => s + (b.lock || 0), 0); delay = t.bouts.length + t.cell;
+      const say = b => `${cm[b.id].first || cm[b.id].name} ${b.sab ? 'threw the bout to' : b.w ? 'beat' : 'lost to'} ${b.npc} (${b.k}${b.lock ? `, ${b.lock}h held` : ''}${b.dec ? ', tie-break' : ''})`;
+      log(S, p, 'team', `Team ${t.n}${t.name ? ' · ' + t.name : ''} at ${sw === 'hall' ? 'a hall' : 'the ' + sw} (${halls.length > 1 ? (k === 'raft' ? 'camp ' : k === 'maze' ? 'gate ' : 'hall ') + t.hall + ', ' : ''}${w}–${l}): ${t.bouts.map(say).join('; ')}.`, M.map(c => c.id), true);
+      t.bouts.forEach(b => { const c = cm[b.id]; if(!c) return;
+        if(b.sab) dlog(S, p, 'story', vpick(S, [`${c.name} gives the bout to ${b.npc} without a fight. Nobody on team ${t.n} believes it was fear.`, `${c.name} loses to ${b.npc} on purpose. The rest of team ${t.n} will not forget it.`], c.id + p), [c.id], 5);
+        if(b.kill) dlog(S, p, 'major', vpick(S, [`${c.name} does not stop when the fight is over. ${b.npc} does not get up.`, `${b.npc} asked for a fight to the end. ${c.name} gave him one.`], c.id + p), [c.id], 7);
+        if(!b.w && b.k === 'Combat' && THEME === 'blood' && (S._dm || 0) < 2 && rng() < 0.12){ S._dm = (S._dm || 0) + 1; c.status = 'Deceased'; c.out = p; c.reason = `${ph.name}: killed in a death-match`; dlog(S, p, 'death', `${c.name} does not survive the death-match with ${b.npc}. Nobody steps in to stop it.`, [c.id], 8); lastWords(S, p, c, null); }
+      });
+    }
+    t.rel = hx + delay;
+    // the rest of the way down, later by the time lost; the last door: the long, easy way or the short, hard one
+    const after = t.path.filter(([, f]) => f >= 3).map(([h, f]) => [h + delay, f + 1]);
+    if(after.length) after[0][0] = Math.max(after[0][0], t.rel);
+    const lastD = t.doors.filter(d => d.k !== 'stuck').slice(-1)[0];
+    if(t.route === 'vote' && after.length >= 2 && after[after.length - 1][1] === 7 && lastD){ t.final = lastD.a === 0 ? 'short' : 'long'; after[after.length - 1][0] = after[after.length - 2][0] + (t.final === 'short' ? 1 : Math.max(6, after[after.length - 1][0] - after[after.length - 2][0] + 6)); }
+    const hp = t.path.filter(([, f]) => f < 3).map(x => x.slice()); if(t.route === 'vote') hp.push([hx, 3]);
+    let last = t.route === 'vote' ? 3 : (hp[hp.length - 1] || [0, 0])[1];
+    const lostHall = t.route === 'vote' && t.w < t.l;
+    if(!lostHall && t.rel < 72) after.forEach(([h, f]) => { if(h <= 72){ hp.push([h, f]); last = f; } });
+    t.hp = hp;
+    t.res = lostHall ? 'hall' : t.rel >= 72 ? (t.route === 'vote' ? 'clockhall' : 'clock') : last === 7 ? 'out' : 'clock';
+    if(t.res === 'out'){ t.outh = hp[hp.length - 1][0]; t.spare = Math.max(0, 72 - t.outh); }
+    else { t.stuckAt = last; if(last < 6) delete t.final; }
+    const T = t.n, alive = M.filter(c => c.status === 'Active');
+    if(t.res === 'out'){ passed++;
+      alive.forEach(c => { const b = (t.bouts || []).find(x => x.id === c.id); c.scores[ph.id] = b ? b.w : 1;
+        log(S, p, 'duel', b ? `${c.name} ${b.w ? 'beat' : 'lost to'} ${b.npc} (${b.k}) — advances with team ${T}.` : `${c.name} took another way down with team ${T} — advances.`, [c.id], true);
+        c.notes.push({p, text: b ? `${b.w ? 'Beat' : 'Lost to'} ${b.npc} (${b.k.toLowerCase()}); team ${T} went on ${t.w}–${t.l} and reached the bottom with ${t.spare}h to spare` : `Took another way down (${t.obst}) and reached the bottom with ${t.spare}h to spare`}); });
+    } else {
+      if(t.cell) held++;
+      const why = t.res === 'hall' ? `the team lost the majority at the ${sw}` : t.res === 'clockhall' ? `the team was held at the ${sw} until the clock ran out` : t.route === 'other' ? `the team took another way down and the clock ran out` : `the team got past the ${sw}, but the hours it cost ran out the clock`;
+      alive.forEach(c => { const b = (t.bouts || []).find(x => x.id === c.id); c.scores[ph.id] = b ? b.w : 0;
+        if(b) log(S, p, 'duel', `${c.name} ${b.sab ? 'threw the bout to' : b.w ? 'beat' : 'lost to'} ${b.npc} (${b.k}) — eliminated with team ${T}.`, [c.id], true);
+        eliminate(S, c, p, `${ph.name}: ${why}`);
+        const own = b && !b.w && !b.sab ? `{F} lost ${b.k === 'Riddle' ? 'the riddle' : b.k === 'Wager' ? 'the bet' : 'the fight'} to ${npcIntro(b.npc)} ` : b && b.w ? `{F} beat ${b.npc}, ` : '';
+        const tail = t.res === 'hall' ? (b && b.w ? `but team ${T} lost the majority, ${t.w}–${t.l}, and the way on never opened.` : `and team ${T} lost the majority, ${t.w}–${t.l}.`) : t.res === 'clockhall' ? `${own ? 'and ' : ''}team ${T} spent ${t.cell} hours held at the ${sw}. The clock ran out before they were let go.` : t.route === 'other' ? `Team ${T} went another way, ${t.obst}, lost ${t.cell} hours to it and never reached the bottom.` : `${own ? 'and ' : ''}team ${T} got through the ${sw}, but the hours it cost them ran out ${t.stuckAt >= 4 ? 'a few levels from the bottom' : 'soon after'}.`;
+        setFall(S, c, p, (own + tail).replace(/^\w/, m => m.toUpperCase()).replace(/^\{f\}/, '{F}'), {team: true, attr: b ? (b.k === 'Riddle' ? 'intelligence' : b.k === 'Wager' ? 'strategy' : 'combat') : 'teamwork'}); });
+    }
+  });
+  R.done = p;
+  const rest = active.filter(c => !handled.has(c.id) && c.status === 'Active');
+  if(rest.length) runPrisoner(S, ph, p, rng, rest);
+  if(upset){ log(S, p, 'major', `Upset: ${upset.c.name} outplayed the veteran ${ph.npc || 'prisoner'} ${upset.pr} in a ${upset.kind.k.toLowerCase()} challenge.`, [upset.c.id]); giveNick(S, upset.c, 'giant', `for beating ${upset.pr}`, p); }
+  log(S, p, 'info', `${passed} team${passed === 1 ? '' : 's'} reached the bottom.${held ? ` ${held} lost to the clock after hours held.` : ''}`);
+}
 function runPrisoner(S, ph, p, rng, active){
+  const TR = S.teamRun && S.teamRun[p - 1];
+  if(TR && TR.merged === p && TR.done == null) return runTeamStop(S, ph, p, rng, active, TR);
   const prFieldXp = active.length ? active.reduce((s, c) => s + expBonus(S, c, p) * 0.8, 0) / active.length : 0;
   let upset = null;
   for(const c of active){

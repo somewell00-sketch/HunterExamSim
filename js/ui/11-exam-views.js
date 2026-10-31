@@ -171,14 +171,14 @@ function renderStepper(){
   // phases sit under one label per group; a thin bar shows how many are still standing
   const N0 = S.config.applicants || 1, groups = [];
   PHASES.forEach((ph, i) => { const g = groups[groups.length - 1]; if(g && g.name === ph.group) g.ix.push(i); else groups.push({name: ph.group, ix: [i]}); });
-  const step = i => { const ph = PHASES[i], st = S.stats.find(s => s.p === i), isNext = !S.finished && i === S.phase;
+  const step = i => { const ph = PHASES[i], jB = S.teamRun && S.teamRun[i] && S.teamRun[i].merged && S.stats.find(s => s.p === S.teamRun[i].merged) ? S.teamRun[i].merged : i, st = S.stats.find(s => s.p === jB), isNext = !S.finished && (i === S.phase || (jB !== i && jB === S.phase));
     const cls = st ? 'done' : isNext ? 'next' : 'todo';
     // never break a word: each card is at least as wide as the longest word in its name
     const mw = Math.max(84, Math.ceil(Math.max(...ph.name.split(' ').map(w => w.length)) * 7.6 + 20));
-    return `<button class="step ${cls}" style="min-width:${mw}px" data-biome="${biomeOf(ph.id)}" data-step="${i}" title="${esc(PREVIEW[ph.id] || '')}${st ? ` · ${st.after} left` : ''}" aria-pressed="${selPhase === i || (selPhase === null && isNext)}" ${st || isNext ? '' : 'disabled'}>
+    return `<button class="step ${cls}" style="min-width:${mw}px" data-biome="${biomeOf(ph.id)}" data-step="${jB}" title="${esc(PREVIEW[ph.id] || '')}${st ? ` · ${st.after} left` : ''}" aria-pressed="${selPhase === i || selPhase === jB || (selPhase === null && isNext)}" ${st || isNext ? '' : 'disabled'}>
       <span class="n">${esc(ph.name)}</span><span class="c">${st ? `${fmt(st.after)} left` : isNext ? 'Next' : ''}</span>${st ? `<span class="lb"><i style="width:${Math.max(2, st.after / N0 * 100)}%"></i></span>` : ''}</button>`; };
   // only what has happened and what comes next: the rest of the route stays a surprise
-  const seen = i => S.finished || i <= S.phase, vis = groups.map(g => ({...g, ix: g.ix.filter(seen)})).filter(g => g.ix.length);
+  const seen = i => (S.finished || i <= S.phase) && !(typeof trHiddenStep === 'function' && trHiddenStep(i)), vis = groups.map(g => ({...g, ix: g.ix.filter(seen)})).filter(g => g.ix.length);
   $('stepper').classList.toggle('partial', !S.finished);
   $('stepper').innerHTML = vis.map(g => `<div class="sg" style="flex:${g.ix.length} 0 auto"><div class="sg-h">${esc(g.name)}</div><div class="sg-row">${g.ix.map(step).join('')}</div></div>`).join('')
     + (S.finished ? '' : `<div class="sg sg-more" aria-hidden="true"><div class="sg-h">&nbsp;</div><div class="sg-row"><span class="step-more">⋯</span></div></div>`);
@@ -562,12 +562,13 @@ function renderCat(el, i){
   el.innerHTML = `<div class="cat-page k-${C.k}">${banner}${body}</div>`;
   el.querySelectorAll('[data-catcall]').forEach(b => b.onclick = () => { C.mt[b.dataset.catcall] = b.dataset.k; save(); renderCat(el, i); });
 }
+let BONDS_SIDE = '';
 function renderPhase0(){
   const el = $('pane-phase');
   if(S.live && !S.finished && selPhase === S.live.p) return renderLive(el);
-  const i = selPhase;
+  let i = selPhase;
   if(S.cat && S.cat.stage && i !== null && i >= S.cat.p){ renderCat(el, i); return; }
-  const st = i === null ? null : S.stats.find(s => s.p === i);
+  let st = i === null ? null : S.stats.find(s => s.p === i);
   if(!st){
     const n = S.finished ? null : S.phase;
     if(n === null){ el.innerHTML = '<div class="empty">Pick a trial above.</div>'; return; }
@@ -578,9 +579,13 @@ function renderPhase0(){
   }
   if(PHASES[i].final){ renderBracket(); return; }
   if(PHASES[i].zevil && S.zevil && S.zevil.days.length){ renderZevil(st); return; }
+  // a team trial and the duels inside it are one page: both halves, one count
+  const PB = typeof trPairA === 'function' ? trPairA(i) : null, PSET = PB != null ? [PB, PB + 1] : [i];
+  if(PB != null){ i = PB; st = {p: PB, before: (S.stats.find(s => s.p === PB) || st).before, after: (S.stats.find(s => s.p === PB + 1) || st).after}; }
+  const phB = PB != null ? PHASES[PB + 1] : null;
   const ph = PHASES[i];
   castoutClean();
-  const ev = S.log.filter(e => e.p === i);
+  const ev = S.log.filter(e => PSET.includes(e.p));
   const allies = ev.filter(e => ['ally','betray','help','split','family'].includes(e.type));
   const teams = ev.filter(e => e.type === 'team');
   const vets = ev.filter(e => e.type === 'veteran');
@@ -608,6 +613,18 @@ function renderPhase0(){
   const foldTail = e => e.fold ? ` <span class="ev-more">+${e.fold.length} more: ${e.fold.map(x => nm((x.ids || [])[0])).filter(Boolean).join(', ')}</span>` : '';
   // alliances: a one-line summary and the dramatic moments; routine joins stay folded away
   // veterans: identical lines fold into one, with every name linked
+  const vetCompact = arr => {
+    const cm = cmap(S), cast = new Set(typeof chCastAt === 'function' ? chCastAt(i) : []), seenV = new Set();
+    const V = arr.map(e => cm[(e.ids || [])[0]]).filter(c => c && !seenV.has(c.id) && seenV.add(c.id));
+    if(!V.length) return '';
+    const tagOf = c => isFav(c.id) ? 'fav' : !MENTOR.off && mtOf(c.id) ? 'fav' : cast.has(c.id) ? 'cast' : c.tier === 'Elite' ? 'elite' : '', T = {fav: '★', cast: '●', elite: '◆'};
+    const mine = V.filter(c => tagOf(c) === 'fav' || tagOf(c) === 'cast'), key = mine.concat(V.filter(c => tagOf(c) === 'elite').slice(0, Math.max(0, 8 - mine.length))), rest = V.filter(c => !key.includes(c));
+    const out = c => c.out != null && c.out <= Math.max(...PSET) && c.status !== 'Approved';
+    const TRV = typeof trRun === 'function' && trRun(i), teamOfV = c => { if(!TRV) return ''; const t = TRV.teams.find(x => x.ids.includes(c.id)); return t ? trName(t) : ''; };
+    const chip = c => { const t = tagOf(c); return `<a class="vx-c${t === 'fav' ? ' fav' : ''}${out(c) ? ' gone' : ''}" data-id="${c.id}">${t === 'fav' ? '★ ' : ''}${esc(c.name)}${teamOfV(c) ? `<small>${esc(teamOfV(c))}</small>` : attemptsOf(c) > 1 ? `<small>attempt ${attemptsOf(c)}</small>` : ''}</a>`; };
+    const grp = (lab, arr) => arr.length ? `<div class="vx-g"><span class="vx-l">${lab}</span><div class="vx">${arr.map(chip).join('')}</div></div>` : '';
+    return `<p class="vx-s"><b>${V.length}</b> ${V.length === 1 ? 'candidate had' : 'candidates had'} been through the ${esc(ph.name.replace(/^The /, ''))} before and used what they remembered.</p>${grp('Yours', key.filter(c => tagOf(c) === 'fav'))}${grp('Ones to watch', key.filter(c => tagOf(c) === 'cast'))}${grp('Elite', key.filter(c => tagOf(c) === 'elite'))}${rest.length ? `<details class="vx-more"><summary>${key.length ? '+' + rest.length + ' more' : rest.length} veteran${rest.length === 1 ? '' : 's'}</summary><div class="vx">${rest.map(chip).join('')}</div></details>` : ''}${V.some(out) ? '<p class="vx-leg">Faded: out by the end of this trial.</p>' : ''}`;
+  };
   const vetHtml = arr => {
     const groups = {}, cm = cmap(S);
     arr.forEach(e => { const c = cm[e.ids[0]], k = c && e.text.startsWith(c.name) ? e.text.slice(c.name.length) : null; if(k) (groups[k] = groups[k] || []).push(c); });
@@ -644,10 +661,10 @@ function renderPhase0(){
     const sum = [bonds.length ? pl(bonds.length, 'unbreakable bond') : '', AP.sum, rr.length ? pl(rr.length, 'rescue') : ''].filter(Boolean).join(' · ');
     if(!sum) return '';
     const pair = e => (e.ids || []).length >= 2 ? `<span class="pair">${nm(e.ids[0])} <i>∞</i> ${nm(e.ids[1])}</span>` : `<span class="pair">${linkNames(trimPh(e.text), e.ids)}</span>`;
-    const hl = bonds.slice(0, 1).concat(AP.top);
+    const hl0 = bonds.slice(0, 1).concat(AP.top), hl = hl0.slice(0, 2), hlMore = hl0.slice(2).filter(e => !bonds.includes(e));
     const note = (n, w) => n ? `<p class="muted" style="font-size:12px;margin:6px 0 0">…and ${n} more ${w} among lesser-known candidates.</p>` : '';
     const rest = (bonds.length > 1 ? `<div class="sub-h">Bonds</div><div class="pairs">${bonds.slice(1).map(pair).join('')}</div>` : '')
-      + (AP.rest.length || AP.hidden ? `<div class="sub-h">Alliances</div>${story(AP.rest, AP.rest.length > 8, true)}${note(AP.hidden, 'events')}` : '')
+      + (AP.rest.length || AP.hidden || hlMore.length ? `<div class="sub-h">Alliances</div>${story(hlMore.concat(AP.rest), AP.rest.length > 8, true)}${note(AP.hidden, 'events')}` : '')
       + (rr.length ? `<div class="sub-h">Rescues</div>${story(rShow, false, true)}${note(rLeft, 'rescues')}` : '');
     return `<p class="ally-sum">${sum}</p>${hl.length ? story(hl) : ''}${rest ? `<details class="ally-more"><summary>Show all</summary>${rest}</details>` : ''}`;
   };
@@ -672,7 +689,7 @@ function renderPhase0(){
     const lbl = c => ph.zevil ? `${c.badges.length} badge${c.badges.length===1?'':'s'}` : ['Led the field','2nd','3rd','4th','5th','6th'][sc.indexOf(c)];
     if(sc.length) stand = `<div class="standouts">${sc.map(c => `<div><a data-id="${c.id}">${esc(c.name)}</a><span>${lbl(c)}</span></div>`).join('')}</div>`;
   }
-  const outs = S.candidates.filter(c => c.out === i && ['Eliminated','Deceased','Disqualified'].includes(c.status));
+  const outs = S.candidates.filter(c => PSET.includes(c.out) && ['Eliminated','Deceased','Disqualified'].includes(c.status));
   const groups = {};
   outs.forEach(c => {
     let k = clean(c.reason).replace(/^[^:]+:\s*/, '').replace(/\s*\(team \d+\)/, '').replace(/; out of time.*$/, '').replace(/, missing the cut by a hair$/, '')
@@ -687,9 +704,9 @@ function renderPhase0(){
   });
   const causeHtml = Object.entries(groups).sort((a,b) => b[1].length - a[1].length).map(([k, arr]) =>
     `<details class="cause"><summary><span>${esc(k.charAt(0).toUpperCase() + k.slice(1))}</span><b>${arr.length}</b></summary><div class="who">${nameLinks(arr)}</div></details>`).join('');
-  const rescued = S.candidates.filter(c => c.notes.some(n => n.p === i && /rescued by/.test(n.text))).length;
+  const rescued = S.candidates.filter(c => c.notes.some(n => PSET.includes(n.p) && /rescued by/.test(n.text))).length;
 
-  el.innerHTML = `<div class="rep-head"><div><h2>${esc(ph.name)}</h2><p class="pdesc">${esc(PREVIEW[ph.id] || '')}</p>${phTests(ph)}${ph.ex ? `<div class="exline">${exChip(ph.ex)}</div>` : ''}</div>
+  el.innerHTML = `<div class="rep-head"><div><h2>${esc(ph.name)}</h2><p class="pdesc">${esc(PREVIEW[ph.id] || '')}</p>${phTests(ph)}${ph.ex || (phB && phB.ex) ? `<div class="exline">${ph.ex ? exChip(ph.ex) : ''}${phB && phB.ex ? exChip(phB.ex) : ''}</div>` : ''}</div>
       ${(() => { const cut = st.before - st.after, dead = outs.filter(c => c.status === 'Deceased').length, pct = st.before ? st.after / st.before * 100 : 0;
         // one headline (who fell), the rest as context under a thin bar
         return `<div class="rn2"><div class="rn-h"><b>${fmt(st.after)}</b> of ${fmt(st.before)} go on</div><div class="rn-bar" role="img" aria-label="${Math.round(pct)}% go on"><i style="width:${pct}%"></i></div><div class="rn-s">${cut ? `${fmt(cut)} out` : 'nobody out'}${rescued ? ` · ${rescued} rescued` : ''}${dead ? ` <span class="rn-d" title="${dead} died">✝ ${dead}</span>` : ''}</div></div>`; })()}</div>
@@ -706,12 +723,12 @@ function renderPhase0(){
               cs.forEach(e => hi.splice(hi.indexOf(e), 1)); hi.splice(at + co.length, 0, ...cs); } }   // the cast's falls come right after the opening   // an heir sits right after the trial's own opening line
           const hf = foldSame(hi), top = hf.slice(0, 5), more = hf.slice(5);
           // what happened and the camp around it, told as one chapter
-          return chapterHtml(i) + sec('Bonds &amp; alliances', bondsHtml(bonds, ph.zevil ? [] : allies));
+          BONDS_SIDE = sec('Bonds &amp; alliances', bondsHtml(bonds, ph.zevil ? [] : allies));
+          return (typeof trRun === 'function' && trRun(i) ? teamChapterHtml(i) : chapterHtml(i));
         })()}
         ${ph.zevil ? sec('Island log, day by day', story(ev.filter(e => allies.includes(e) || duels.includes(e)), true)) : ''}
-        ${sec('Teams', teamsHtml(teams))}
-        ${sec('Veterans', vetHtml(vets))}
-        ${ph.zevil ? '' : sec(ph.final ? 'Bouts' : 'Duels', story(duels, true, true))}
+        ${typeof trRun === 'function' && trRun(i) ? '' : sec('Teams', teamsHtml(teams))}
+        ${ph.zevil || PB != null ? '' : ph.prisoner && typeof duelTableHtml === 'function' && duelTableHtml(i) ? sec('The bouts', duelTableHtml(i)) : sec(ph.final ? 'Bouts' : 'Duels', story(duels, true, true))}
       </div>
       <div class="rep-col">
         ${castStripHtml(i)}
@@ -719,14 +736,16 @@ function renderPhase0(){
           const mtShown = id => !MENTOR.off && mtOf(id), fc = S.candidates.filter(c => isFav(c.id) && !mtShown(c.id) && (c.out == null || c.out >= i));
           if(!fc.length) return '';
           const sc = S.candidates.filter(c => typeof c.scores[ph.id] === 'number').sort((x, y) => y.scores[ph.id] - x.scores[ph.id]);
-          return sec('★ Your watchlist', `<div class="watch">${fc.map(c => { const r = sc.indexOf(c), out = c.out === i;
+          return sec('★ Your watchlist', `<div class="watch">${fc.map(c => { const r = sc.indexOf(c), out = PSET.includes(c.out);
             return `<div><a data-id="${c.id}">${esc(c.name)}</a><span class="${out ? 'bad' : 'ok'}">${out ? (c.status === 'Deceased' ? 'died here' : c.status === 'Disqualified' ? 'disqualified' : 'eliminated') : r >= 0 ? `through · ${ordinal(r + 1)}` : 'through'}</span></div>`; }).join('')}</div>${story(favs.filter(e => !(e.ids || []).some(mtShown)), false, true)}`);
         })()}
         ${(() => { const d = outs.filter(c => c.status === 'Deceased'); return d.length ? sec('Lost in this trial', `<div class="lost">${d.map(c => `<div><a data-id="${c.id}">${esc(c.name)}</a> <span class="muted">${c.age}</span><small>${esc(clean(c.reason).replace(/^[^:]+:\s*/, ''))}</small></div>`).join('')}</div>`) : ''; })()}
         ${sec(ph.zevil ? 'Biggest badge hauls' : 'Standouts', stand)}
         ${sec('How they were eliminated', causeHtml ? `<div class="causes">${causeHtml}</div>` : outs.length ? '' : '<p class="muted" style="margin:0">Nobody was eliminated here.</p>')}
+        ${BONDS_SIDE}
+        ${sec(`Veterans${vets.length ? ' · ' + new Set(vets.map(e => (e.ids || [])[0])).size : ''}`, vetCompact(vets))}
       </div>
-    </div>`;
+    </div>${typeof trRun === 'function' && trRun(i) ? `<div class="tw-full">${trTowerHtml(i)}${trTablesHtml(i)}</div>` : ''}`;
 }
 
 function renderLog(){
@@ -855,7 +874,7 @@ function renderResults(){
   if(hl.length) h += '<div class="section-h">Highlights</div><div class="hl">' + hl.map(x => `<div data-id="${x.id}"><small>${esc(x.label)}</small><b>${esc(x.name)}</b> <span class="regn">#${x.reg}</span><span>${esc(clean(x.detail).replace(/\s*\(\d+\)$/, '').replace(/^Lowest attribute total among Hunters$/, 'Least gifted on paper, still made it').replace(/^Total \d+, out at /, 'Highly gifted, out at ').replace(/^Score \d+$/, 'Led the field through the tunnels'))}</span></div>`).join('') + '</div>';
   h += paperHtml(S.paper, true) + `<details class="res-more chron"><summary>Read the chronicle of the ${ordinal(S.edition)} Hunter Exam</summary>${chron.map(p => `<p>${autoLink(esc(p))}</p>`).join('')}</details>`;
   h += '<details class="res-more"><summary>Phase by phase · the numbers</summary><div class="tablebox"><table><thead><tr><th>Phase</th><th>Entered</th><th>Advanced</th><th>Eliminated</th></tr></thead><tbody>' +
-    S.stats.map(s => `<tr data-step="${s.p}" style="cursor:pointer"><td>${esc(PHASES[s.p].name)}</td><td class="num">${s.before}</td><td class="num">${s.after}</td><td class="num">${s.before - s.after}</td></tr>`).join('') + '</tbody></table></div></details>';
+    S.stats.filter(s => !(typeof trHiddenStep === 'function' && trHiddenStep(s.p))).map(s => { const b = S.teamRun && S.teamRun[s.p] && S.teamRun[s.p].merged && S.stats.find(x => x.p === S.teamRun[s.p].merged); return b ? {p: b.p, name: PHASES[s.p].name, before: s.before, after: b.after} : {...s, name: PHASES[s.p].name}; }).map(s => `<tr data-step="${s.p}" style="cursor:pointer"><td>${esc(s.name)}</td><td class="num">${s.before}</td><td class="num">${s.after}</td><td class="num">${s.before - s.after}</td></tr>`).join('') + '</tbody></table></div></details>';
   el.innerHTML = h + rulesHtml();
 }
 function rulesHtml(){

@@ -351,4 +351,12 @@ function relicRowHtml(h){
   const a = d => `${relicIcon(d.id, 20)} <a class="golink" data-relic="${d.id}" title="Open the relic">${esc(capS(d.name))} ›</a>`;
   return `<div><div class="section-h">Relics</div>${now.length ? `<p class="h-fam"><span>⚱</span> Holds ${now.map(a).join(', ')}</p>` : ''}${once.length ? `<p class="h-fam"><span>⚱</span> Once held ${once.map(a).join(', ')}</p>` : ''}</div>`;
 }
+// the profile's Nen tab: one small card per relic, across the top
+function relicStripHtml(h){
+  const R = WORLD.relics || {}, now = RELICS.filter(d => R[d.id] && (R[d.id].st === 'held' || R[d.id].st === 'missing') && (R[d.id].holder === h.license || R[d.id].holder2 === h.license));
+  const once = RELICS.filter(d => R[d.id] && !now.includes(d) && (R[d.id].owners || []).some(o => o.lic === h.license));
+  if(!now.length && !once.length) return '';
+  const card = (d, held) => `<button type="button" class="rl-card${held ? ' now' : ''}" data-relic="${d.id}" title="Open the relic"><span class="rl-ic">${relicIcon(d.id, 26)}</span><span class="rl-t"><b>${esc(capS(d.name))}</b><small>${held ? (R[d.id].st === 'missing' ? 'Held · missing' : 'Holds it now') : 'Once held'}</small></span><span class="rl-go">›</span></button>`;
+  return `<div class="rl-strip"><div class="section-h">Relics</div><div class="rl-cards">${now.map(d => card(d, true)).join('')}${once.map(d => card(d, false)).join('')}</div></div>`;
+}
 document.addEventListener('click', e => { const r = e.target.closest('[data-relic]'), h = e.target.closest('[data-hunter]'); if(r && (!h || h.contains(r))){ e.preventDefault(); e.stopPropagation(); openRelic(r.dataset.relic); } }, true);

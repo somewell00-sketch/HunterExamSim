@@ -81,7 +81,7 @@ function chFlow(lines, cm, k, known){
     prevId = a; return {text: t, ids: e.ids || []};
   });
 }
-const chPara = (lines, cls) => { const out = []; for(let i = 0; i < lines.length; i += 2) out.push(`<p${i === 0 && cls ? ` class="${cls}"` : ''}>${lines.slice(i, i + 2).map(x => linkNames(x.text, x.ids)).join(' ')}</p>`); return out.join(''); };
+const chPara = (lines, cls) => { const out = []; for(let i = 0; i < lines.length; i += 2) out.push(`<p${i === 0 && cls && !(cls === 'drop' && /^[^A-Za-z]/.test(lines[0].text || '')) ? ` class="${cls}"` : ''}>${lines.slice(i, i + 2).map(x => linkNames(x.text, x.ids)).join(' ')}</p>`); return out.join(''); };
 
 /* ---------- one trial ---------- */
 // lines: the trial's notable lines in log order; camp: its colour lines; moment: the line of the trial

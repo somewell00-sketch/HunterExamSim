@@ -1,5 +1,5 @@
 /* ---------- controls ---------- */
-$('bStep').onclick = () => { if(mtNeedsChoice()){ mtAsk(); return; } if(S.live){ liveStep(); return; } zDay = null; ANCH = ANCH && ANCH.ph === S.phase ? ANCH : null; runFav(); selPhase = S.cat && S.cat.stage === 'impact' ? S.cat.p : lastDone(); save(); render(); showTab('phase'); mtToast(selPhase); if(!ANCH) toTrialTop(); };
+$('bStep').onclick = () => { if(mtNeedsChoice()){ mtAsk(); return; } if(S.live){ liveStep(); return; } zDay = null; ANCH = ANCH && ANCH.ph === S.phase ? ANCH : null; runFav(); if(typeof trPairPending === 'function' && trPairPending() && !mtNeedsChoice() && !S.live && !(S.cat && S.cat.p === S.phase)) runFav(); selPhase = S.cat && S.cat.stage === 'impact' ? S.cat.p : lastDone(); save(); render(); showTab('phase'); mtToast(selPhase); if(!ANCH) toTrialTop(); };
 $('bAll').onclick = () => { if(mtNeedsChoice()){ mtAsk(); return; } if(S.live) liveCommit(true); zDay = null; while(!S.finished && !mtNeedsChoice() && !(S.cat && S.cat.stage === 'impact' && S.cat.wait)) runFav(); selPhase = S.cat && S.cat.stage === 'impact' ? S.cat.p : lastDone(); save(); render(); showTab('phase'); if(mtNeedsChoice()) mtAsk(); else toTrialTop(); };
 let CAT_NEXT = false;
 $('bCat').onclick = () => { const b = $('bCat');
