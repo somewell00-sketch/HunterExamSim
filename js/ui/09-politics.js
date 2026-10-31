@@ -314,6 +314,14 @@ function keepHtml(h){
   const ex = K.ex && K.ex.length ? `<ol class="kp-ex">${K.ex.map((x, i) => `<li>${i === 0 || K.ex[i - 1].ph !== x.ph ? `<small>${esc(x.ph)}</small>` : ''}<span>${autoLink(esc(x.t), h.cid)}</span></li>`).join('')}</ol>` : '<p class="muted" style="font-size:13px">A quiet exam, by all accounts.</p>';
   return `<div class="kp"><div><div class="section-h">Background</div>${bg}</div><div><div class="section-h">The ${ordinal(K.ed)} exam</div>${ex}</div></div>`;
 }
+// the exam as it was lived, kept in the exam history: who they came with, and the moments of the exam that licensed them
+function keepExamHtml(h){
+  const K = h.keep; if(!K) return '';
+  const who = x => { const hh = HUNTERS.find(y => y.cid === x.id); return hh ? `<a data-hunter="${esc(hh.license)}">${esc(x.name.split(' ')[0])}</a>` : esc(x.name.split(' ')[0]); };
+  const fam = K.fam ? `<div class="kp-row"><small>Came with</small><span>${esc(K.fam.name)}${K.fam.kin.length ? ' · ' + K.fam.kin.map(x => `${esc(x.rel)} ${who(x)}`).join(', ') : ''}</span></div>` : '';
+  const ex = K.ex && K.ex.length ? `<ol class="kp-ex">${K.ex.map((x, i) => `<li>${i === 0 || K.ex[i - 1].ph !== x.ph ? `<small>${esc(x.ph)}</small>` : ''}<span>${autoLink(esc(x.t), h.cid)}</span></li>`).join('')}</ol>` : '';
+  return fam || ex ? `<div class="kp-x"><div class="section-h" style="margin-top:0">The ${ordinal(K.ed)} exam</div>${fam}${ex}</div>` : '';
+}
 function retireBanner(h){
   const now = h.status === 'Retired' ? (h.retire || (h.retEd ? {ed: h.retEd} : null)) : null, past = h.retHist || [];
   if(!now && !past.length) return '';
@@ -375,11 +383,12 @@ function councilHtml(){
 const rpRecent = h => (h.rp || 0) - (h.rpH && h.rpH.length >= 10 ? h.rpH[0] : 0);
 function hunterYear(prev){
   const items = [], ed = prev.edition, nextEd = ed + 1;
-  const add = (h, kind, text, rank, o) => { text = String(text).replace(/\.\.$/, '.'); items.push({lic: h.license, name: h.name, kind, text, rank: rank || 0, o: o ? {lic: o.license, name: o.name} : undefined}); (h.log = h.log || []).push({ed, text, k: kind}); if(o) (o.log = o.log || []).push({ed, text, k: kind}); if(o && ['job', 'epilogue', 'reunion'].includes(kind)) tieUp(h, o); };
+  const add = (h, kind, text, rank, o) => { text = String(text).replace(/\.\.$/, '.'); if((kind === 'job' || kind === 'hunt' || kind === 'life') && !o && typeof traitTag === 'function') text = traitTag(h, text); items.push({lic: h.license, name: h.name, kind, text, rank: rank || 0, o: o ? {lic: o.license, name: o.name} : undefined}); (h.log = h.log || []).push({ed, text, k: kind}); if(o) (o.log = o.log || []).push({ed, text, k: kind}); if(o && ['job', 'epilogue', 'reunion'].includes(kind)) tieUp(h, o); };
   const busy = new Set();
   relicsStart(ed);
   const W = worldStart(prev, ed, add, busy, items);
   placesYear(ed, add, items);
+  if(typeof hunterArcs === 'function') hunterArcs(ed, add);   // what they came for, dreamed of, feared, and who they became
   // examiner duty in the exam that just finished
   (prev.phaseSpec || []).forEach(sp => { if(sp.ex && sp.ex.license){ const h = HUNTERS.find(x => x.license === sp.ex.license); if(h) add(h, 'duty', `${h.name} served as examiner for the ${PHASE_DEFS[sp.id].name} in the ${ordinal(ed)} Hunter Exam.`, 1); } });
   // the Association keeps its numbers up: when the roster thins, Hunters take fewer risks, retire later, and some come back

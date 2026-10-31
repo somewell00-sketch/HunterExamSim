@@ -468,7 +468,7 @@ const MOVES = {
   strength:['lands a heavy blow on','slams','drives a crushing punch into'],
   agility:['darts in with a flurry against','slips past and strikes','spins and kicks'],
   strategy:['feints and counters','baits an opening and hits','reads the attack and punishes'],
-  combat:['lands a clean combination on','sweeps and strikes','catches with a precise strike'],
+  combat:['lands a clean combination on','sweeps and strikes','catches {o} with a precise strike'],
   determination:['grits through a hit and answers','refuses to back down and hammers','pushes forward into']
 };
 // a stance chosen before a bout: some read an opponent's style well, some badly; the numbers are never shown
@@ -496,7 +496,7 @@ function fight(S, A, B, p, rng){
     const [att, def] = ra >= rb ? [A, B] : [B, A];
     const dmg = Math.round((6 + att.a.strength/10 + rng()*6) * dealt(att === A ? stA : stB) * taken(att === A ? stB : stA));
     if(att === A) hb -= dmg; else ha -= dmg;
-    ex.push({by: att === A ? 'a' : 'b', dmg, ha: Math.max(0, Math.round(ha)), hb: Math.max(0, Math.round(hb)), text: `${att.first} ${rng.pick(MOVES[style(att)])} ${def.first}.`});
+    ex.push({by: att === A ? 'a' : 'b', dmg, ha: Math.max(0, Math.round(ha)), hb: Math.max(0, Math.round(hb)), text: (mv => mv.includes('{o}') ? `${att.first} ${mv.replace('{o}', def.first)}.` : `${att.first} ${mv} ${def.first}.`)(rng.pick(MOVES[style(att)]))});
     const ko = hb <= 0 ? [A, B] : ha <= 0 ? [B, A] : null;
     if(ko){
       result = {w:ko[0], l:ko[1], how:'knockout'};

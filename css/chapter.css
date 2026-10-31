@@ -70,3 +70,33 @@
 .fcx-sec .fcx-whole{margin-top:0}
 .hcard.sch-st{grid-template-columns:repeat(auto-fit,minmax(118px,1fr))}
 .sch-closed{margin-top:10px}.sch-closed summary{cursor:pointer;font-family:var(--f-mono);font-size:12px;color:var(--muted);padding:6px 0}
+/* a Hunter's page: the story, and who they are */
+.hs .hs-p{margin:0 0 10px;max-width:72ch;font-size:14px;line-height:1.65;text-wrap:pretty}
+.hw-g{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.hw-g>div{background:var(--panel);padding:9px 12px;display:flex;flex-direction:column;gap:3px}
+.hw-g>div.wide{grid-column:1/-1}
+.hw-g small{font-family:var(--f-mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--gold)}
+.hw-g>div.bad small{color:var(--red)}
+.hw-g span{font-size:13px;line-height:1.45}
+.hw-g em{display:block;font-style:normal;font-family:var(--f-mono);font-size:11px;color:var(--green);margin-top:2px}
+.kp-x{margin-bottom:12px}
+
+/* who is this: the card a name shows under the pointer, and the one-time tip */
+.lk-card{position:absolute;z-index:200;max-width:250px;background:var(--panel);border:2px solid var(--ink);box-shadow:3px 3px 0 var(--ink);padding:8px 11px;display:flex;flex-direction:column;gap:2px;pointer-events:none;font-size:13px}
+.lk-card b{font-family:var(--f-title);font-weight:400;font-size:16px}.lk-card i{font-style:normal;color:var(--gold);font-size:12px}
+.lk-card small{font-family:var(--f-mono);font-size:11px;color:var(--muted)}.lk-card em{font-style:normal;font-family:var(--f-mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--gold);margin-top:3px}
+.nl-hint{position:fixed;left:50%;bottom:84px;transform:translateX(-50%);z-index:300;background:var(--fg);color:var(--bg);font-family:var(--f-mono);font-size:12px;padding:8px 14px;border:2px solid var(--ink);box-shadow:3px 3px 0 var(--ink);transition:opacity .6s}
+.nl-hint.out{opacity:0}
+/* a Hunter's page: one line of facts under the name, then tabs; each tab may carry a side column (left, or on top on a phone) */
+.ph .knownas{margin-top:4px}
+.ph-facts{display:flex;flex-wrap:wrap;gap:6px 18px;margin-top:10px;font-size:13.5px;align-items:center}
+.ph-facts span{display:inline-flex;align-items:center;gap:6px}.ph-facts svg{width:18px;height:auto}.ph-facts a[data-school]{color:inherit}
+.ptabs{display:flex;gap:4px;margin:4px 0 -2px;border-bottom:2px solid var(--ink);overflow-x:auto;scrollbar-width:none}
+.pt{font-family:var(--f-display);font-size:12px;letter-spacing:.12em;text-transform:uppercase;font-weight:600;padding:9px 14px 8px;background:color-mix(in srgb,var(--panel) 55%,var(--bg));color:var(--muted);border:2px solid var(--ink);border-bottom:0;cursor:pointer;white-space:nowrap}
+.pt.on{background:var(--panel);color:var(--fg);box-shadow:inset 0 3px 0 var(--gold)}
+.pp{display:none;flex-direction:column;gap:16px;padding-top:14px}.pp.on{display:flex}
+.pgrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.7fr);gap:22px;align-items:start}
+.pside{display:flex;flex-direction:column;gap:14px;border-right:1px solid var(--line);padding-right:18px;min-width:0}
+.pside .hw-g{grid-template-columns:1fr}.pside .hw-g>div.wide{grid-column:auto}
+.pmain{display:flex;flex-direction:column;gap:16px;min-width:0}
+@media (max-width:760px){.pgrid{grid-template-columns:1fr}.pside{border-right:0;padding-right:0;border-bottom:1px solid var(--line);padding-bottom:14px}}

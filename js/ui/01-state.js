@@ -6,7 +6,8 @@ const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));
 const fmt = n => n.toLocaleString('en-US');
 // strip numeric scores from older saved records
-const clean = t => String(t).replace(/ \(#\d+\)/g, '').replace(/\s*\((team \d+, )?score [^)]*\)/g, m => /team (\d+)/.test(m) ? ` (team ${m.match(/team (\d+)/)[1]})` : '').replace(/:\s*passed \(\d+ \/ \d+\)/, ': passed').replace(/\s*\(\d+ (\/|vs) \d+\)/g, '').replace(/ with a score of \d+/, ' at the front of the pack').replace(/ \(fatigue \d+\)/, '').replace(/ [^ .]+ would not have made it alone\./, '');
+// clean: older saves also get the old fight line put right ("catches with a precise strike X")
+const clean = t => String(t).replace(/catches with a precise strike (\w+)/g, 'catches $1 with a precise strike').replace(/ \(#\d+\)/g, '').replace(/\s*\((team \d+, )?score [^)]*\)/g, m => /team (\d+)/.test(m) ? ` (team ${m.match(/team (\d+)/)[1]})` : '').replace(/:\s*passed \(\d+ \/ \d+\)/, ': passed').replace(/\s*\(\d+ (\/|vs) \d+\)/g, '').replace(/ with a score of \d+/, ' at the front of the pack').replace(/ \(fatigue \d+\)/, '').replace(/ [^ .]+ would not have made it alone\./, '');
 
 /* ---------- persistence: IndexedDB first (no 5 MB cap), browser storage as fallback ---------- */
 const DB_NAME = 'hxsim', DB_STORE = 'kv';

@@ -176,6 +176,7 @@ function renderAssociation(){
 }
 const hStatus = h => `<span class="st ${hActive(h) ? 'Approved' : h.status === 'Deceased' ? 'Deceased' : 'Eliminated'}">${esc(h.status === 'Retired' && h.licSold ? 'License sold' : h.status || 'Active Hunter')}</span>`;
 const hStatusCell = h => hActive(h) ? '<span class="muted">Active</span>' : hStatus(h);
+let HP_TAB = 'chron';   // the profile tab last opened stays open for the next Hunter
 function openHunter(license){
   const h = HUNTERS.find(x => x.license === license); if(!h) return;
   modalBack = null;
@@ -189,32 +190,35 @@ function openHunter(license){
       <div class="eh-b"><span>Age <b>${x.age}</b></span><span><span class="regn">#${x.reg}</span></span><span>Reached <b>${esc(x.phaseName || '—')}</b></span></div>
       <div class="eh-i">Improvements on entry: ${x.improvements && x.improvements.length ? x.improvements.map(k => ATTR_LABEL[k] + ' +' + (x.impAmt || 2)).join(', ') : 'None (first attempt)'}</div>
       ${x.reason ? `<div class="eh-i">${esc(clean(x.reason))}</div>` : ''}</details>`).join('');
-  showModal(`<div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(h.name)}">
-    <div class="sheet-head"><div><div class="meta">Hunter Association · ${h.license}</div><div class="sh-t"><h2>${esc(h.name)}</h2>${hStatus(h)}</div>${h.nick ? `<div class="meta knownas">Known as <b>“${esc(h.nick)}”</b>${(h.nickWhy || (h.keep && h.keep.nick && h.keep.nick.why)) ? ` — ${esc(h.nickWhy || h.keep.nick.why)}` : ''}${h.nickEd && h.nickEd !== h.edition ? ` (since the ${ordinal(h.nickEd)})` : h.keep && h.keep.ed ? ` (${ordinal(h.keep.ed)} exam)` : ''}</div>` : ''}
-      <div class="meta">${h.pro ? `Veteran professional · ${h.gender} · ${h.status === 'Deceased' ? `died at ${ageTxt(h)}` : h.status === 'Missing' ? `${hunterAge(h)} years old ?` : `${hunterAge(h)} years old`} · ${(() => { const y = (h.years || 0) + Math.max(0, S.edition - h.edition); const at = h.age - (h.years || 0); return y ? `licensed at ${at}, ${y} year${y === 1 ? '' : 's'} ago` : `licensed at ${at}, this year`; })()}, before the exam records began` : h.regional ? `Regional license · ${esc(h.regional)} office · ${h.gender} · ${h.status === 'Deceased' ? `died at ${ageTxt(h)}` : h.status === 'Missing' ? `${hunterAge(h)} years old ?` : `${hunterAge(h)} years old now`} · licensed at ${h.age}` : `${h.gender} · ${h.status === 'Deceased' ? `died at ${ageTxt(h)}` : h.status === 'Missing' ? `${hunterAge(h)} years old ?` : `${hunterAge(h)} years old now`} · approved at ${h.age} · ${h.attempts} attempt${h.attempts === 1 ? '' : 's'}`}</div>
-      ${pastTags(h).length || specialTags(h).length ? `<div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">${specialTags(h).map(x => `<span class="xtag sp">${esc(x)}</span>`).join('')}${pastTags(h).map(x => `<span class="xtag" title="${esc((h.pastRoles || []).filter(y => y.r === x.r).map(yrs).join(', '))}">${esc(x.label)}</span>`).join('')}</div>` : ''}</div>
-      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">${favBtn(h.cid)}<button class="btn" id="mClose">Close</button></div></div>
-    ${roleBanner(h)}${retireBanner(h)}
-    <div class="hcard"><div><small>License</small><b>${h.license}</b></div><div><small>Rank</small><b class="stars">${starStr(hStars(h)) || '<span class="muted">Unranked</span>'}</b></div><div><small>Specialty</small><b>${esc(h.career || '—')}</b></div><div><small>Hometown</small><b>${esc(homeOf(h))}</b></div>${schOf(h.school) ? `<div><small>School</small><b style="display:flex;gap:8px;align-items:center">${schoolCrest(schOf(h.school), 30)}<a class="golink" data-school="${h.school}" title="Open the school">${esc(capS(schOf(h.school).name))} ›</a></b></div>` : ''}<div><small>${h.regional ? 'Licensed by' : 'Edition passed'}</small><b>${h.pro ? 'Before records' : h.regional ? esc(h.regional.replace(/^the /, '').replace(/^./, s => s.toUpperCase())) + ' office' : ordinal(h.edition)}</b></div>${(() => { const y = Math.max(0, (h.pro ? (h.years || 0) : 0) + S.edition - h.edition); return `<div><small>Licensed</small><b>${y === 0 ? 'This year' : y === 1 ? '1 year ago' : y + ' years ago'}</b></div>`; })()}<div><small>${h.pro ? 'Background' : 'How they passed'}</small><b style="font-weight:400;font-size:13px">${esc(h.reason || '—')}</b></div></div>
-    ${(() => { const B = (h.bonds || []).filter(b => cmap(S)[b.id] || HUNTERS.some(x => x.cid === b.id));   // only bonds you can click through to
-      return B.length ? `<div><div class="section-h">Unbreakable bonds</div><div class="grs">${B.map(bondRow).join('')}</div></div>` : ''; })()}
-    ${(() => { const L = x => { const o = hLic(x); return o ? `<a data-hunter="${esc(o.license)}">${esc(o.name)}</a>` : ''; };
+  // how long they have carried the license (or carried it, for the dead and the retired)
+  const licYrs = Math.max(0, (h.pro ? (h.years || 0) : 0) + (h.status === 'Deceased' && h.diedEd != null ? h.diedEd : h.status === 'Retired' && h.retire && h.retire.ed != null ? h.retire.ed : S.edition) - h.edition);
+  const ageBit = h.status === 'Deceased' ? `died at ${ageTxt(h)}` : h.status === 'Missing' ? `${hunterAge(h)}?` : `${hunterAge(h)}`;
+  const sch = schOf(h.school);
+  const facts = [`<span><b class="stars">${starStr(hStars(h))}</b> ${esc(h.career || 'Hunter')}</span>`, h.nen ? `<span>${nenChip(h.nen.category)}</span>` : '', sch ? `<span>${schoolCrest(sch, 18)}<a data-school="${h.school}">${esc(capS(sch.name))}</a></span>` : '',
+    `<span>${esc(h.gender && h.gender !== '—' ? h.gender : '')}${h.gender && h.gender !== '—' ? ' · ' : ''}${ageBit} · from ${esc(homeOf(h))}</span>`, `<span>${hActive(h) ? 'Hunter for' : 'A Hunter for'} ${licYrs === 0 ? 'less than a year' : licYrs === 1 ? 'a year' : licYrs + ' years'}</span>`].filter(Boolean).join('');
+  // each tab holds one subject; a side column (left on a wide screen, on top on a phone) holds what goes with it
+  const two = (side, main) => side && side.replace(/\s/g, '') ? `<div class="pgrid"><aside class="pside">${side}</aside><div class="pmain">${main}</div></div>` : `<div class="pmain">${main}</div>`;
+  const famSide = `${(() => { const B = (h.bonds || []).filter(b => cmap(S)[b.id] || HUNTERS.some(x => x.cid === b.id));   // only bonds you can click through to
+      return B.length ? `<div><div class="section-h">Unbreakable bonds</div><div class="grs">${B.map(bondRow).join('')}</div></div>` : ''; })()}${(() => { const L = x => { const o = hLic(x); return o ? `<a data-hunter="${esc(o.license)}">${esc(o.name)}</a>` : ''; };
       const kids = [], par = [];   // children and parents now live in the Family block
       const kl = kids.length ? `<p class="h-fam"><span>✦</span> ${kids.length === 1 ? 'Child' : 'Children'}: ${kids.map(k => { const kh = HUNTERS.find(x => x.cid === k.cid); return `${kh ? L(kh.license) : esc(k.name)} <span class="muted">(born after the ${ordinal(k.born)}${kh ? ', licensed in the ' + ordinal(kh.edition) : k.entered ? ', took the ' + ordinal(k.entered) + ' exam' : ''})</span>`; }).join(', ')}</p>` : '';
       const pl = par.length ? `<p class="h-fam"><span>✦</span> Child of ${par.map(x => L(x.license)).join(' and ')}</p>` : '';
-      return pl + kl; })()}
-    ${lineageHtml(h.license, h.cid, spouseRow(h))}
-    ${schoolRowHtml(h)}
-    ${relicRowHtml(h)}
-    ${typeof hunterUwHtml === 'function' ? hunterUwHtml(h) : ''}
-    ${(() => { const K = S.candidates.filter(c => c.hParent === h.license && legendKnown(c)); return K.length ? `<p class="h-fam"><span>✦</span> ${K.length === 1 ? 'Child' : 'Children'} in the ${ordinal(S.edition)} exam: ${K.map(c => `<a data-id="${c.id}">${esc(c.name)}</a>`).join(', ')}</p>` : ''; })()}
-    ${(h.log || []).length || h.originNote ? `<div><div class="section-h">Career</div><div class="bulletin career">${careerHtml(h)}${h.originNote ? `<div class="bl origin"><i>◉</i><span><span class="muted">Before the records</span> ${esc(h.originNote.startsWith(h.name + ' ') ? h.originNote.slice(h.name.length + 1) : h.originNote)}</span></div>` : ''}</div></div>` : ''}
-    ${h.nen ? nenPanel({nen: h.nen}) : ''}
-    ${keepHtml(h)}
-    ${(h.examined || []).length ? `<details class="pf-more"><summary>Examiner duty · ${h.examined.length}</summary><div class="duty">${h.examined.map(x => `<div><b>${ordinal(x.edition)} Hunter Exam</b><span>${esc(x.phase)}</span><span class="exs ${x.style}">${esc(x.style)}</span></div>`).join('')}</div></details>` : ''}
-    <details class="pf-more"><summary>${h.attrs0 ? `Attributes <span class="muted" style="font-weight:400;text-transform:none;letter-spacing:0">· ${hActive(h) ? 'now' : h.status === 'Deceased' ? 'at death' : h.status === 'Missing' ? 'when last seen' : 'at retirement'}, against the year they were licensed</span>` : h.pro ? 'Attributes' : 'Attributes at approval'}</summary>${h.attrs ? `<div class="attrs">${attrs}</div>` : '<p class="muted" style="margin:0">Not recorded for this older entry.</p>'}</details>
-    ${h.pro ? '' : `<details class="pf-more"><summary>Exam history${(h.history || []).length ? ` · ${h.history.length} attempt${h.history.length === 1 ? '' : 's'}` : ''}</summary>${hist ? `<div class="ehs">${hist}</div>` : '<p class="muted" style="margin:0">Not recorded for this older entry.</p>'}</details>`}
-    ${h.cid && !h.pro ? `<div class="pf-id">Candidate ID ${esc(h.cid)}</div>` : ''}
+      return pl + kl; })()}${lineageHtml(h.license, h.cid, spouseRow(h))}${(() => { const K = S.candidates.filter(c => c.hParent === h.license && legendKnown(c)); return K.length ? `<p class="h-fam"><span>✦</span> ${K.length === 1 ? 'Child' : 'Children'} in the ${ordinal(S.edition)} exam: ${K.map(c => `<a data-id="${c.id}">${esc(c.name)}</a>`).join(', ')}</p>` : ''; })()}${schoolRowHtml(h)}`;
+  const exCard = `<div class="hcard">${h.pro ? `<div><small>Licensed</small><b>Before the exam records began</b></div><div><small>At</small><b>${h.age - (h.years || 0)}</b></div>`
+      : h.regional ? `<div><small>Licensed by</small><b>The ${esc(h.regional.replace(/^the /, ''))} office</b></div><div><small>The year of</small><b>the ${ordinal(h.edition)} Hunter Exam</b></div><div><small>At</small><b>${h.age}</b></div>`
+      : `<div><small>Licensed in</small><b>the ${ordinal(h.edition)} exam</b></div><div><small>At</small><b>${h.age}</b></div><div><small>Attempts</small><b>${h.attempts || 1}</b></div>`}<div><small>${h.pro ? 'Background' : h.regional ? 'How' : 'How they passed'}</small><b style="font-weight:400;font-size:13px">${esc(h.reason || '—')}</b></div></div>`;
+  const T = [['chron', 'Chronicle', roleBanner(h) + retireBanner(h) + two(famSide, `${(h.log || []).length || h.originNote ? `<div><div class="section-h">Year by year</div><div class="bulletin career">${careerHtml(h)}${h.originNote ? `<div class="bl origin"><i>◉</i><span><span class="muted">Before the records</span> ${esc(h.originNote.startsWith(h.name + ' ') ? h.originNote.slice(h.name.length + 1) : h.originNote)}</span></div>` : ''}</div></div>` : ''}${typeof hunterUwHtml === 'function' ? hunterUwHtml(h) : ''}${(h.examined || []).length ? `<details class="pf-more"><summary>Examiner duty · ${h.examined.length}</summary><div class="duty">${h.examined.map(x => `<div><b>${ordinal(x.edition)} Hunter Exam</b><span>${esc(x.phase)}</span><span class="exs ${x.style}">${esc(x.style)}</span></div>`).join('')}</div></details>` : ''}`)],
+    ['portrait', 'Portrait', typeof hunterStoryHtml === 'function' ? two(whoHtml(h), hunterStoryHtml(h)) : ''],
+    ['nen', 'Nen &amp; stats', two(relicRowHtml(h), `${h.nen ? nenPanel({nen: h.nen}) : '<p class="muted" style="margin:0">No Nen on record.</p>'}<details class="pf-more" open><summary>${h.attrs0 ? `Attributes <span class="muted" style="font-weight:400;text-transform:none;letter-spacing:0">· ${hActive(h) ? 'now' : h.status === 'Deceased' ? 'at death' : h.status === 'Missing' ? 'when last seen' : 'at retirement'}, against the year they were licensed</span>` : h.pro ? 'Attributes' : 'Attributes at approval'}</summary>${h.attrs ? `<div class="attrs">${attrs}</div>` : '<p class="muted" style="margin:0">Not recorded for this older entry.</p>'}</details>`)],
+    ['exam', h.pro || h.regional ? 'License' : 'Exam', `${exCard}${h.pro ? '' : keepExamHtml(h) + (hist ? `<div class="ehs">${hist}</div>` : '')}${h.cid && !h.pro ? `<div class="pf-id">Candidate ID ${esc(h.cid)}</div>` : ''}`]].filter(t => t[2]);
+  const on = T.some(t => t[0] === HP_TAB) ? HP_TAB : 'chron';
+  showModal(`<div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(h.name)}">
+    <div class="sheet-head ph"><div><div class="meta">Hunter Association · ${h.license}</div><div class="sh-t"><h2>${esc(h.name)}</h2>${hStatus(h)}</div>${h.nick ? `<div class="meta knownas">Known as <b>“${esc(h.nick)}”</b>${(h.nickWhy || (h.keep && h.keep.nick && h.keep.nick.why)) ? ` — ${esc(h.nickWhy || h.keep.nick.why)}` : ''}${h.nickEd && h.nickEd !== h.edition ? ` (since the ${ordinal(h.nickEd)})` : h.keep && h.keep.ed ? ` (${ordinal(h.keep.ed)} exam)` : ''}</div>` : ''}
+      <div class="ph-facts">${facts}</div>
+      ${pastTags(h).length || specialTags(h).length ? `<div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">${specialTags(h).map(x => `<span class="xtag sp">${esc(x)}</span>`).join('')}${pastTags(h).map(x => `<span class="xtag" title="${esc((h.pastRoles || []).filter(y => y.r === x.r).map(yrs).join(', '))}">${esc(x.label)}</span>`).join('')}</div>` : ''}</div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">${favBtn(h.cid)}<button class="btn" id="mClose">Close</button></div></div>
+    <div class="ptabs" role="tablist">${T.map(t => `<button type="button" role="tab" class="pt${t[0] === on ? ' on' : ''}" data-ptab="${t[0]}" aria-selected="${t[0] === on}">${t[1]}</button>`).join('')}</div>
+    ${T.map(t => `<div class="pp${t[0] === on ? ' on' : ''}" data-ppane="${t[0]}" role="tabpanel">${t[2]}</div>`).join('')}
   </div>`);
 }
 
@@ -372,3 +376,6 @@ function showTab(t){
 document.querySelectorAll('.tab').forEach(b => b.onclick = () => showTab(b.dataset.tab));
 document.querySelectorAll('.mainnav button[data-sec]').forEach(b => b.onclick = () => { showTab(b.dataset.sec === 'exam' ? lastExamTab : b.dataset.sec); window.scrollTo(0, 0); });
 
+
+document.addEventListener('click', e => { const b = e.target.closest && e.target.closest('[data-ptab]'); if(!b) return; HP_TAB = b.dataset.ptab; const sh = b.closest('.sheet');
+  sh.querySelectorAll('[data-ptab]').forEach(x => { x.classList.toggle('on', x === b); x.setAttribute('aria-selected', x === b); }); sh.querySelectorAll('[data-ppane]').forEach(x => x.classList.toggle('on', x.dataset.ppane === HP_TAB)); });
