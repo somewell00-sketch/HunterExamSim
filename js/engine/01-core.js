@@ -581,7 +581,7 @@ const ENV_NO = (() => { const veg = 'trees?|bush(?:es)?|thorns?|undergrowth|root
   return {boat: new RegExp(`\\b(?:${veg}|mud|tents?|footprints|shortcut|trail|dirt|campfire|fire\\b|loose stone|cave|road|the land|tunnel|${house})\\b`),
     train: new RegExp(`\\b(?:${veg}|mud|tents?|footprints|shortcut|trail|dirt|campfire|swims?|dolphins?|waves?|the land)\\b`),
     river: new RegExp(`\\b(?:tents?|footprints|hot springs?|hillside|dirt|road|carriages?|cabin|${house})\\b`),
-    indoor: new RegExp(`\\b(?:${veg}|mud|tents?|campfire|moonlight|sky|stars|rain|the land|hillside|sunlight|sunshine|the sun|sunset|sunrise|${ship}|swims?)\\b`),
+    indoor: new RegExp(`\\b(?:${veg}|mud|tents?|campfire|moonlight|sky|stars|rain|the land|hillside|off the path|side of the route|sunlight|sunshine|the sun|sunset|sunrise|${ship}|swims?)\\b`),
     under: new RegExp(`\\b(?:${veg}|sky|moonlight|stars|sunset|sunrise|sunlight|sunshine|the sun|breeze|campfire|tents?|rain|the land|${ship}|swims?)\\b`),
     wild: new RegExp(`\\b(?:${ship}|${house}|tunnel)\\b`), island: new RegExp(`\\b(?:carriages?|cabin|${house}|tunnel)\\b`),
     swamp: new RegExp(`\\b(?:${ship}|${house}|sand dunes?|dust storm|tunnel)\\b`), mountain: new RegExp(`\\b(?:${ship}|${house}|swims?|swamp|frogs?|tunnel)\\b`),

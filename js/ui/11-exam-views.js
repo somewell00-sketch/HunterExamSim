@@ -745,7 +745,7 @@ function renderPhase0(){
         ${BONDS_SIDE}
         ${sec(`Veterans${vets.length ? ' · ' + new Set(vets.map(e => (e.ids || [])[0])).size : ''}`, vetCompact(vets))}
       </div>
-    </div>${typeof trRun === 'function' && trRun(i) ? `<div class="tw-full">${trTowerHtml(i)}${trTablesHtml(i)}</div>` : typeof raceOf === 'function' && raceOf(i) ? `<div class="tw-full">${raceHtml(i)}</div>` : ''}`;
+    </div>${typeof trRun === 'function' && trRun(i) ? `<div class="tw-full">${trTowerHtml(i)}${trTablesHtml(i)}</div>` : typeof raceOf === 'function' && raceOf(i) ? `<div class="tw-full">${raceHtml(i)}</div>` : typeof huntOf === 'function' && huntOf(i) ? `<div class="tw-full">${huntHtml(i)}</div>` : typeof passOf === 'function' && passOf(i) != null ? `<div class="tw-full">${passHtml(i)}</div>` : ''}`;
 }
 
 function renderLog(){
