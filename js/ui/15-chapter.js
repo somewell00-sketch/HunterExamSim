@@ -201,7 +201,7 @@ function chapterHtml(i){
   const tidy = arr => arr.map(e => Object.assign({}, e, {text: chTidy(e.text, ph)}));
   const B = tidy(C.B), D = tidy(C.D), A = tidy(C.A);
   const prev = i > 0 && S.stats.find(s => s.p === i - 1) && !PHASES[i - 1].zevil && !PHASES[i - 1].final ? chapterOf(i - 1) : null;
-  const labels = chPick([['Dawn', 'Morning', 'Nightfall'], ['First light', 'Midday', 'After dark'], ['Before the signal', 'Halfway', 'By the fire'], ['Morning', 'Afternoon', 'Evening']], 'lb' + i);
+  const labels = typeof RACE !== 'undefined' && RACE[ph.id] ? chPick(RACE[ph.id].labels, 'lb' + i) : chPick([['Dawn', 'Morning', 'Nightfall'], ['First light', 'Midday', 'After dark'], ['Before the signal', 'Halfway', 'By the fire'], ['Morning', 'Afternoon', 'Evening']], 'lb' + i);   // a race is told by distance
   const scene = (label, arr, cls, lead, known) => arr.length || lead ? `<div class="wt-scene"><span class="wt-time">${esc(label)}</span>${chPara((lead ? [{text: lead, ids: []}] : []).concat(chFlow(arr, C.cm, k + label, known)), cls)}</div>` : '';
   const splash = C.moment ? `<figure class="wt-splash"><span class="sfx" aria-hidden="true">${chPick(['ドン', 'ゾッ', 'バッ', 'ザッ'], 'sfx' + i)}</span><span class="mo-k">Moment of the trial</span><blockquote>${linkNames(chTidy(C.moment.text, ph), C.moment.ids)}</blockquote></figure>` : '';
   // the opening: the year's mood, the examiner, or the person this chapter follows
