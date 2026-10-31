@@ -15,7 +15,8 @@ const THEMES = {
 };
 // a line of atmosphere at the start of each phase, so the theme is felt rather than announced
 const THEME_LINES = {
-  storm:[o => `Rain hammers the candidates all through ${o.ph}.`, o => `Thunder rolls over ${o.ph}. Nobody can hear the examiner's instructions twice.`, o => `The wind turns ${o.ph} into something much worse.`],
+  storm:[o => `Rain hammers the candidates all through ${o.ph}.`, o => `Thunder rolls over ${o.ph}. Nobody can hear the examiner's instructions twice.`, o => `The wind turns ${o.ph} into something much worse.`,
+    o => `Water runs down the walls all through ${o.ph}: the storm is somewhere overhead.`, o => `Thunder shakes the walls during ${o.ph}. Nobody can hear the examiner's instructions twice.`],
   whim:[o => `The Chairman watches ${o.ph} from a deckchair, rolling a pair of dice.`, o => `Before ${o.ph}, the Chairman whispers something to the examiner. The examiner sighs.`],
   blood:[o => `The examiner lets things go further than the rules allow in ${o.ph}.`, o => `Medics are already waiting at the end of ${o.ph}. A bad sign.`, o => `Nobody stops the fights in ${o.ph} until it is far too late.`],
   jubilee:[o => `Music plays at the start of ${o.ph}. Even the examiner hums along.`, o => `The examiner hands out water before ${o.ph}. Unheard of.`],
@@ -24,7 +25,7 @@ const THEME_LINES = {
   silence:[o => `Nobody talks during ${o.ph}. Nobody shares anything either.`, o => `In ${o.ph}, candidates walk past each other's mistakes without a word.`],
   friendship:[o => `Strangers share food and stories on the way to ${o.ph}.`, o => `Laughter at the start of ${o.ph}. It is that kind of year.`],
   shadows:[o => `Someone has been going through the candidates' bags before ${o.ph}.`, o => `Whispers and false names everywhere around ${o.ph}.`],
-  wild:[o => `Something big moves in the undergrowth around ${o.ph}.`, o => `The ground itself seems to fight the candidates in ${o.ph}.`, o => `Thorns, teeth and loose rocks: ${o.ph} is in a foul mood.`]
+  wild:[o => `Something big moves in the undergrowth around ${o.ph}.`, o => `The ground itself seems to fight the candidates in ${o.ph}.`, o => `Thorns, teeth and loose rocks: ${o.ph} is in a foul mood.`, o => `Something scratches behind the walls of ${o.ph}, keeping pace with the candidates.`]
 };
 
 function pickTheme(seed){
@@ -573,8 +574,8 @@ function traitMoments(S, ph, p, rng, active){
     const c = typeof castBias === 'function' ? castBias(S, active.filter(x => x.status === 'Active'), rng, 0.4) : active[Math.floor(rng() * active.length)];
     if(!c || c.status !== 'Active') continue;
     persona(c);
-    const lines = TRAIT_LINES[c.trait]; if(!lines) continue;
-    const text = lines[Math.floor(rng() * lines.length)]({c, ph: thePhase(ph.name)});
+    const lines = (TRAIT_LINES[c.trait] || []).map(f => f({c, ph: thePhase(ph.name)})).filter(t => phFits(ph.id, t)); if(!lines.length) continue;   // a tangle of vines does not happen in a tunnel
+    const text = lines[Math.floor(rng() * lines.length)];
     dlog(S, p, 'story', text, [c.id], 3);
   }
 }

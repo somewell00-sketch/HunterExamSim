@@ -91,7 +91,9 @@ function chapterOf(i){
   const SKIP = ['phase', 'examiner', 'fav', 'ally', 'split', 'help', 'family', 'team', 'duel', 'fight', 'info', 'veteran', 'bond', 'rescue'];
   // the first chapter opens on the year itself: a Jubilee or Centenary opening and the year's theme, set apart from the scenes
   const tn = THEMES[S.theme || 'classic'], yearL = i === 0 ? ev.filter(e => isOpening(e) || (tn && e.text.startsWith(tn.name + ':'))).sort((a, b) => (b.sp ? 1 : 0) - (a.sp ? 1 : 0)) : [];
-  const pool = ev.filter(e => e !== moment && !yearL.includes(e) && !SKIP.includes(e.type) && !/alliances? (form|forms) or grow/.test(e.text));
+  // older saves wrote some colour lines that do not fit the place (vines in a tunnel): they stay in the log, out of the chapter
+  const fitsHere = e => typeof phFits !== 'function' || !['story', 'event', 'arc'].includes(e.type) || phFits(ph.id, e.text, S.theme || 'classic');
+  const pool = ev.filter(e => e !== moment && !yearL.includes(e) && !SKIP.includes(e.type) && !/alliances? (form|forms) or grow/.test(e.text) && fitsHere(e));
   const firstAct = ev.findIndex(e => ['event', 'help', 'rescue', 'veteran', 'team', 'duel'].includes(e.type));
   const leadAt = ev.findIndex(e => e.type === 'major' && (e.ids || []).length === 1 && /front of the pack|keeps up|look easy|mark one name|First through/i.test(e.text));
   const at = e => ev.indexOf(e);

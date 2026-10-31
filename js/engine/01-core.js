@@ -570,21 +570,29 @@ const PH_COURSE = new Set(['sea', 'nighttrain', 'cliffpath', 'marathon', 'stairs
 const PH_INDOOR = new Set(['nighttrain', 'auction', 'tower', 'maze', 'marathon', 'hall', 'mirror', 'banquet', 'dice', 'guardians', 'centennial', 'prisoner']);
 // where a trial happens, so colour lines do not put thorn bushes on a ship: each setting lists the words that cannot be there
 const PH_ENV = {sea:'boat', bandits:'boat', raft:'river', nighttrain:'train', auction:'indoor', tower:'indoor', prisoner:'indoor', cooking:'indoor', banquet:'indoor', hall:'indoor', mirror:'indoor', dice:'indoor', quiz:'path', final:'arena',
-  maze:'under', marathon:'under', stairs:'under', guardians:'under', mute:'under', centennial:'under', desert:'desert'};
-const ENV_NO = (() => { const veg = 'trees?|bush(?:es)?|thorns?|undergrowth|roots?|hillside|beetles?|frogs?|birds?|hot springs?|moss|forest|woods|canopy|nest';
-  return {boat: new RegExp(`\\b(?:${veg}|mud|tents?|footprints|shortcut|trail|dirt|campfire|fire\\b|loose stone|cave|road|the land)\\b`),
+  maze:'under', marathon:'under', stairs:'under', guardians:'under', mute:'under', centennial:'under', desert:'desert',
+  capture:'wild', beast:'wild', nighthunt:'wild', blankmap:'wild', pairs:'wild', feeding:'wild', disguise:'wild', treasure:'wild', zevil:'island', wetlands:'swamp',
+  egg:'mountain', cliffpath:'mountain', mountain:'mountain', ridge:'mountain', pit:'arena'};
+// the trials that happen at night, and what a year's weather rules out everywhere
+const PH_NIGHT = new Set(['nighttrain', 'nighthunt']), NIGHT_NO = /\b(?:sunlight|sunshine|noon|midday|the sun\b|sunburn\w*|sunbathes?|in the heat of the day)\b/;
+const THEME_NO = {storm: /\b(?:sunny|sunshine|clear sky|blue sky|cloudless|sunburn\w*|sunbathes?)\b/};
+const ENV_NO = (() => { const veg = 'trees?|bush(?:es)?|thorns?|undergrowth|roots?|hillside|beetles?|frogs?|birds?|hot springs?|moss|forest|woods|canopy|nest|vines?|grass|flowers?|butterfl(?:y|ies)|meadow';
+  const ship = 'deck|carriages?|cabin|dolphins?|waves', house = 'ceiling|corridors?|staircase';
+  return {boat: new RegExp(`\\b(?:${veg}|mud|tents?|footprints|shortcut|trail|dirt|campfire|fire\\b|loose stone|cave|road|the land|tunnel|${house})\\b`),
     train: new RegExp(`\\b(?:${veg}|mud|tents?|footprints|shortcut|trail|dirt|campfire|swims?|dolphins?|waves?|the land)\\b`),
-    river: /\b(?:tents?|footprints|hot springs?|hillside|dirt|road)\b/,
-    indoor: new RegExp(`\\b(?:${veg}|mud|tents?|campfire|moonlight|sky|stars|rain|the land|hillside)\\b`),
-    under: /\b(?:trees?|bush(?:es)?|thorns?|undergrowth|birds?|sky|moonlight|stars|sunset|sunrise|campfire|tents?|hillside|rain|canopy|the land)\b/,
+    river: new RegExp(`\\b(?:tents?|footprints|hot springs?|hillside|dirt|road|carriages?|cabin|${house})\\b`),
+    indoor: new RegExp(`\\b(?:${veg}|mud|tents?|campfire|moonlight|sky|stars|rain|the land|hillside|sunlight|sunshine|the sun|sunset|sunrise|${ship}|swims?)\\b`),
+    under: new RegExp(`\\b(?:${veg}|sky|moonlight|stars|sunset|sunrise|sunlight|sunshine|the sun|breeze|campfire|tents?|rain|the land|${ship}|swims?)\\b`),
+    wild: new RegExp(`\\b(?:${ship}|${house}|tunnel)\\b`), island: new RegExp(`\\b(?:carriages?|cabin|${house}|tunnel)\\b`),
+    swamp: new RegExp(`\\b(?:${ship}|${house}|sand dunes?|dust storm|tunnel)\\b`), mountain: new RegExp(`\\b(?:${ship}|${house}|swims?|swamp|frogs?|tunnel)\\b`),
     arena: new RegExp(`\\b(?:${veg}|mud|tents?|campfire|shortcut|footprints|trail)\\b`),
-    path: /\b(?:tents?|hot springs?)\b/,
-    desert: /\b(?:mud|frogs?|swims?|undergrowth|moss|forest|woods|canopy|hot springs?)\b/i}; })();
+    path: new RegExp(`\\b(?:tents?|hot springs?|${ship}|${house})\\b`),
+    desert: new RegExp(`\\b(?:mud|frogs?|swims?|undergrowth|moss|forest|woods|canopy|hot springs?|vines?|swamp|${ship}|${house})\\b`, 'i')}; })();
 // does this line (or the source of a line template) fit the trial it lands in?
-const phFits = (id, src) => { const no = ENV_NO[PH_ENV[id]]; if(!no) return true;
+const phFits = (id, src, th) => { const no = ENV_NO[PH_ENV[id]], tno = THEME_NO[th === undefined ? (typeof THEME === 'undefined' ? null : THEME) : th], night = PH_NIGHT.has(id) ? NIGHT_NO : null; if(!no && !tno && !night) return true;
   // names (Moss, Rain, the Night Forest Chase) do not count; a capital at the start of a sentence does
   const t = String(src).replace(/(^|[.!?:]["”]? |`)([A-Z])(?=[a-z]+(?:,| (?![A-Z])))/g, (m, a, b) => a + b.toLowerCase()).replace(/\b[A-Z][a-z]+(?: [A-Z][a-z]+)*\b/g, '');
-  return !no.test(t); };
+  return !(no && no.test(t)) && !(tno && tno.test(t)) && !(night && night.test(t)); };
 const phKind = ph => !ph ? 'test' : ph.zevil ? 'island' : ph.final ? 'final' : ph.xp === 'duel3' ? 'duel' : PH_COURSE.has(ph.id) || ph.course ? 'course' : 'test';
 const CL_HAIR = [o => `${o.c.name} makes the cut in the ${o.ph} by almost nothing.`, o => `${o.c.name} scrapes through the ${o.ph}. ${o.P.They} know${o.P.s} how close it was.`, o => `The examiner checks ${o.c.name}'s result twice. Through, barely.`, o => `${o.c.name} crosses the line in the ${o.ph} with nothing left, and nothing to spare.`];
 const CL_SLIP = [o => `${o.c.name}, ${ordinal(o.pr)} after the ${o.prev}, gets through the ${o.ph} in ${ordinal(o.r)}. Something is off.`, o => `${o.c.name} drops from ${ordinal(o.pr)} to ${ordinal(o.r)} in the ${o.ph}. Still in, but rattled.`];

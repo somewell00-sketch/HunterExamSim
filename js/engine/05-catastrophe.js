@@ -105,7 +105,9 @@ function runPhase(S){
   S.alliances = S.alliances || [];
   THEME = S.theme || 'classic'; SPECIAL = S.special || null;
   NOALLY = THEME === 'whim' && (S.whimPs || [S.whimP]).includes(p);
-  if(THEME !== 'classic' && THEME_LINES[THEME] && !ph.final && nhash(S.seed + 'tl' + p) % 10 < 7) dlog(S, p, 'story', vpick(S, THEME_LINES[THEME], 'tl' + p)({ph: thePhase(ph.name)}), [], 3);
+  // the year's weather and mood, said in a way that fits where this trial happens (no rain inside the tower, no walls in the forest)
+  const roofed = PH_INDOOR.has(ph.id) || ['indoor', 'under', 'train'].includes(PH_ENV[ph.id]), TL = (THEME_LINES[THEME] || []).filter(f => { const t = f({ph: 'the trial'}); return phFits(ph.id, t) && (roofed || !/\bwalls?\b/.test(t)) && (!roofed || !/\b(?:rain|wind|undergrowth|ground itself|thorns)\b/i.test(t) || /walls/.test(t)); });
+  if(THEME !== 'classic' && TL.length && !ph.final && nhash(S.seed + 'tl' + p) % 10 < 7) dlog(S, p, 'story', vpick(S, TL, 'tl' + p)({ph: thePhase(ph.name)}), [], 3);
   if(NOALLY) log(S, p, 'major', `The Chairman rolls his dice: in the ${ph.name}, alliances are forbidden. Every candidate for themselves.`, []);
   const arng = makeRng((S.seed ^ ((p+1) * 0x85ebca6b) ^ 0xA11CE) >>> 0);
   const newAll = (!ph.zevil && !ph.final && !NOALLY) ? allianceEncounters(S, p, arng, active) : 0;
