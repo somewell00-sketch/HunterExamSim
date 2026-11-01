@@ -5,7 +5,7 @@ const assert = require('assert'), {openGame} = require('./lib');
   const r = await page.evaluate(() => { const seen = [], bad = [];
     for(const k of ['marathon', 'stairs', 'desert', 'mountain', 'cliffpath']){ let i = -1; for(let e = 401; e < 700 && i < 0; e++){ S = fresh(e); useLineup(S); i = PHASES.findIndex(p => p.id === k); } if(i < 0) continue;
       let g = 0; while(S.phase <= i && !S.finished && g++ < 40) runPhase(S); selPhase = i; render(); showTab('phase');
-      const box = document.querySelector('[data-rc]'); if(!box){ bad.push(k + ': no course'); continue; } raceDraw(box);
+      const box = document.querySelector('[data-rc]'); if(!box){ bad.push(k + ': no course'); continue; } { const r0 = box.querySelector('input[type=range]'); if(+r0.value !== 0) bad.push('a drawing does not open at the start'); r0.value = r0.max; } raceDraw(box);
       const K = RACE[k], X = raceRun(i), rows = box.querySelectorAll('.rc-cp').length, st = S.stats.find(s => s.p === i);
       if(rows !== Math.round(K.len / K.step) + 1) bad.push(k + ': ' + rows + ' rows');
       if(X.after !== st.after) bad.push(k + ': finishers ' + X.after + ' vs ' + st.after);

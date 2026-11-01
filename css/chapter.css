@@ -237,3 +237,41 @@
 .tr-c{grid-area:c;font:12px var(--f-mono);display:flex;flex-wrap:wrap;gap:4px 8px;align-items:baseline}.tr-c b.g{color:var(--green)}.tr-c em{font-style:normal;color:var(--red)}.tr-eg{flex-basis:100%;font-style:italic;font-size:12px;color:var(--muted)}
 .tr-f{grid-area:f;display:flex;flex-wrap:wrap;gap:4px}.tr-f:empty{display:none}.tr-f a.rc-tk{text-decoration:none}
 @media (max-width:700px){.tr-st{grid-template-columns:30px 1fr;grid-template-areas:"i n" "b b" "c c" "f f"}.trail{min-height:600px}}
+/* preliminaries: the voyage, the night line, the old woman's question, the two forks */
+.pv-art{margin:10px 0 4px}.pv-chart{width:100%;height:auto;display:block;border:2px solid var(--ink);box-shadow:4px 4px 0 var(--ink)}
+.pv-chart text{font:600 12.5px var(--f-mono)}.pv-chart .cnt{font:700 13px var(--f-mono)}.pv-chart .sub{font:italic 11.5px var(--f-mono);opacity:.8}
+.pv-cards{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}.hb-card.still .hb-bar i{background:var(--gold)}
+.pv-sea .paper{fill:#dfe6e2}.pv-sea .waves path{fill:none;stroke:#7d97a4;stroke-width:1.4}.pv-sea .land path{fill:#cbbf9a;stroke:#3a3a33;stroke-width:2}
+.pv-sea .route{fill:none;stroke:#3a4a52;stroke-width:2;stroke-dasharray:3 7;opacity:.6}.pv-sea .wake{fill:none;stroke:#1f3d4f;stroke-width:3}
+.pv-sea text{fill:#1f2a30}.pv-sea .cnt{fill:#b03a2e}.pv-sea .port.end .cnt{fill:#2f7a4f}.pv-sea .port circle{fill:#1f2a30}.pv-sea .port.end circle{fill:#2f7a4f}
+.pv-sea .storm{transition:opacity .3s}.pv-sea .storm path{fill:#6c7a84;stroke:#2c3438;stroke-width:2}.pv-sea .storm .bolt{fill:none;stroke:#d9a640;stroke-width:3}.pv-sea .storm text{fill:#2c3438;font-style:italic}
+.pv-sea .ship path{fill:#3a2a1a;stroke:#1a120a;stroke-width:1.5}.pv-sea .ship .sail{fill:#f5f1e6}
+.pv-sea .deck{font:700 13px var(--f-mono);fill:#1f3d4f;text-anchor:middle}.pv-sea .rose circle{fill:none;stroke:#1f2a30}.pv-sea .rose path{fill:#1f2a30}.pv-sea .rose text{font:700 11px serif;fill:#1f2a30}
+.pv-rail .sky{fill:#121733}.pv-rail .stars circle{fill:#e8e6d8;opacity:.7}.pv-rail .hills{fill:#1b2140}.pv-rail .rails{stroke:#9aa3ad;stroke-width:3}.pv-rail .ties{stroke:#9aa3ad;stroke-width:6;stroke-dasharray:2 9;opacity:.6}
+.pv-rail text{fill:#e8e6d8}.pv-rail .stn rect{fill:#9aa3ad}.pv-rail .stn.end rect{fill:var(--green)}.pv-rail .cnt{fill:#e3889f}.pv-rail .stn.end .cnt{fill:var(--green)}
+.pv-rail .car rect{fill:#2b3248;stroke:#e8e6d8;stroke-width:1.5}.pv-rail .car text{font:700 12px var(--f-mono);fill:#e8e6d8}.pv-rail .car.lit rect{fill:#ffd88a;stroke:#fff}.pv-rail .car.lit text{fill:#1a1a1a}
+.pv-rail .eng path,.pv-rail .eng rect{fill:#3a4058;stroke:#e8e6d8;stroke-width:1.5}.pv-rail .lamp{fill:#ffd88a}.pv-rail .wheels circle{fill:#0f1315;stroke:#9aa3ad;stroke-width:1.5}
+.pv-rail .jumps circle{fill:#e3889f}.pv-rail .jumps text{fill:#e3889f;font:700 12px var(--f-mono)}.pv-rail .bnd{transition:opacity .3s}.pv-rail .bnd text{fill:#e3889f;font:italic 700 13px var(--f-mono)}
+.pv-now{font-size:13px;margin:6px 0 0;min-height:2.6em}
+.pv-qz{display:grid;grid-template-columns:110px 1fr;gap:14px;align-items:center;border:2px solid var(--ink);background:#f3efe4;color:#1a1a1a;padding:12px 16px;box-shadow:4px 4px 0 var(--ink)}
+.pv-qw{text-align:center}.pv-qw svg{width:70px}.pv-qw circle,.pv-qw path{fill:#1a1a1a}.pv-qw .cane{stroke:#1a1a1a;stroke-width:4}.pv-qw small{font:11px var(--f-mono);color:#555;line-height:1.3;display:block}
+.pv-qb p{font:italic 700 19px 'Playfair Display',Georgia,serif;margin:0 0 8px;line-height:1.35}.pv-qt{display:flex;gap:10px;align-items:baseline}.pv-qt .sec{font-size:18px;letter-spacing:4px;color:#a0281e}.pv-qt small{font:11.5px var(--f-mono);color:#555}
+.pv-line{font:12.5px var(--f-mono);display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;margin:8px 0}.pv-line .at{color:var(--gold)}.pv-line .ql{display:flex;gap:2px;flex-basis:100%}.pv-line .ql i{width:6px;height:14px;background:var(--muted);opacity:.55;border-radius:3px 3px 0 0}
+.pv-wood .paper{fill:#dfe4d6}.pv-wood .trees path{fill:#7c9b6a;opacity:.55}.pv-wood .pth{fill:none;stroke:#2f5f3f;stroke-linecap:round;transition:stroke-width .2s}.pv-wood .pth.bad{stroke:#b03a2e}
+.pv-wood text{fill:#1f2a20}.pv-wood .cnt{fill:#2f5f3f}.pv-wood .node.bad text.cnt{fill:#b03a2e}.pv-wood .node circle{fill:#1f2a20}.pv-wood .node.bad circle{fill:#b03a2e}.pv-wood .node.end circle{fill:#2f7a4f}
+.pv-wood .fork circle{fill:#f3efe4;stroke:#1f2a20;stroke-width:3}.pv-wood .fork.busy circle{fill:#ffd88a}.pv-wood .masks ellipse{fill:#f3efe4;stroke:#1f2a20;stroke-width:2}.pv-wood .masks circle{fill:#1f2a20}
+.pv-wood .who circle{fill:var(--c);stroke:#1f2a20;stroke-width:1.5}.pv-wood .who text{font:700 12px var(--f-mono);fill:#1f2a20;paint-order:stroke;stroke:#dfe4d6;stroke-width:3}.pv-wood .who .dn{opacity:.75}
+@media (max-width:700px){.pv-art{overflow-x:auto}.pv-art .pv-chart{min-width:720px}.pv-cards{grid-template-columns:repeat(2,minmax(0,1fr))}.pv-qz{grid-template-columns:1fr}.pv-qw{display:none}}
+/* Zevil Island: the week on the island */
+.zw-ticks{display:flex;justify-content:space-between}
+.zw-rows{display:grid;grid-template-columns:1fr 1fr;gap:0 22px;margin-top:6px}
+.zw-r{display:grid;grid-template-columns:86px 1fr;gap:10px;align-items:start;padding:5px 0 5px 9px;border-bottom:1px solid var(--line);box-shadow:inset 3px 0 0 var(--c)}
+.zw-w{display:flex;flex-direction:column;gap:1px;min-width:0}.zw-r a.zw-n,.zw-n{font:700 12.5px var(--f-mono);color:var(--c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-decoration:none}.zw-p{font:700 12.5px var(--f-mono)}.zw-p small{font-size:10.5px;color:var(--muted);font-weight:400}
+.zw-r.ok .zw-p{color:var(--green)}.zw-r.bad .zw-p{color:var(--red)}.zw-r.bad{opacity:.75}
+.zw-bx{display:flex;flex-direction:column;gap:3px;min-width:0;padding-top:1px}.zw-b{display:flex;flex-wrap:wrap;gap:3px}.zw-b .bdg{min-width:0;height:17px;padding:0 5px;font-size:10px;border-radius:9px}
+.zw-bx>small{font:11px var(--f-mono)}.zw-g{color:var(--green)}.zw-l{color:var(--red)}.zw-p .zw-g,.zw-p .zw-l{font-size:12px}.zw-bx a{color:inherit}
+.bdg.gain{outline:2px solid var(--green);outline-offset:1px;animation:zwflash .9s}@keyframes zwflash{0%{transform:scale(1.5)}100%{transform:scale(1)}}
+@media (max-width:700px){.zw-rows{grid-template-columns:1fr}.zw-ticks span:nth-child(even){visibility:hidden}}
+/* a climb reads from the bottom up: the start at the foot of the list, the top at the top */
+.rc-cps.up{flex-direction:column-reverse}.rc-cps.up .rc-cp{border-top:0;border-bottom:1px solid var(--line)}.rc-cps.up .rc-cp:first-child{border-bottom:0}
+.rep-head+.tw-full{margin:14px 0 22px}

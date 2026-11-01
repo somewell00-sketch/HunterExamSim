@@ -503,7 +503,7 @@ function renderZevil(st){
       <div class="rep-col">
         <div><div class="section-h">Standings · ${zDay === 0 ? 'on arrival' : end ? 'final' : 'end of day ' + zDay}</div><p class="zkey"><span class="bdg own">#</span><span class="bdg tgt">#</span> own or target 3 pts · <span class="bdg any">#</span> other 1 pt · <span class="bdg tgt miss">#</span> not held · 6 to qualify</p>${table}</div>
       </div>
-    </div>`;
+    </div>${typeof zwHtml === 'function' ? zwHtml(PHASES.findIndex(x => x.zevil)) : ''}`;
 }
 
 function exChip(ex){
@@ -522,6 +522,8 @@ function renderPhase(){ renderPhase0(); const sh = scoutHtml(), mh = mentorHtml(
   const pane = $('pane-phase'), rh = pane.querySelector('.rep-head');
   if(rh){ rh.insertAdjacentHTML('afterend', S.started ? mtReportHtml(selPhase) + '<div class="favstrip" id="favstrip" hidden></div>' + x : '<div class="favstrip" id="favstrip" hidden></div>' + x + mtReportHtml(selPhase)); renderFavStrip(); }
   else if(x || mtReportHtml(null)) pane.insertAdjacentHTML('afterbegin', S.started ? mtReportHtml(null) + x : x + mtReportHtml(null));
+  // the drawing comes first: right under the trial's header, then the chapter and everything else
+  const tw = pane.querySelector(':scope>.tw-full'), hd = pane.querySelector(':scope>.rep-head'); if(tw && hd) hd.after(tw);
   if(x) scAnimate();
   requestAnimationFrame(keepAnchor);
   mtCtlRender(); }
@@ -747,7 +749,7 @@ function renderPhase0(){
         ${BONDS_SIDE}
         ${sec(`Veterans${vets.length ? ' · ' + new Set(vets.map(e => (e.ids || [])[0])).size : ''}`, vetCompact(vets))}
       </div>
-    </div>${typeof trRun === 'function' && trRun(i) ? `<div class="tw-full">${trTowerHtml(i)}${trTablesHtml(i)}</div>` : typeof raceOf === 'function' && raceOf(i) ? `<div class="tw-full">${raceHtml(i)}</div>` : typeof huntOf === 'function' && huntOf(i) ? `<div class="tw-full">${huntHtml(i)}</div>` : typeof passOf === 'function' && passOf(i) != null ? `<div class="tw-full">${passHtml(i)}</div>` : typeof trailOf === 'function' && trailOf(i) != null ? `<div class="tw-full">${trailHtml(i)}</div>` : ''}`;
+    </div>${typeof trRun === 'function' && trRun(i) ? `<div class="tw-full">${trTowerHtml(i)}${trTablesHtml(i)}</div>` : typeof raceOf === 'function' && raceOf(i) ? `<div class="tw-full">${raceHtml(i)}</div>` : typeof huntOf === 'function' && huntOf(i) ? `<div class="tw-full">${huntHtml(i)}</div>` : typeof passOf === 'function' && passOf(i) != null ? `<div class="tw-full">${passHtml(i)}</div>` : typeof trailOf === 'function' && trailOf(i) != null ? `<div class="tw-full">${trailHtml(i)}</div>` : typeof prelOf === 'function' && prelOf(i) ? `<div class="tw-full">${prelHtml(i)}</div>` : ''}`;
 }
 
 function renderLog(){

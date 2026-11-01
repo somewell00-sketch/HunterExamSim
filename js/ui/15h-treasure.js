@@ -28,7 +28,7 @@ const trailClock = h => { const t = 9 + h, hh = Math.floor(t), m = Math.round((t
 function trailHtml(i){
   const X = trailRun(i); if(!X) return '';
   return `<div class="rc-box tt-box" data-tt="${i}"><div class="tv-top"><div class="section-h" style="margin:0">The clue trail</div></div>
-    <div class="tv-time"><button type="button" class="btn small" data-ttplay>▶ Play</button><div class="tv-rng"><input type="range" data-tth min="0" max="100" value="100" aria-label="Hour"><div class="tv-ticks"><span>9 am</span><span>noon</span><span>3 pm</span><span>sunset</span></div></div><b data-ttlab></b></div>
+    <div class="tv-time"><button type="button" class="btn small" data-ttplay>▶ Play</button><div class="tv-rng"><input type="range" data-tth min="0" max="100" value="0" aria-label="Hour"><div class="tv-ticks"><span>9 am</span><span>noon</span><span>3 pm</span><span>sunset</span></div></div><b data-ttlab></b></div>
     <p class="tv-take" data-tttake></p><div class="trail" data-ttsteps></div>
     <div class="rc-low"><div class="section-h" style="margin:0 0 6px">As it happened</div><ul class="rc-tick" data-tttick></ul></div>
     <p class="muted" style="font-size:12.5px;margin:8px 0 0">Four steps, in order. Each searcher stops at the step they failed, with a line from someone it happened to; a step appears once somebody has got that far. The names are the people this chapter follows: ✓ found a cache, ✕ stopped there. Click one to open their page.</p></div>`;

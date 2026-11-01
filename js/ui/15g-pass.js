@@ -35,7 +35,7 @@ function passHtml(i){
   const X = passRun(i); if(!X) return ''; const mx = X.end * 100;
   const ticks = X.eg ? '<span>First dish</span><span>Last dish</span><span>The ravine</span><span>Done</span>' : `<span>First ${X.K.item}</span><span></span><span>Last ${X.K.item}</span>`;
   return `<div class="rc-box ps-box" data-ps="${X.i}"><div class="tv-top"><div class="section-h" style="margin:0">${esc(X.K.what)}</div></div>
-    <div class="tv-time"><button type="button" class="btn small" data-psplay>▶ Play</button><div class="tv-rng"><input type="range" data-psh min="0" max="${mx}" value="${mx}" aria-label="Progress"><div class="tv-ticks">${ticks}</div></div><b data-pslab></b></div>
+    <div class="tv-time"><button type="button" class="btn small" data-psplay>▶ Play</button><div class="tv-rng"><input type="range" data-psh min="0" max="${mx}" value="0" aria-label="Progress"><div class="tv-ticks">${ticks}</div></div><b data-pslab></b></div>
     <p class="tv-take" data-pstake></p><div data-pssvg></div><div class="pass-legend" data-psleg></div><div class="pass-who" data-pswho></div>
     <div class="rc-low"><div class="section-h" style="margin:0 0 6px">As it happened</div><ul class="rc-tick" data-pstick></ul></div>
     <p class="muted" style="font-size:12.5px;margin:8px 0 0">Every ${X.K.item} goes from ${esc(X.K.first.toLowerCase())} to the examiner’s verdict${X.eg ? '; the rejected go on to the ravine for a second chance' : ''}. The colours are the reasons. Press Play${X.eg ? ': first the tasting, then the Chairman steps in, then the jumps' : ''}. Click a name to open their page.</p></div>`;

@@ -93,7 +93,7 @@ const fcCapS = t => String(t).charAt(0).toUpperCase() + String(t).slice(1), hsCa
 /* ---------- the tower: every team on its level, scrubbed by the hour; click one to see who they are ---------- */
 function trTowerHtml(i){
   const R = trRun(i), M = typeof trStop === 'function' && trStop(i) && R.done != null; return `<div class="tv${M ? ' tv8' : ''}" data-tv="${i}"><div class="tv-top"><div class="section-h" style="margin:0">${M ? trSk(R).viz : TR_WHAT[R.k] || 'The tower'}</div></div>
-    <div class="tv-time"><button type="button" class="btn small" data-tvplay>▶ Play</button><div class="tv-rng"><input type="range" data-tvh min="0" max="72" value="72" aria-label="Hour"><div class="tv-ticks"><span>0h</span><span>12</span><span>24</span><span>36</span><span>48</span><span>60</span><span>72h</span></div></div><b data-tvlab>Hour 72</b></div>
+    <div class="tv-time"><button type="button" class="btn small" data-tvplay>▶ Play</button><div class="tv-rng"><input type="range" data-tvh min="0" max="72" value="0" aria-label="Hour"><div class="tv-ticks"><span>0h</span><span>12</span><span>24</span><span>36</span><span>48</span><span>60</span><span>72h</span></div></div><b data-tvlab>Hour 72</b></div>
     <p class="tv-take" data-tvtake></p><div class="tv-body"><div class="tv-tower" data-tvtower></div><aside class="tv-side" data-tvside></aside></div>
     <p class="muted" style="font-size:12.5px;margin:8px 0 0">Every square is a team. Drag the hours to watch them move${M ? `: teams stop at the ${trSk(R).stop} while they play and pay their hours` : ''}; click a team to see who was in it${M ? ', its route and its bouts' : ' and how it formed'}. In colour: the teams this chapter follows.</p></div>`;
 }

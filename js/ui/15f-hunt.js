@@ -38,7 +38,7 @@ const huntClock0 = (K, h) => { const t = (K.start + h) % 24, hh = Math.floor(t),
 function huntHtml(i){
   const X = huntRun(i); if(!X) return ''; const K = X.K, mx = K.dur * 10, tk = [0, .25, .5, .75, 1].map(f => `<span>${huntClock(K, K.dur * f)}</span>`).join('');
   return `<div class="rc-box hu-box" data-hu="${i}"><div class="tv-top"><div class="section-h" style="margin:0">${esc(K.what)}</div></div>
-    <div class="tv-time"><button type="button" class="btn small" data-huplay>▶ Play</button><div class="tv-rng"><input type="range" data-huh min="0" max="${mx}" value="${mx}" aria-label="Hour"><div class="tv-ticks">${tk}</div></div><b data-hulab></b></div>
+    <div class="tv-time"><button type="button" class="btn small" data-huplay>▶ Play</button><div class="tv-rng"><input type="range" data-huh min="0" max="${mx}" value="0" aria-label="Hour"><div class="tv-ticks">${tk}</div></div><b data-hulab></b></div>
     <p class="tv-take" data-hutake></p><div class="hb-cards" data-hucards></div>
     <div class="rc-low"><div class="section-h" style="margin:0 0 6px">As it happened</div><ul class="rc-tick" data-hutick></ul></div>
     <p class="muted" style="font-size:12.5px;margin:8px 0 0">One card for the way through and one for each way the ${esc(PHASES[i].name.replace(/^The /, ''))} took people out, with a line from someone it happened to. Press Play and the cards fill hour by hour. The names are the people this chapter follows: ✓ made it, ✕ did not; click one to open their page.</p></div>`;

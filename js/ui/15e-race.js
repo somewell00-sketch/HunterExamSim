@@ -4,13 +4,13 @@
 const RACE = {
   marathon: {len: 80, step: 10, speed: 10, what: 'The tunnel', start: 'Start', end: 'The exit', u: 'km', seg: c => `km ${c}–${c + 10}`, at: v => `km ${Math.round(v)}`,
     labels: [['The start', 'Km 40', 'The last stretch'], ['Km 0', 'Somewhere past km 30', 'The exit in sight']]},
-  stairs: {len: 3000, step: 500, speed: 450, what: 'The staircase', start: 'The bottom', end: 'The top', u: 'steps', seg: c => `steps ${c}–${c + 500}`, at: v => `step ${Math.round(v / 10) * 10}`,
+  stairs: {up: true, len: 3000, step: 500, speed: 450, what: 'The staircase', start: 'The bottom', end: 'The top', u: 'steps', seg: c => `steps ${c}–${c + 500}`, at: v => `step ${Math.round(v / 10) * 10}`,
     labels: [['The first steps', 'Halfway up', 'The top'], ['The bottom', 'Step 1,500', 'The last flight']]},
   desert: {len: 120, step: 20, speed: 6, what: 'The desert', start: 'The edge of the sand', end: 'The far oasis', u: 'km', seg: c => `km ${c}–${c + 20}`, at: v => `km ${Math.round(v)}`,
     labels: [['The edge of the sand', 'The second day', 'The far oasis'], ['Km 0', 'The heat of the day', 'The oasis in sight']]},
-  mountain: {len: 3000, step: 500, speed: 300, what: 'The mountain', start: 'Base camp', end: 'The summit', u: 'm', seg: c => `${c}–${c + 500} m`, at: v => `${Math.round(v / 10) * 10} m`,
+  mountain: {up: true, len: 3000, step: 500, speed: 300, what: 'The mountain', start: 'Base camp', end: 'The summit', u: 'm', seg: c => `${c}–${c + 500} m`, at: v => `${Math.round(v / 10) * 10} m`,
     labels: [['Base camp', 'The ridge', 'The summit'], ['The foot of the mountain', '1,500 metres', 'The last rope']]},
-  cliffpath: {len: 12, step: 2, speed: 1.5, what: 'The cliff path', start: 'The first ledge', end: 'The far side', u: 'km', seg: c => `km ${c}–${c + 2}`, at: v => `km ${Math.round(v * 10) / 10}`,
+  cliffpath: {up: true, len: 12, step: 2, speed: 1.5, what: 'The cliff path', start: 'The first ledge', end: 'The far side', u: 'km', seg: c => `km ${c}–${c + 2}`, at: v => `km ${Math.round(v * 10) / 10}`,
     labels: [['The first ledge', 'The narrow part', 'The far side'], ['The trailhead', 'Halfway along the wall', 'The last ledge']]}
 };
 const raceOf = i => { const ph = PHASES[i]; return ph && RACE[ph.id] && S.stats.find(s => s.p === i) ? RACE[ph.id] : null; };
@@ -43,8 +43,8 @@ function raceHtml(i){
   const res = f => f.r.fall >= 0 ? ['bad', `Out at ${K.at(f.r.fall)}`] : f.r.lag < K.step * 0.08 ? ['ok', 'Through, at the front'] : ['ok', `Through, ${K.at(f.r.lag).replace(/^(km|step) /, '')}${K.u === 'm' ? '' : ' ' + K.u} behind`];
   const rows = X.F.map((f, j) => { const r = res(f); return `<div class="rc-row" style="--c:${f.col}"><b data-rcf="${j}" role="button" tabindex="0">${esc(f.c.name)}</b><span class="muted">${esc(f.why)}</span><span class="${r[0]}">${esc(r[1])}</span></div>`; }).join('');
   return `<div class="rc-box" data-rc="${i}"><div class="tv-top"><div class="section-h" style="margin:0">${esc(K.what)}</div></div>
-    <div class="tv-time"><button type="button" class="btn small" data-rcplay>▶ Play</button><div class="tv-rng"><input type="range" data-rch min="0" max="${mxT}" value="${mxT}" aria-label="Hour"><div class="tv-ticks">${tk}</div></div><b data-rclab></b></div>
-    <p class="tv-take" data-rctake></p><div class="rc-body"><div class="rc-cps" data-rccps></div><aside data-rcside></aside></div>
+    <div class="tv-time"><button type="button" class="btn small" data-rcplay>▶ Play</button><div class="tv-rng"><input type="range" data-rch min="0" max="${mxT}" value="0" aria-label="Hour"><div class="tv-ticks">${tk}</div></div><b data-rclab></b></div>
+    <p class="tv-take" data-rctake></p><div class="rc-body"><div class="rc-cps${X.K.up ? ' up' : ''}" data-rccps></div><aside data-rcside></aside></div>
     <div class="rc-low"><div class="section-h" style="margin:0 0 6px">As it happened</div><ul class="rc-tick" data-rctick></ul></div>
     <p class="muted" style="font-size:12.5px;margin:8px 0 0">${esc(X.ex)} sets the pace and never changes it. One row per stretch: how many are on it now (gold) and how many fell there (red); the examiner’s row is marked. Click a name; drag the hours or press Play, and the events appear as the examiner passes them.</p></div>
     ${rows ? `<div class="rc-tab"><div class="section-h">The runners in this chapter</div>${rows}</div>` : ''}`;
