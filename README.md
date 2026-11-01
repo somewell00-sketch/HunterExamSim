@@ -6,7 +6,8 @@ No build step, no server, no dependencies. Open `index.html` and it runs.
 
 | | |
 |---|---|
-| ![The exam](docs/screenshots/exam.png) | ![A trial](docs/screenshots/trial.png) |
+| ![The exam](docs/screenshots/exam.png) | ![A trial, played out](docs/screenshots/play.png) |
+| ![Zevil Island, part by part](docs/screenshots/zevil.png) | ![A themed trial: the Mud Pit](docs/screenshots/themed.png) |
 | ![New Hunters](docs/screenshots/results.png) | ![A catastrophe](docs/screenshots/catastrophe.png) |
 
 ## What's in it
@@ -14,6 +15,8 @@ No build step, no server, no dependencies. Open `index.html` and it runs.
 **The exam**
 - Every edition draws its own route: preliminary trials, endurance trials, a second phase, a team trial with duels, Zevil Island and the Final Tournament.
 - Examiners are real Hunters from the register. Each has a style that changes who gets through.
+- Every trial can be watched with **Play**: a drawing of its own (the ship's route, the night train, the tower's floors, the clue trail, the mud pit, the hundred stairs…) right under the trial's header. It opens at the start and fills as it runs; who got through and how each one fell are the real results.
+- Zevil Island plays its week morning, afternoon and night: the badges in the hands of the people you follow change as it happens.
 - Each exam has a cast: the candidates the story keeps returning to. Scenes remember their injuries, debts, grudges and names; the camp cuts back to them; small finds, wanderings and jokes fill the gaps.
 - A theme for each year (storms, the Crimson Ledger, the Chairman's dice…). Some themes bring a trial of their own.
 - Jubilee and Centennial exams. And, about once in fifty years, a catastrophe that ends the exam.
@@ -102,7 +105,7 @@ The scripts are plain (non-module) scripts and share one global scope, so **load
 ```
 npm install
 npx playwright install chromium
-npm test           # smoke run, themed trials, catastrophe, family trees, chronicles
+npm test           # smoke run, themed trials, catastrophe, family trees, chronicles, every trial's drawing
 npm run stats      # 100 simulated years: deaths, stars, nicknames
 ```
 
@@ -110,10 +113,18 @@ npm run stats      # 100 simulated years: deaths, stars, nicknames
 - `family`: simulates 200 years and checks that every family tie appears on both relatives' profiles.
 - `themed-trials`: runs each theme's own trial to the end.
 - `catastrophe`: forces one and checks the aftermath.
+- `team-stop`, `race`, `hunt`, `pass`, `treasure`, `prelim`, `themed-draw`: every trial's drawing opens at the start, sits under the header, and ends on the trial's real numbers.
+- `final-play`: the Final, bout by bout, ends on the real number of new Hunters.
+- `zevil-week`: replaying Zevil Island part by part ends each day on the badges each candidate really held.
+- `links`: names become links to the right person, first names only when it is clear who they are.
 - `chronicles`: simulates 300 years and checks that cases reach verdicts, schools pass from master to student, relics change hands and the statistics are kept. `YEARS=100` makes it shorter.
 
 The tests fix `Math.random` inside the page with a seed, so every run simulates the same world. `SEED=2 npm test` tries another world; `SEED=0` keeps it random. The game itself is never seeded. `CHROMIUM=/path/to/chrome` uses a Chromium you already have.
 
+## License
+
+The code is released under the [MIT License](LICENSE): use it, change it, share it, as long as the copyright notice stays with it.
+
 ## Credits
 
-A fan project inspired by *Hunter × Hunter* by Yoshihiro Togashi. Not affiliated with or endorsed by the author or publishers. All characters, places and events in the simulation are generated.
+A fan project inspired by *Hunter × Hunter* by Yoshihiro Togashi. Not affiliated with or endorsed by the author or publishers. The MIT License covers this project's code only, not the *Hunter × Hunter* names, world or terms it refers to, which belong to their owners. All characters, places and events in the simulation are generated.
