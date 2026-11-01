@@ -178,7 +178,7 @@ function chNext(i, C){
   const lostBond = (c.bonds || []).some(b => { const o = C.cm[b.id]; return o && o.out === i && o.status !== 'Active'; });
   const climbed = [...C.A].some(e => (e.ids || [])[0] === c.id && /after the|waking up|watching/.test(e.text));
   const text = c.injury && c.injury.p != null ? CH_NEXT.hurt(c, nxn) : riv ? CH_NEXT.rival(c, nxn, riv) : lostBond ? CH_NEXT.bondLost(c, nxn) : climbed ? CH_NEXT.climb(c, nxn) : chPick(CH_NEXT.plain, 'nx' + i)(c, nxn);
-  return {to: nx.name, text};
+  return {to: nx.name, text, ids: [c.id].concat(riv ? [riv.id] : [])};
 }
 function chIntro(i, ph){
   const sp = S.special && CH_OPEN_SP[S.special];
@@ -219,7 +219,7 @@ function chapterHtml(i){
   const prevT = pl ? `<p class="wt-prev">Previously: ${linkNames(chTidy(pl.text, prev.ph), pl.ids || [])}</p>`
     : C.yearL.length ? `<div class="wt-year${S.special ? ' sp' : ''}"><span>${esc(examName(S).replace(/^the /, 'The '))}${!S.special && THEMES[S.theme || 'classic'] ? ' · ' + esc(THEMES[S.theme || 'classic'].name) : ''}</span>${C.yearL.map(e => `<p>${linkNames(e.text.replace(THEMES[S.theme || 'classic'] ? THEMES[S.theme || 'classic'].name + ': ' : '\u0000', ''), e.ids || [])}</p>`).join('')}</div>` : '';
   return `<article class="wt2"><div class="wt2-h"><span>Chapter ${i + 1}</span><h3>${esc(chTitle(i, C))}</h3></div>`
-    + prevT + body + more + (nx ? `<div class="next"><span>Next · ${esc(nx.to)}</span><p>${linkNames(nx.text, [])}</p></div>` : '') + `</article>`;
+    + prevT + body + more + (nx ? `<div class="next"><span>Next · ${esc(nx.to)}</span><p>${linkNames(nx.text, nx.ids || [])}</p></div>` : '') + `</article>`;
 }
 
 /* ---------- one Zevil day ---------- */

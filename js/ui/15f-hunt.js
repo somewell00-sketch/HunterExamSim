@@ -6,7 +6,9 @@ const HUNT = {
   capture: {what: 'The hunt', ok: 'Caught a Great Stamp', still: 'still hunting', start: 12, dur: 6, cross: false},
   beast: {what: 'The taming', ok: 'Tamed their beast', still: 'still trying', start: 9, dur: 6, cross: false},
   wetlands: {what: 'The swamp', ok: 'Made it across', still: 'still in the swamp', start: 6, dur: 5, cross: true},
-  nighthunt: {what: 'The night forest', ok: 'Kept the lantern in sight', still: 'still in the forest', start: 20, dur: 8, cross: true}
+  nighthunt: {what: 'The night forest', ok: 'Kept the lantern in sight', still: 'still in the forest', start: 20, dur: 8, cross: true},
+  // the auction is counted in lots, not hours: twenty lots go under the hammer
+  auction: {what: 'The auction', ok: 'Bought something real', still: 'still bidding', start: 0, dur: 20, cross: false, lots: true}
 };
 const huntOf = i => { const ph = PHASES[i]; return ph && HUNT[ph.id] && S.stats.find(s => s.p === i) ? HUNT[ph.id] : null; };
 const HUNT_C = {};
@@ -20,8 +22,8 @@ function huntRun(i){
   ok.forEach((c, j) => { const f = j / Math.max(1, ok.length - 1); T.set(c.id, K.cross ? K.dur * (0.86 + f * 0.13) : 0.5 + f * (K.dur - 1)); KIND.set(c.id, '_ok'); });
   out.forEach(c => { const k = c.status === 'Deceased' ? 'did not survive' : c.status === 'Disqualified' ? 'was disqualified' : cause(c); KIND.set(c.id, k); T.set(c.id, /empty|came back|lost it|walked away/i.test(k) ? K.dur * (0.9 + (H(c.id) % 80) / 1000) : 0.3 + (H(c.id) % 1000) / 1000 * K.dur * 0.88); });
   // the ways out, most common first, each with one real line from someone it happened to
-  const ways = {}; out.forEach(c => { const k = KIND.get(c.id); (ways[k] = ways[k] || {k, n: 0, eg: ''}).n++; if(!ways[k].eg && c.fall) ways[k].eg = c.fall.split(/(?<=[.!?])\s/)[0]; });
-  const cards = [{k: '_ok', l: K.ok, ok: true, n: ok.length}].concat(Object.values(ways).sort((a, b) => b.n - a.n).map(w => ({k: w.k, l: w.k.charAt(0).toUpperCase() + w.k.slice(1), n: w.n, eg: w.eg})));
+  const ways = {}; out.forEach(c => { const k = KIND.get(c.id); (ways[k] = ways[k] || {k, n: 0, eg: ''}).n++; if(!ways[k].eg && c.fall){ ways[k].eg = c.fall.split(/(?<=[.!?])\s/)[0]; ways[k].egId = c.id; } });
+  const cards = [{k: '_ok', l: K.ok, ok: true, n: ok.length}].concat(Object.values(ways).sort((a, b) => b.n - a.n).map(w => ({k: w.k, l: w.k.charAt(0).toUpperCase() + w.k.slice(1), n: w.n, eg: w.eg, egId: w.egId})));
   const cast = new Set(typeof chCastAt === 'function' ? chCastAt(i) : []), F = [];
   P.filter(c => isFav(c.id) || (!MENTOR.off && mtOf(c.id))).concat(P.filter(c => cast.has(c.id))).forEach(c => { if(F.length < 12 && !F.includes(c)) F.push(c); });
   if(!F.some(c => c.out === i)){ const s = out.slice().sort((a, b) => sc(b) - sc(a))[0]; if(s) F.push(s); }
@@ -31,7 +33,8 @@ function huntRun(i){
       return {t: e.type === 'elim' && T.has(e.ids[0]) ? T.get(e.ids[0]) : start ? 0.1 + (H(e.text) % 30) / 100 : end ? K.dur * (0.9 + (H(e.text) % 9) / 100) : 0.4 + (H(e.text) % 1000) / 1000 * K.dur * 0.85, e}; }).sort((a, b) => a.t - b.t);
   return HUNT_C[i] = {key, K, P, T, KIND, cards, F: F.map((c, j) => ({c, col: COL[j % COL.length]})), EV, after: ok.length, ex: ph.ex ? ph.ex.name : 'The examiner'};
 }
-const huntClock = (K, h) => { const t = (K.start + h) % 24, hh = Math.floor(t), mm = Math.round((t % 1) * 60) % 60; return `${hh % 12 || 12}:${String(mm).padStart(2, '0')} ${hh >= 12 ? 'pm' : 'am'}`; };
+const huntClock = (K, h) => K.lots ? (h >= K.dur ? 'The last gavel' : `Lot ${Math.min(K.dur, Math.floor(h) + 1)} of ${K.dur}`) : huntClock0(K, h);
+const huntClock0 = (K, h) => { const t = (K.start + h) % 24, hh = Math.floor(t), mm = Math.round((t % 1) * 60) % 60; return `${hh % 12 || 12}:${String(mm).padStart(2, '0')} ${hh >= 12 ? 'pm' : 'am'}`; };
 function huntHtml(i){
   const X = huntRun(i); if(!X) return ''; const K = X.K, mx = K.dur * 10, tk = [0, .25, .5, .75, 1].map(f => `<span>${huntClock(K, K.dur * f)}</span>`).join('');
   return `<div class="rc-box hu-box" data-hu="${i}"><div class="tv-top"><div class="section-h" style="margin:0">${esc(K.what)}</div></div>
@@ -48,7 +51,7 @@ function huntDraw(box){
   const chips = k => X.F.filter(f => X.KIND.get(f.c.id) === k && X.T.get(f.c.id) <= h).map(f => `<a class="rc-tk${f.c.out === i ? ' down' : ''}" style="--c:${f.col}" data-id="${f.c.id}">${f.c.out === i ? '✕' : '✓'} ${esc(f.c.first || f.c.name)}</a>`).join('');
   const waiting = X.F.filter(f => X.T.get(f.c.id) > h).map(f => `<a class="rc-tk" style="--c:${f.col}" data-id="${f.c.id}">${esc(f.c.first || f.c.name)}</a>`).join('');
   box.querySelector('[data-hucards]').innerHTML = `<div class="hb-card still"><b>${fmt(still)}</b><span>${esc(K.still)}</span>${waiting ? `<div class="hb-f">${waiting}</div>` : ''}</div>`
-    + X.cards.map(c => { const n = cnt[c.k] || 0; return `<div class="hb-card ${c.ok ? 'ok' : 'bad'}"><b>${fmt(n)}</b><span>${esc(c.l)}</span><i class="hb-bar"><i style="width:${n / (c.ok ? Math.max(1, c.n) : mxBad) * 100}%"></i></i>${c.eg ? `<small>${linkNames(esc(c.eg), [])}</small>` : ''}${chips(c.k) ? `<div class="hb-f">${chips(c.k)}</div>` : ''}</div>`; }).join('');
+    + X.cards.map(c => { const n = cnt[c.k] || 0; return `<div class="hb-card ${c.ok ? 'ok' : 'bad'}"><b>${fmt(n)}</b><span>${esc(c.l)}</span><i class="hb-bar"><i style="width:${n / (c.ok ? Math.max(1, c.n) : mxBad) * 100}%"></i></i>${c.eg ? `<small>${linkNames(c.eg, [c.egId])}</small>` : ''}${chips(c.k) ? `<div class="hb-f">${chips(c.k)}</div>` : ''}</div>`; }).join('');
   box.querySelector('[data-hutake]').innerHTML = h >= K.dur ? `<b>${fmt(X.after)}</b> through, <b>${fmt(X.P.length - X.after)}</b> out.` : `<b>${fmt(still)}</b> ${esc(K.still)} · <b>${fmt(cnt._ok || 0)}</b> ${esc(K.ok.toLowerCase())} · <b>${fmt(done - (cnt._ok || 0))}</b> out`;
   const past = X.EV.filter(x => x.t <= h), last = past.slice(-5).reverse();
   box.querySelector('[data-hutick]').innerHTML = last.length ? last.map((x, j) => `<li class="k-${x.e.type}${j === 0 ? ' new' : ''}"><span>${huntClock(K, x.t)}</span><p>${linkNames(chTidy(x.e.text, PHASES[i]), x.e.ids || [])}</p></li>`).join('') + (past.length > 5 ? `<li class="more">${past.length - 5} earlier</li>` : '') : `<li class="more">${esc(X.ex)} gives the signal.</li>`;

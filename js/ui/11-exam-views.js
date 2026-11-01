@@ -187,18 +187,20 @@ function renderStepper(){
 }
 
 const byIdMap = () => cmap(S);
+// first names that are also ordinary words: linked only when they cannot be the word ("Rain" mid-sentence is a person, "Rain fell" may not be)
+const LK_WORDY = new Set('Blue Brook Cedar Crow Cyan Echo Elm Ember Fern Flint Frost Glen Hale Haven Haze Ilex Iris Jade Kit Lake Lane Laurel Linden Lux Mars Moss North Onyx Phoenix Rain River Robin Rook Rue Saga Sable Sage Scout Sky Sol Sparrow Teal Thorne Umber Urban Vale Wren Zen Will May Hope Grace Rose Joy Dawn Ren Ten Ken Gyo Shu Ryu Ko In Zetsu Hatsu'.split(' '));
+const lkFirst = c => c.first || String(c.name || '').split(' ')[0];
 function linkNames(text, ids){
   let out = esc(clean(text));
   if(!ids || !ids.length) return out;
-  const map = byIdMap();
-  // link full names; when a line only uses a first name ("Ebele and Leni stopped being allies"), link that instead
-  const tok = [], put = html => '\u0001' + (tok.push(html) - 1) + '\u0002';
-  ids.forEach(id => { const c = map[id]; if(!c) return;
-    const full = esc(c.name);
-    if(out.includes(full)){ out = out.split(full).join(put(`<a data-id="${c.id}">${full}</a>`)); return; }
-    const f = esc(c.first || c.name.split(' ')[0]);
-    const re = new RegExp('(^|[^\\p{L}\\u0001-\\u0002\\d])(' + f.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')(?![\\p{L}])', 'u');
-    out = out.replace(re, (m, pre) => pre + put(`<a data-id="${c.id}">${f}</a>`));
+  const map = byIdMap(), cs = [...new Set(ids)].map(id => map[id]).filter(Boolean);
+  // full names first, then every first name of the people in this event; two of them sharing a first name -> neither first name is linked
+  const tok = [], put = html => '\u0001' + (tok.push(html) - 1) + '\u0002', rx = x => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  cs.forEach(c => { const full = esc(c.name); if(out.includes(full)) out = out.split(full).join(put(`<a data-id="${c.id}">${full}</a>`)); });
+  const fc = {}; cs.forEach(c => { const f = lkFirst(c); fc[f] = (fc[f] || 0) + 1; });
+  cs.forEach(c => { const f = esc(lkFirst(c)); if(fc[lkFirst(c)] > 1 || f.length < 2 || !String(c.name).includes(' ')) return;
+    const re = new RegExp('(^|[^\\p{L}\\u0001-\\u0002\\d])(' + rx(f) + ')(?![\\p{L}])', 'gu');
+    out = out.replace(re, (m, pre, w, at) => LK_WORDY.has(f) && /(^|[.!?:;]|&quot;|“)\s*$/.test(out.slice(0, at + pre.length)) ? m : pre + put(`<a data-id="${c.id}">${f}</a>`));
   });
   return out.replace(/\u0001(\d+)\u0002/g, (m, i) => tok[+i]);
 }
@@ -484,7 +486,7 @@ function renderZevil(st){
   // one standings table: everyone ranked, the ones you follow always shown, the rest behind a toggle
   const keep = r => isFav(r.c.id) || !!mtOf(r.c.id);
   const zrow = (r, k) => { const gone = (snap.gone || {})[r.c.id], out = (end && zDay > 0 && r.p < 6) || gone, al = (snap.allies && snap.allies[r.c.id]) || [];
-    return `<div class="zr ${gone === 'Deceased' ? 'dead' : out ? 'out' : r.p >= 6 ? 'ok' : ''}"><span class="rk">${k + 1}</span><span class="zn"><a data-id="${r.c.id}">${esc(r.c.name)}</a>${al.length ? `<small>with ${al.map(id => map[id] ? esc(map[id].first) : '').join(', ')}</small>` : ''}</span><span class="inv">${invOf(r)}</span><span class="zpts"><b>${r.p}</b><small>/6</small></span><span class="zst">${gone === 'Deceased' ? 'Killed' : gone ? 'DQ' : out ? 'Out' : r.p >= 6 ? (end ? '<i class="zok" title="Through">✓</i>' : 'Safe') : ''}</span></div>`; };
+    return `<div class="zr ${gone === 'Deceased' ? 'dead' : out ? 'out' : r.p >= 6 ? 'ok' : ''}"><span class="rk">${k + 1}</span><span class="zn"><a data-id="${r.c.id}">${esc(r.c.name)}</a>${al.length ? `<small>with ${al.map(id => map[id] ? `<a data-id="${id}">${esc(map[id].first)}</a>` : '').filter(Boolean).join(', ')}</small>` : ''}</span><span class="inv">${invOf(r)}</span><span class="zpts"><b>${r.p}</b><small>/6</small></span><span class="zst">${gone === 'Deceased' ? 'Killed' : gone ? 'DQ' : out ? 'Out' : r.p >= 6 ? (end ? '<i class="zok" title="Through">✓</i>' : 'Safe') : ''}</span></div>`; };
   // every row shows its own badge and its target, held or not, then whatever else was taken
   const invOf = r => { const id = r.c.id, tg = Z.targets[id], has = b => r.b.includes(b);
     const slot = (b, kind, missT) => has(b) ? badge(id, b) : `<span class="bdg ${kind} miss" title="${missT}">${reg(b)}</span>`;
@@ -745,7 +747,7 @@ function renderPhase0(){
         ${BONDS_SIDE}
         ${sec(`Veterans${vets.length ? ' · ' + new Set(vets.map(e => (e.ids || [])[0])).size : ''}`, vetCompact(vets))}
       </div>
-    </div>${typeof trRun === 'function' && trRun(i) ? `<div class="tw-full">${trTowerHtml(i)}${trTablesHtml(i)}</div>` : typeof raceOf === 'function' && raceOf(i) ? `<div class="tw-full">${raceHtml(i)}</div>` : typeof huntOf === 'function' && huntOf(i) ? `<div class="tw-full">${huntHtml(i)}</div>` : typeof passOf === 'function' && passOf(i) != null ? `<div class="tw-full">${passHtml(i)}</div>` : ''}`;
+    </div>${typeof trRun === 'function' && trRun(i) ? `<div class="tw-full">${trTowerHtml(i)}${trTablesHtml(i)}</div>` : typeof raceOf === 'function' && raceOf(i) ? `<div class="tw-full">${raceHtml(i)}</div>` : typeof huntOf === 'function' && huntOf(i) ? `<div class="tw-full">${huntHtml(i)}</div>` : typeof passOf === 'function' && passOf(i) != null ? `<div class="tw-full">${passHtml(i)}</div>` : typeof trailOf === 'function' && trailOf(i) != null ? `<div class="tw-full">${trailHtml(i)}</div>` : ''}`;
 }
 
 function renderLog(){

@@ -203,7 +203,7 @@ function runScored(S, ph, p, rng, pool){
     }
     if(helper && score >= T && Math.round(raw) < T){
       const A = bondOf(S, helper, c); if(A){ A.helped = p; A.saves = (A.saves || 0) + 1; }
-      log(S, p, isRelative(helper, c) ? 'family' : 'help', vpick(S, T_HELP, c.id)({h: helper, c, rel: isRelative(helper, c) ? kinOf(helper, c) : 'ally', relH: isRelative(helper, c) ? kinOf(c, helper) : 'ally', ph: ph.name, tag: A ? ' (' + A.name + ')' : ''}), [helper.id, c.id], !isRelative(helper, c));
+      log(S, p, isRelative(helper, c) ? 'family' : 'help', vpick(S, onFoot(ph) ? T_HELP : T_HELP_MIND, c.id)({h: helper, c, rel: isRelative(helper, c) ? kinOf(helper, c) : 'ally', relH: isRelative(helper, c) ? kinOf(c, helper) : 'ally', ph: ph.name, tag: A ? ' (' + A.name + ')' : ''}), [helper.id, c.id], !isRelative(helper, c));
       c.notes.push({p, text:`Made it thanks to ally ${helper.name}`}); helper.notes.push({p, text:`Helped ally ${c.name} through`});
     }
     if(ph.fatigue) c.fatigue = clamp(c.fatigue + ph.fatigue * ph.exFat * (1.15 - c.a.endurance/100), 0, 100);
@@ -236,7 +236,7 @@ function runScored(S, ph, p, rng, pool){
           c.rescuedBy = r.id; r.fatigue = clamp(r.fatigue + 8, 0, 100); owe(S, c, r, p);
           const A = bondOf(S, r, c); if(A){ A.saves = (A.saves || 0) + 1; A.helped = p; }
           c.notes.push({p, text:`${ph.name}: rescued by ally ${r.name}`}); r.notes.push({p, text:`${ph.name}: rescued ally ${c.name}`});
-          log(S, p, isRelative(r, c) ? 'family' : 'rescue', vpick(S, T_ARESCUE, c.id)({r, c, rel: isRelative(r, c) ? kinOf(r, c) : 'ally', relH: isRelative(r, c) ? kinOf(c, r) : 'ally', ph: ph.name, tag: A ? ' (' + A.name + ')' : ''}), [r.id, c.id]);
+          log(S, p, isRelative(r, c) ? 'family' : 'rescue', vpick(S, onFoot(ph) ? T_ARESCUE : T_ARESCUE_MIND, c.id)({r, c, rel: isRelative(r, c) ? kinOf(r, c) : 'ally', relH: isRelative(r, c) ? kinOf(c, r) : 'ally', ph: ph.name, tag: A ? ' (' + A.name + ')' : ''}), [r.id, c.id]);
           r.rescues = (r.rescues || 0) + 1; if(r.rescues >= 4) giveNick(S, r, 'life', 'for pulling allies through again and again', p, 0.25);
           break;
         }

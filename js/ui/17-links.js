@@ -11,10 +11,11 @@ function lkIndex(){
   HUNTERS.forEach(h => { if(h.name && h.name.includes(' ')) map.set(h.name, ['hunter', h.license]); });
   S.candidates.forEach(c => { if(c.name && c.name.includes(' ')) map.set(c.name, ['id', c.id]); });
   const names = [...map.keys()].sort((a, b) => b.length - a.length).map(n => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
-  Object.assign(LKX, {k, map, re: names.length ? new RegExp('(^|[^\\p{L}])(' + names.join('|') + ')(?![\\p{L}])', 'gu') : null});
+  const fi = new Map(); map.forEach((v, n) => { const f = n.split(' ')[0]; if(!fi.has(f)) fi.set(f, []); fi.get(f).push([n, v[1]]); });
+  Object.assign(LKX, {k, map, fi, re: names.length ? new RegExp('(^|[^\\p{L}])(' + names.join('|') + ')(?![\\p{L}])', 'gu') : null});
   return LKX;
 }
-const LK_SKIP = 'a,button,select,option,textarea,input,script,style,svg,h1,h2,label,summary,.tabs,nav,.stepper,.controls,.fch-nav,.sh-t,[data-noal],.lk-card,.fs-i,.tile,.sc-card,.sc-pick';
+const LK_SKIP = 'a,button,select,option,textarea,input,script,style,svg,h1,h2,label,summary,.tabs,nav,.stepper,.controls,.fch-nav,.sh-t,[data-noal],.lk-card,.fs-i,.tile,.sc-card,.sc-pick,.tech';
 function lkLinkIn(root){
   if(!root || root.nodeType !== 1 || typeof S === 'undefined' || !S || !S.candidates || root.closest('[data-noal]')) return;
   const L = lkIndex(); if(!L.re) return;
@@ -31,6 +32,34 @@ function lkLinkIn(root){
     }
     if(!any) return; frag.append(s.slice(at)); t.parentNode.replaceChild(frag, t);
   });
+  lkFirstIn(root, self);
+}
+// a first name on its own ("Cleo looks back") is linked when the same scene or paragraph already names that person in full,
+// and nobody else there shares the first name. A missing link is better than the wrong one.
+const LK_BLOCK = 'li,td,p,blockquote,.story-p,.hb-card,.tr-st,.tl-b,.rc-tick';
+function lkWho(a){
+  if(a.dataset.id){ const c = S.candidates.find(x => x.id === a.dataset.id); return c && ['id', c.id, c.name, lkFirst(c)]; }
+  if(a.dataset.hunter){ const h = HUNTERS.find(x => String(x.license) === a.dataset.hunter); return h && ['hunter', h.license, h.name, h.name.split(' ')[0]]; }
+  if(a.dataset.outlaw){ const w = (WORLD.wanted || []).find(x => String(x.id) === a.dataset.outlaw); return w && ['outlaw', w.id, w.name, w.name.split(' ')[0]]; }
+}
+function lkFirstIn(root, self){
+  const selfF = self ? self.split(' ')[0] : '', B = new Map();
+  const ctx = el => { const b = el.closest('.wt-scene') || el.closest(LK_BLOCK) || el.parentElement; if(B.has(b)) return B.get(b);
+    const by = {}, bad = new Set(selfF ? [selfF] : []);
+    b.querySelectorAll('a[data-id],a[data-hunter],a[data-outlaw]').forEach(a => { const w = lkWho(a); if(!w || !w[2].includes(' ') || w[3].length < 2 || LK_WORDY.has(w[3])) return;
+      if(by[w[3]] && by[w[3]][1] !== w[1]) bad.add(w[3]); else by[w[3]] = w; });
+    // a full name in plain text (not linked, e.g. the profile's own person) also claims its first name
+    const txt = b.textContent, FI = lkIndex().fi; Object.keys(by).forEach(f => { if((FI.get(f) || []).some(([n, id]) => id !== by[f][1] && txt.includes(n))) bad.add(f); });
+    bad.forEach(f => delete by[f]);
+    const ks = Object.keys(by).sort((x, y) => y.length - x.length).map(f => f.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+    const r = {by, re: ks.length ? new RegExp('(^|[^\\p{L}])(' + ks.join('|') + ')(?![\\p{L}])', 'gu') : null}; B.set(b, r); return r; };
+  const tw = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {acceptNode: n => n.nodeValue.length > 1 && /[A-Z]/.test(n.nodeValue) && n.parentElement && !n.parentElement.closest(LK_SKIP) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT});
+  const todo = []; let n; while((n = tw.nextNode())) todo.push(n);
+  todo.forEach(t => { const X = ctx(t.parentElement); if(!X.re) return; const s = t.nodeValue; X.re.lastIndex = 0; if(!X.re.test(s)) return; X.re.lastIndex = 0;
+    const frag = document.createDocumentFragment(); let at = 0, m;
+    while((m = X.re.exec(s))){ const f = m[2], st = m.index + m[1].length, w = X.by[f];
+      frag.append(s.slice(at, st)); const a = document.createElement('a'); a.setAttribute('data-' + w[0], w[1]); a.className = 'nl'; a.textContent = f; frag.append(a); at = st + f.length; }
+    if(!at) return; frag.append(s.slice(at)); t.parentNode.replaceChild(frag, t); });
 }
 // run on whatever the page draws, a frame later
 const LK_Q = new Set(); let LK_T = 0;

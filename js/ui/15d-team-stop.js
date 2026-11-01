@@ -106,7 +106,7 @@ function trStopChapterHtml(i){
   const stopScene = x => { const t = x.t;
     if(t.route === 'other') return `<div class="wt-scene"><span class="wt-time">Hour ${t.hx} · ${esc(trName(t))}</span><p>${tn(x)} never sees the ${K.stop}. Halfway down they find another way: ${esc(t.obst)}. ${t.ob === 'ok' ? `It costs them only ${t.cell} hours.` : `It costs them ${t.cell} hour${t.cell === 1 ? '' : 's'}.`}${t.rel >= 72 ? ' The clock runs out before they are through.' : ''}</p></div>`;
     const intro = first ? K.intro(esc(exB)) + ' ' : hseen.has(t.hall) ? `${K.unit} ${t.hall}: ${esc(t.bouts[0].npc)} and the others are still waiting, a little more confident than before. ` : `${K.unit} ${t.hall}, and five more ${K.npcs}. `; first = false; hseen.add(t.hall);
-    const ps = [`${tn(x)} reaches ${K.stopA} at hour ${t.hx}. ${intro}${F(t.lead)} picks the order: ${t.bouts.filter(b => !b.dec).map(b => FN(b.id)).join(', ')}.`];
+    const ps = [`${tn(x)} reaches ${K.stopA} at hour ${t.hx}. ${intro}${F(t.lead)} picks the order: ${t.bouts.filter(b => !b.dec).map(b => F(b.id)).join(', ')}.`];
     t.bouts.forEach(b => { const n = esc(b.npc), who = nseen.has(b.npc) ? n : `${n}${NPC_EPI[b.npc] ? ', ' + esc(NPC_EPI[b.npc]) + ',' : ''}`; nseen.add(b.npc);
       const chip = b.lock ? ` <span class="tw-hd">−${b.lock}h, ${K.lock}</span>` : '';
       if(b.dec) ps.push(`${t.w - b.w}–${t.l - (1 - b.w)}. ${K.tie} ${R.k === 'raft' ? '' : `${who} proposes ${b.k.toLowerCase()}. `}${F(b.id)} ${b.w ? 'wins' : 'loses'}.${chip}`);
@@ -152,7 +152,7 @@ function trStopSide(R, t, x, h, cm){
   const K = trSk(R), LV = K.LV, r = trRes(t, K), pip = d => `<i class="${d.k === 'split' || d.k === 'stuck' ? 'n' : 'y'}"></i>`;
   const above = t.doors.filter(d => d.to <= 3 && d.k !== 'stuck'), below = t.res === 'out' || t.res === 'clock' ? t.doors.filter(d => d.to > 3 && d.k !== 'stuck') : [];
   const ol = ds => `<ol class="tv-doors">${ds.map(d => `<li class="${d.k}">${esc(d.d)} <small>${d.f}–${d.a} · ${{ok: 'agreed', split: 'split, waited', short: 'a hidden way', trap: 'a trap'}[d.k]}</small></li>`).join('')}</ol>`;
-  const FN = id => cm[id] ? esc(cm[id].first || cm[id].name) : '';
+  const FN = id => cm[id] ? `<a data-id="${id}">${esc(cm[id].first || cm[id].name)}</a>` : '';
   return `<div class="tv-card" ${x ? `style="--c:${x.col}"` : ''}><small>Team ${t.n}</small><b>${esc(trName(t))}</b>${x && x.why ? `<em>${esc(x.why)}</em>` : ''}
     <p>${esc(trFormed(t, cm))}</p><ul>${t.ids.map(id => cm[id] ? `<li><a data-id="${id}">${esc(cm[id].name)}</a>${id === t.lead ? ' <span>leads</span>' : ''}</li>` : '').join('')}</ul>
     <div class="tv-st"><span>At hour ${h}</span><b>${esc(LV[trAt8(t, h)])}</b></div>
@@ -165,7 +165,7 @@ function trStopSide(R, t, x, h, cm){
 /* ---------- the teams, one row each: the doors before, the stop, the doors after, the result ---------- */
 function trStopTablesHtml(i){
   const R = trRun(i), K = trSk(R), cm = cmap(S), P = trPick(i), pk = new Map(P.map(x => [x.t.n, x]));
-  const pip = d => `<i class="${d.k === 'split' || d.k === 'stuck' ? 'n' : 'y'}"></i>`, FN = id => cm[id] ? esc(cm[id].first || cm[id].name) : '';
+  const pip = d => `<i class="${d.k === 'split' || d.k === 'stuck' ? 'n' : 'y'}"></i>`, FN = id => cm[id] ? `<a data-id="${id}">${esc(cm[id].first || cm[id].name)}</a>` : '';
   const row = t => { const x = pk.get(t.n), r = trRes(t, K), above = t.doors.filter(d => d.to <= 3 && d.k !== 'stuck'), below = t.res === 'out' || t.res === 'clock' ? t.doors.filter(d => d.to > 3 && d.k !== 'stuck') : [];
     const mid = !t.ok || !t.res ? `<span class="tw-none">never got there</span>` : t.route === 'other' ? `<span class="tw-none">another way: ${esc(t.obst)} · ${t.cell}h</span>`
       : `<small class="tw-hn">${K.unit} ${t.hall}</small>` + t.bouts.map(b => `<span class="tw-pl ${b.w ? 'w' : 'l'}" title="vs ${esc(b.npc)} · ${b.k.toLowerCase()}">${b.dec ? '<i>tie-break</i> ' : ''}${b.w ? '✓' : '✗'} ${FN(b.id)}${b.sab ? ' <i>gave it away</i>' : ''}${b.kill ? ' <i>†</i>' : ''}${b.lock ? ` <i>−${b.lock}h</i>` : ''}</span>`).join('');

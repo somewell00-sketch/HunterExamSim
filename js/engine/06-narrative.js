@@ -485,6 +485,22 @@ const T_ARESCUE = [
   o => `${o.r.name} throws away ${PR(o.r).their} own lead in the ${o.ph} to go back for ${o.c.first}${o.tag}.`,
   o => `${o.c.name} would be out of the ${o.ph} if ${o.r.first} had kept running. ${o.r.first} did not${o.tag}.`
 ];
+// a trial that is not run on foot (an auction, a quiz, a banquet, a dig) does not get carried across a line
+const T_ARESCUE_MIND = [
+  o => `${o.r.name} slides ${o.rel} ${o.c.name} the answer in the ${o.ph} before the examiner looks up${o.tag}.`,
+  o => `${o.c.name} is about to give up on the ${o.ph}. ${o.r.name} talks ${PR(o.c).them} back into it${o.tag}.`,
+  o => `${o.r.name} spots ${o.rel} ${o.c.name}'s mistake in the ${o.ph} and fixes it with a look${o.tag}.`,
+  o => `"Not without you." ${o.r.name} gives up ${PR(o.r).their} own chance in the ${o.ph} to cover for ${o.rel} ${o.c.name}${o.tag}.`,
+  o => `${o.r.name} shares everything ${PR(o.r).they} worked out in the ${o.ph} with ${o.rel} ${o.c.name}, and both make it${o.tag}.`,
+  o => `${o.c.name} would be out of the ${o.ph} if ${o.r.first} had kept quiet. ${o.r.first} did not${o.tag}.`
+];
+const T_HELP_MIND = [
+  o => `${o.h.name} helps ${o.rel} ${o.c.name} get through the ${o.ph}${o.tag}.`,
+  o => `${o.h.name} talks ${o.rel} ${o.c.name} through the worst of the ${o.ph}${o.tag}.`,
+  o => `${o.c.name} would have fallen in the ${o.ph} — ${o.relH} ${o.h.name} would not allow it${o.tag}.`,
+  o => `${o.h.name} and ${o.c.name} compare notes all through the ${o.ph}${o.tag}.`
+];
+const onFoot = ph => !!ph && (ph.obstacle || ph.team || ['course'].includes(typeof phKind === 'function' ? phKind(ph) : '') || (typeof PHYSICAL !== 'undefined' && PHYSICAL.has(ph.id)) || ['zevil', 'final'].includes(ph.id));
 const T_RESCUE_CODA = ['', '', ' No one asked {them} to.', ' It costs {them} precious time.', ' The examiner pretends not to notice.', ' The two do not even know each other\'s names.', ' Neither says a word about it afterwards.'];
 const T_ESCAPE = [
   o => `${o.p.name} spotted ${o.h.name} first and slipped away.`,
