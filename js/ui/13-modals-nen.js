@@ -381,12 +381,16 @@ function openProfile(id){
       tl += `<div class="ph-l">${esc(ph.name)}</div>`;
       if(call) tl += `<div class="tl-mc">◆ ${esc(call)}${e.ap && e.ap.call ? ` <span class="mt-fx ${e.ap.call === 'right' ? 'up' : 'dn'}">${e.ap.call === 'right' ? 'right call' : 'wrong call'}</span>` : ''}</div>`;
       const ownSay = e && e.say && !T.out && !e.dil ? e.say : '';
-      if(T.out) tl += `<div class="bad">${c.status === 'Deceased' ? 'Died. ' : c.status === 'Disqualified' ? 'Disqualified. ' : ''}${autoLink(esc(T.head), c.id)}</div>`;
-      else if(ownSay && !/^“/.test(ownSay)) tl += `<div class="good">${esc(ownSay)}</div>`;
-      else if(T.head) tl += `<div class="good">${autoLink(esc(T.head), c.id)}</div>`;
+      // in the order it happened: coming back, the moments with other people, then how the trial ended for them
+      const sn = ownSay.replace(/\W+/g, ' ').trim().toLowerCase(), mom = T.moments.filter(m => !sn || !m.h.replace(/<[^>]+>/g, '').replace(/\W+/g, ' ').trim().toLowerCase().endsWith(sn));
+      const line = m => `<div class="${m.good ? 'hi' : m.bad ? 'bad' : ''}">${m.h}</div>`;
+      mom.filter(m => m.arrival).forEach(m => { tl += line(m); });
+      mom.filter(m => !m.arrival && !m.ending).forEach(m => { tl += line(m); });
+      mom.filter(m => m.ending).forEach(m => { tl += line(m); });   // how it ended with someone else, right before how it ended for them
+      if(T.out) tl += `<div class="bad tl-end">${c.status === 'Deceased' ? 'Died. ' : c.status === 'Disqualified' ? 'Disqualified. ' : ''}${autoLink(esc(T.head), c.id)}</div>`;
+      else if(ownSay && !/^“/.test(ownSay)) tl += `<div class="good tl-end">${esc(ownSay)}</div>`;
+      else if(T.head) tl += `<div class="good tl-end">${autoLink(esc(T.head), c.id)}</div>`;
       if(ownSay && /^“/.test(ownSay)) tl += `<div class="tl-say">${esc(ownSay)}</div>`;
-      const sn = ownSay.replace(/\W+/g, ' ').trim().toLowerCase();
-      T.moments.filter(m => !sn || !m.h.replace(/<[^>]+>/g, '').replace(/\W+/g, ' ').trim().toLowerCase().endsWith(sn)).forEach(m => { tl += `<div class="${m.good ? 'hi' : m.bad ? 'bad' : ''}">${m.h}</div>`; });
       return; }
     const notes = foldAllyNotes(c.notes.filter(n => n.p === p && !isAfter(n))), his = hiFor(p), out = ['Eliminated','Deceased','Disqualified'].includes(c.status) && c.out === p;
     if(!notes.length && !his.length && !out) return;

@@ -34,11 +34,19 @@ function trialStory(c, p, seen){
   const KEEP = ['major', 'info', 'story', 'arc', 'ally', 'rescue', 'help', 'bond', 'family', 'rival', 'sabot', 'split', 'betray', 'examiner', 'veteran', 'secret', 'nen', 'fight', 'death', 'elim'];
   const evs = S.log.filter(e => e.p === p && !e.d && e.ids && e.ids.includes(c.id) && KEEP.includes(e.type) && !/took the target badge|earns a Hunter License|loses the license bout|^(Team \d|Majority|\d+ teams)/.test(e.text) && !(out && e.type === 'elim'));
   const moments = [];
-  evs.forEach(e => { const t = tidyStory(e.text); if(once(t)) moments.push({h: linkNames(t, e.ids.filter(id => id !== c.id)), good: e.type === 'major', bad: e.type === 'death'}); });
+  // read on their own page, a line needs no "Meanwhile": it is not next to the line it followed in the chapter
+  const bare = t => t.replace(/^(?:Meanwhile|Elsewhere|Later|At the same time|Back at camp|Not far away),\s*(.)/, (m, ch) => ch.toUpperCase()).replace(/\.\)\./g, '.)');
+  const ARRIVE = /\b(?:back for attempt|attempt \d|first-timers?|a year older|returns? for|another try|registers again|\d+ tries|knows the routine)\b/i;
+  const ENDING = /\b(?:makes? it|dies in|their promise|is out\b|out of the exam|does not make it)/i;
+  let arrived = false;
+  evs.forEach(e => { const t = bare(tidyStory(e.text)), arr = ARRIVE.test(t);
+    if(arr && arrived) return;   // one line about coming back is enough
+    if(out && /\bis out\b|crosses (?:another|a) name/i.test(t) && !t.startsWith(c.name)) return;   // about someone else's exit, after their own
+    if(once(t)){ if(arr) arrived = true; moments.push({h: linkNames(t, e.ids.filter(id => id !== c.id)), good: e.type === 'major', bad: e.type === 'death', arrival: arr, ending: !arr && ENDING.test(t)}); } });
   // notes only where the log has not already told it
   const names = n => S.candidates.filter(o => o.id !== c.id && n.t.includes(o.name)).map(o => o.first || o.name);
   const told = n => { const k = names(n); return k.length && evs.some(e => k.every(x => e.text.includes(x))); };
-  notes.filter(n => !used.has(n) && !VERD_TOLD[n.t.toLowerCase()] && !told(n) && !(/^Secret revealed/.test(n.t) && evs.some(e => e.type === 'secret')) && !/^rescued by /i.test(n.t) && !(out && /^(Killed by|Died)/.test(n.t))).forEach(n => { let t = tidyStory(n.t); t = t.charAt(0).toUpperCase() + t.slice(1); if(!/[.!?”]$/.test(t)) t += '.'; if(once(t)) moments.push({h: autoLink(esc(t), c.id), good: /License|Qualifier|nickname/.test(t)}); });
+  notes.filter(n => !used.has(n) && !VERD_TOLD[n.t.toLowerCase()] && !told(n) && !(/^Secret revealed/.test(n.t) && evs.some(e => e.type === 'secret')) && !/^rescued by /i.test(n.t) && !(out && /^(Killed by|Died)/.test(n.t))).forEach(n => { let t = tidyStory(n.t); t = t.charAt(0).toUpperCase() + t.slice(1); if(!/[.!?”]$/.test(t)) t += '.'; const arr = ARRIVE.test(t); if(arr && arrived) return; if(once(t)){ if(arr) arrived = true; moments.push({h: autoLink(esc(t), c.id), good: /License|Qualifier|nickname/.test(t), arrival: arr}); } });
   // on the island, the days in order
   const dn = m => { const q = m.h.replace(/<[^>]+>/g, '').match(/^Day (\d+)/); return q ? +q[1] : 0; };
   moments.sort((x, y) => dn(x) - dn(y));

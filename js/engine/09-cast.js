@@ -65,7 +65,7 @@ function castCallback(S, p, rng, ...who){
     if(c.debt && m[c.debt.to] && m[c.debt.to].status === 'Active') opts.push(['debt', `(${F} still owes ${m[c.debt.to].first || c.debt.name} for ${thePhase(c.debt.from)}.)`]);
     const g = (c.grudges || []).find(x => m[x.id] && m[x.id].status === 'Active'); if(g) opts.push(['grudge', `(${F} has not forgotten what ${m[g.id].first || g.name} did.)`]);
     const b = (c.bonds || []).map(x => m[x.id]).find(x => x && x.status === 'Active'); if(b) opts.push(['bond', `(${b.first || b.name} is never far from ${F}.)`]);
-    if(c.nick) opts.push(['nick', `("${c.nick}", they call ${F} now.)`]);
+    if(c.nick) opts.push(['nick', `("${c.nick}", they call ${F} now)`]);
     if(c.find) opts.push(['find', `(${F} still has ${c.find.w}.)`]);
     // the one whose place they took: remembered first, once
     const H = c.castHeir; if(H && H.ed === S.edition && H.p <= p && !used.includes('heir')){ const G = H.first;
