@@ -11,9 +11,18 @@ const RACE = {
   mountain: {up: true, len: 3000, step: 500, speed: 300, what: 'The mountain', start: 'Base camp', end: 'The summit', u: 'm', seg: c => `${c}–${c + 500} m`, at: v => `${Math.round(v / 10) * 10} m`,
     labels: [['Base camp', 'The ridge', 'The summit'], ['The foot of the mountain', '1,500 metres', 'The last rope']]},
   cliffpath: {up: true, len: 12, step: 2, speed: 1.5, what: 'The cliff path', start: 'The first ledge', end: 'The far side', u: 'km', seg: c => `km ${c}–${c + 2}`, at: v => `km ${Math.round(v * 10) / 10}`,
-    labels: [['The first ledge', 'The narrow part', 'The far side'], ['The trailhead', 'Halfway along the wall', 'The last ledge']]}
+    labels: [['The first ledge', 'The narrow part', 'The far side'], ['The trailhead', 'Halfway along the wall', 'The last ledge']]},
+  // the themed ones that are a course too
+  ridge: {route: true, up: true, len: 1200, step: 200, speed: 150, what: 'The ridge', start: 'The foot of the ridge', end: 'The far peak', u: 'm', seg: c => `${c}–${c + 200} m`, at: v => `${Math.round(v / 10) * 10} m`, storm: true,
+    labels: [['The foot of the ridge', 'The open rock', 'The far peak'], ['The first strike', 'Halfway along the ridge', 'The last of the rock']]},
+  feeding: {route: true, len: 10, step: 2, speed: 1.6, what: 'The grazing grounds', start: 'The tree line', end: 'The far fence', u: 'km', seg: c => `km ${c}–${c + 2}`, at: v => `km ${Math.round(v * 10) / 10}`,
+    labels: [['The tree line', 'The middle of the herd', 'The far fence'], ['The first beasts', 'Among the grazing', 'The fence in sight']]},
+  centennial: {route: true, up: true, len: 100, step: 20, speed: 14, what: 'The hundred stairs', start: 'The gate of names', end: 'The hundredth stair', u: 'stairs', seg: c => `stairs ${c + 1}–${c + 20}`, at: v => `stair ${Math.max(1, Math.round(v))}`,
+    labels: [['The gate of names', 'The fiftieth stair', 'The hundredth stair'], ['The first stair', 'Halfway up the century', 'The last stairs']]},
+  mute: {route: true, len: 6, step: 1, speed: 0.8, what: 'The silent tunnel', start: 'The last word', end: 'The far mouth', u: 'km', seg: c => `km ${c}–${c + 1}`, at: v => `km ${Math.round(v * 10) / 10}`, fellW: 'sent back',
+    labels: [['The last word', 'The middle of the tunnel', 'The far mouth'], ['The first step in silence', 'Deep in the dark', 'The light ahead']]}
 };
-const raceOf = i => { const ph = PHASES[i]; return ph && RACE[ph.id] && S.stats.find(s => s.p === i) ? RACE[ph.id] : null; };
+const raceOf = i => { const ph = PHASES[i]; return ph && RACE[ph.id] && !RACE[ph.id].route && S.stats.find(s => s.p === i) ? RACE[ph.id] : null; };
 const RACE_C = {};
 function raceRun(i){
   const K = raceOf(i); if(!K) return null; const key = S.edition + ':' + i + ':' + S.log.length; if(RACE_C[i] && RACE_C[i].key === key) return RACE_C[i];
@@ -59,7 +68,7 @@ function raceDraw(box){
   box.querySelector('[data-rccps]').innerHTML = run.map((n, j) => { const fs = X.F.map((f, k) => ({f, k})).filter(({f}) => { const p = racePos(f.r, h, K); return (p >= K.len ? N : Math.floor(p / K.step)) === j; });
     return `<div class="rc-cp${j === N ? ' out' : ''}${j === ex ? ' ex' : ''}"><span class="rc-n">${j === 0 ? esc(K.start) : j === N ? esc(K.end) : esc(K.seg(j * K.step))}</span>
       <span class="rc-b"><i class="r" style="width:${n / mx * 100}%"></i>${j < N ? `<i class="f" style="width:${fell[j] / mx * 100}%"></i>` : ''}</span>
-      <span class="rc-c">${n ? `<b>${fmt(n)}</b> ${j === N ? 'out' : 'here'}` : ''}${j < N && fell[j] ? ` <em>· ${fell[j]} fell</em>` : ''}${j === ex ? ' <span class="rc-ex">examiner</span>' : ''}</span>
+      <span class="rc-c">${n ? `<b>${fmt(n)}</b> ${j === N ? 'out' : 'here'}` : ''}${j < N && fell[j] ? ` <em>· ${fell[j]} ${K.fellW || 'fell'}</em>` : ''}${j === ex ? ' <span class="rc-ex">examiner</span>' : ''}</span>
       <span class="rc-f">${fs.map(({f, k}) => { const down = raceFell(f.r, h, K); return `<button type="button" class="rc-tk${down ? ' down' : ''}${sel === k ? ' on' : ''}" style="--c:${f.col}" data-rcf="${k}">${down ? '✕ ' : ''}${esc(f.c.first || f.c.name)}</button>`; }).join('')}</span></div>`; }).join('');
   box.querySelector('[data-rctake]').innerHTML = lead >= K.len && h >= X.dur + 0.3 ? `<b>${fmt(out)}</b> made it to ${esc(K.end.toLowerCase())}. <b>${fmt(fallen)}</b> fell along the way.` : `<b>${fmt(X.P.length - fallen - out)}</b> still going · <b>${fmt(fallen)}</b> fallen · <b>${fmt(out)}</b> at ${esc(K.end.toLowerCase())}`;
   const past = X.EV.filter(x => x.at <= lead), last = past.slice(-5).reverse();

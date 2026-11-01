@@ -3,7 +3,7 @@ const assert = require('assert'), {openGame} = require('./lib');
 (async () => {
   const {browser, page, errors} = await openGame({fast: false});
   const r = await page.evaluate(() => { const seen = [], bad = [];
-    for(const k of ['capture', 'beast', 'wetlands', 'nighthunt', 'auction']){ let i = -1; for(let e = 401; e < 700 && i < 0; e++){ S = fresh(e); useLineup(S); i = PHASES.findIndex(p => p.id === k); } if(i < 0) continue;
+    for(const k of ['capture', 'beast', 'auction']){ let i = -1; for(let e = 401; e < 700 && i < 0; e++){ S = fresh(e); useLineup(S); i = PHASES.findIndex(p => p.id === k); } if(i < 0) continue;
       let g = 0; while(S.phase <= i && !S.finished && g++ < 40) runPhase(S); selPhase = i; render(); showTab('phase');
       const box = document.querySelector('[data-hu]'); if(!box){ bad.push(k + ': no board'); continue; } { const r0 = box.querySelector('input[type=range]'); if(+r0.value !== 0) bad.push('a drawing does not open at the start'); r0.value = r0.max; } huntDraw(box);
       const X = huntRun(i), cards = box.querySelectorAll('.hb-card').length, st = S.stats.find(s => s.p === i);

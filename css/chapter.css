@@ -275,3 +275,39 @@
 /* a climb reads from the bottom up: the start at the foot of the list, the top at the top */
 .rc-cps.up{flex-direction:column-reverse}.rc-cps.up .rc-cp{border-top:0;border-bottom:1px solid var(--line)}.rc-cps.up .rc-cp:first-child{border-bottom:0}
 .rep-head+.tw-full{margin:14px 0 22px}
+/* themed trials: the forks restyled, the pit, the pairs */
+.pv-forks .paper{fill:#dfe4d6}.pv-forks .pth{fill:none;stroke:#2f5f3f;stroke-linecap:round;transition:stroke-width .2s}.pv-forks .pth.bad{stroke:#b03a2e}
+.pv-forks text{fill:#1f2a20}.pv-forks .cnt{fill:#2f5f3f}.pv-forks .node.bad text.cnt{fill:#b03a2e}.pv-forks .node circle{fill:#1f2a20}.pv-forks .node.bad circle{fill:#b03a2e}.pv-forks .node.end circle{fill:#2f7a4f}
+.pv-forks .fork circle{fill:#f3efe4;stroke:#1f2a20;stroke-width:3}.pv-forks .fork.busy circle{fill:#ffd88a}.pv-forks .masks ellipse{fill:#f3efe4;stroke:#1f2a20;stroke-width:2}.pv-forks .masks circle{fill:#1f2a20}.pv-forks .trees path{fill:#7c9b6a;opacity:.55}
+.pv-forks .who circle{fill:var(--c);stroke:#1f2a20;stroke-width:1.5}.pv-forks .who text{font:700 12px var(--f-mono);fill:#1f2a20;paint-order:stroke;stroke:#dfe4d6;stroke-width:3}.pv-forks .who .dn{opacity:.75}
+.pv-glass .paper{fill:#1d2230}.pv-glass .glass rect{fill:url(#none);fill:rgba(180,200,230,.12);stroke:rgba(200,215,240,.45);stroke-width:1.5}.pv-glass text{fill:#e6eaf2}.pv-glass .cnt{fill:#9fd0b0}.pv-glass .node circle{fill:#e6eaf2}
+.pv-glass .pth{stroke:#9fd0b0}.pv-glass .pth.bad{stroke:#e3889f}.pv-glass .node.bad text.cnt{fill:#e3889f}.pv-glass .node.bad circle{fill:#e3889f}.pv-glass .fork circle{fill:#2b3248;stroke:#e6eaf2}.pv-glass .who text{fill:#e6eaf2;stroke:#1d2230}.pv-glass .who circle{stroke:#e6eaf2}
+.pv-blank .paper{fill:#f4f1e8}.pv-blank .grid line{stroke:#d8d2c0;stroke-width:1}.pv-blank .pth{stroke:#3a3a33;stroke-dasharray:1 7}.pv-blank .pth.bad{stroke:#b03a2e}.pv-blank .who text{stroke:#f4f1e8}
+.pv-pit .sky{fill:#1a1416}.pv-pit .moons circle{fill:#3a3236}.pv-pit .moons .lit circle{fill:#e9e6d6}.pv-pit .moons text{font:11px var(--f-mono);fill:#9a8f88}
+.pv-pit .rim{fill:#3b2a1d}.pv-pit .mud{fill:#5a3f27}.pv-pit .dots circle{fill:#c9b79a;opacity:.7}.pv-pit text{fill:#e8e0d4}.pv-pit .side{font:600 12.5px var(--f-mono)}.pv-pit .cnt{fill:#e3889f;font:700 16px var(--f-mono)}
+.pv-pit .who circle{fill:var(--c);stroke:#1a1416;stroke-width:1.5}.pv-pit .who text{font:700 12px var(--f-mono);fill:var(--c);paint-order:stroke;stroke:#1a1416;stroke-width:3}.pv-pit .who .dn{opacity:.8}
+.pv-pairs .paper{fill:var(--panel)}.pv-pairs .ln{stroke:var(--line);stroke-width:2;stroke-dasharray:4 4}.pv-pairs .ln.fin{stroke:var(--green)}.pv-pairs>text{font:11px var(--f-mono);fill:var(--muted)}
+.pv-pairs .rope{stroke:#c9a46a;stroke-width:3}.pv-pairs .lane circle{fill:#e8e0d4;stroke:var(--ink);stroke-width:1.5}.pv-pairs .lane text{font:700 12.5px var(--f-mono);fill:var(--fg)}
+.pv-pairs .lane.fell .rope{stroke:var(--red);stroke-dasharray:5 5}.pv-pairs .lane.fell circle{fill:var(--red)}.pv-pairs .lane.ok circle{fill:var(--green)}
+.dz{display:grid;grid-template-columns:repeat(12,1fr);gap:4px;margin:10px 0 2px;padding:10px;background:#1f4a32;border:2px solid var(--ink);box-shadow:4px 4px 0 var(--ink)}
+.dz-d{display:flex;flex-direction:column;align-items:center;gap:2px}.dz-d b{font-size:30px;line-height:1;color:#f3efe4}.dz-d.later b{color:rgba(255,255,255,.25)}.dz-d.on b{color:var(--gold)}
+.dz-d small{font:700 11px var(--f-mono);color:#ffb3b3;min-height:1.3em}
+@media (max-width:600px){.dz{grid-template-columns:repeat(6,1fr)}.dz-d b{font-size:24px}}
+/* routes: a course with a place for each way out */
+.pv-route .line{fill:none;stroke-width:6;stroke-linecap:round;stroke-linejoin:round;opacity:.35}.pv-route .done{fill:none;stroke-width:6;stroke-linecap:round;stroke-linejoin:round}
+.pv-route .st circle{stroke-width:2}.pv-route .st text{font:600 12px var(--f-mono)}.pv-route .st .cnt{font:700 12.5px var(--f-mono)}.pv-route .end-l{font:600 12.5px var(--f-mono)}.pv-route .cnt.ok{font:700 13px var(--f-mono)}
+.pv-route .who circle{fill:var(--c);stroke-width:1.5}.pv-route .who text{font:700 12px var(--f-mono);fill:var(--c);paint-order:stroke;stroke-width:3}.pv-route .who .dn{opacity:.8}
+.pv-route .lamp{fill:#ffd88a}.pv-route .glow{fill:rgba(255,216,138,.18)}.pv-route .mark text{font:italic 700 12px var(--f-mono);fill:#ffd88a}
+.pv-stairs .paper{fill:#2a2420}.pv-stairs .wall text{font:italic 700 34px 'Playfair Display',Georgia,serif;fill:rgba(233,222,200,.07)}.pv-stairs .line{stroke:#9a8a72}.pv-stairs .done{stroke:#e9dec8}
+.pv-tunnel .paper{fill:#121417}.pv-tunnel .rock{fill:#24282d}.pv-tunnel .line{stroke:#5b6168}.pv-tunnel .done{stroke:#c7cbd1}
+.pv-ridge .paper{fill:#1f2733}.pv-ridge .mtn{fill:#36404c}.pv-ridge .rain line{stroke:rgba(180,200,220,.25);stroke-width:1.2}.pv-ridge .line{stroke:#8b97a5}.pv-ridge .done{stroke:#e6eaf0}.pv-ridge .bolt{fill:none;stroke:#ffd84a;stroke-width:4;stroke-linejoin:round}
+.pv-meadow .paper{fill:#dfe6c8}.pv-meadow .grass path{fill:none;stroke:#8fa86a;stroke-width:1.4}.pv-meadow .herd ellipse{fill:#6b5a44;opacity:.75}.pv-meadow .line{stroke:#6f7a50}.pv-meadow .done{stroke:#2f3a1f}
+.pv-swamp .paper{fill:#1d2a26}.pv-swamp .reeds path{stroke:#4c6a52;stroke-width:2}.pv-swamp .fog{fill:rgba(220,230,225,.14)}.pv-swamp .line{stroke:#5f7a6a}.pv-swamp .done{stroke:#cfe0d5}.pv-swamp .fake{fill:none;stroke:#e3889f;stroke-width:3;stroke-dasharray:4 6}
+.pv-night .paper{fill:#0d1114}.pv-night .trees path{fill:#1b2a22}.pv-night .line{stroke:#2c3a33}.pv-night .done{stroke:#ffd88a;opacity:.5}
+.pv-meadow text,.pv-meadow .end-l{fill:#2a3020}.pv-meadow .st circle{fill:#2a3020;stroke:#dfe6c8}.pv-meadow .st .hit circle{fill:#b03a2e}.pv-meadow .st .cnt{fill:#b03a2e}.pv-meadow .cnt.ok{fill:#2f7a4f}.pv-meadow .who circle{stroke:#2a3020}.pv-meadow .who text{stroke:#dfe6c8;fill:#2a3020}
+.pv-stairs text,.pv-tunnel text,.pv-ridge text,.pv-swamp text,.pv-night text{fill:#e8e4dc}
+.pv-stairs .st circle,.pv-tunnel .st circle,.pv-ridge .st circle,.pv-swamp .st circle,.pv-night .st circle{fill:#e8e4dc;stroke:#111}
+.pv-route .st .hit circle{fill:#e3889f}.pv-stairs .st .cnt,.pv-tunnel .st .cnt,.pv-ridge .st .cnt,.pv-swamp .st .cnt,.pv-night .st .cnt{fill:#e3889f}.pv-route .cnt.ok{fill:#7fd19b}
+.pv-stairs .who circle,.pv-tunnel .who circle,.pv-ridge .who circle,.pv-swamp .who circle,.pv-night .who circle{stroke:#111}.pv-stairs .who text,.pv-tunnel .who text,.pv-ridge .who text,.pv-swamp .who text,.pv-night .who text{stroke:#111}
+.pv-strip{margin-top:8px}.pv-strip small{font:11px var(--f-mono);color:var(--muted)}.pv-strip>div{display:flex;flex-wrap:wrap;gap:3px;margin-top:4px}
+.pv-strip i{width:14px;height:6px;border-radius:3px;background:var(--gold);opacity:.55}.pv-strip i.one{width:6px}.pv-strip i.f{background:var(--red);opacity:.85}.pv-strip i.o{background:var(--green);opacity:.85}.pv-strip i.me{opacity:1;outline:1.5px solid var(--fg);outline-offset:1px}

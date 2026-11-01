@@ -8,9 +8,11 @@ const HUNT = {
   wetlands: {what: 'The swamp', ok: 'Made it across', still: 'still in the swamp', start: 6, dur: 5, cross: true},
   nighthunt: {what: 'The night forest', ok: 'Kept the lantern in sight', still: 'still in the forest', start: 20, dur: 8, cross: true},
   // the auction is counted in lots, not hours: twenty lots go under the hammer
-  auction: {what: 'The auction', ok: 'Bought something real', still: 'still bidding', start: 0, dur: 20, cross: false, lots: true}
+  auction: {what: 'The auction', ok: 'Bought something real', still: 'still bidding', start: 0, dur: 20, cross: false, lots: true},
+  // the Game of Dice is counted in throws: twelve rounds at the Chairman's table
+  dice: {what: 'The table', ok: 'Walked away a winner', still: 'still at the table', start: 0, dur: 12, cross: false, lots: true, unit: 'Throw', last: 'The last throw', dice: true}
 };
-const huntOf = i => { const ph = PHASES[i]; return ph && HUNT[ph.id] && S.stats.find(s => s.p === i) ? HUNT[ph.id] : null; };
+const huntOf = i => { const ph = PHASES[i]; return ph && HUNT[ph.id] && !(typeof PREL !== 'undefined' && PREL[ph.id]) && S.stats.find(s => s.p === i) ? HUNT[ph.id] : null; };
 const HUNT_C = {};
 function huntRun(i){
   const K = huntOf(i); if(!K) return null; const key = S.edition + ':' + i + ':' + S.log.length; if(HUNT_C[i] && HUNT_C[i].key === key) return HUNT_C[i];
@@ -33,13 +35,13 @@ function huntRun(i){
       return {t: e.type === 'elim' && T.has(e.ids[0]) ? T.get(e.ids[0]) : start ? 0.1 + (H(e.text) % 30) / 100 : end ? K.dur * (0.9 + (H(e.text) % 9) / 100) : 0.4 + (H(e.text) % 1000) / 1000 * K.dur * 0.85, e}; }).sort((a, b) => a.t - b.t);
   return HUNT_C[i] = {key, K, P, T, KIND, cards, F: F.map((c, j) => ({c, col: COL[j % COL.length]})), EV, after: ok.length, ex: ph.ex ? ph.ex.name : 'The examiner'};
 }
-const huntClock = (K, h) => K.lots ? (h >= K.dur ? 'The last gavel' : `Lot ${Math.min(K.dur, Math.floor(h) + 1)} of ${K.dur}`) : huntClock0(K, h);
+const huntClock = (K, h) => K.lots ? (h >= K.dur ? (K.last || 'The last gavel') : `${K.unit || 'Lot'} ${Math.min(K.dur, Math.floor(h) + 1)} of ${K.dur}`) : huntClock0(K, h);
 const huntClock0 = (K, h) => { const t = (K.start + h) % 24, hh = Math.floor(t), mm = Math.round((t % 1) * 60) % 60; return `${hh % 12 || 12}:${String(mm).padStart(2, '0')} ${hh >= 12 ? 'pm' : 'am'}`; };
 function huntHtml(i){
   const X = huntRun(i); if(!X) return ''; const K = X.K, mx = K.dur * 10, tk = [0, .25, .5, .75, 1].map(f => `<span>${huntClock(K, K.dur * f)}</span>`).join('');
   return `<div class="rc-box hu-box" data-hu="${i}"><div class="tv-top"><div class="section-h" style="margin:0">${esc(K.what)}</div></div>
     <div class="tv-time"><button type="button" class="btn small" data-huplay>▶ Play</button><div class="tv-rng"><input type="range" data-huh min="0" max="${mx}" value="0" aria-label="Hour"><div class="tv-ticks">${tk}</div></div><b data-hulab></b></div>
-    <p class="tv-take" data-hutake></p><div class="hb-cards" data-hucards></div>
+    <p class="tv-take" data-hutake></p>${K.dice ? '<div class="dz" data-hudice></div>' : ''}<div class="hb-cards" data-hucards></div>
     <div class="rc-low"><div class="section-h" style="margin:0 0 6px">As it happened</div><ul class="rc-tick" data-hutick></ul></div>
     <p class="muted" style="font-size:12.5px;margin:8px 0 0">One card for the way through and one for each way the ${esc(PHASES[i].name.replace(/^The /, ''))} took people out, with a line from someone it happened to. Press Play and the cards fill hour by hour. The names are the people this chapter follows: ✓ made it, ✕ did not; click one to open their page.</p></div>`;
 }
@@ -52,6 +54,10 @@ function huntDraw(box){
   const waiting = X.F.filter(f => X.T.get(f.c.id) > h).map(f => `<a class="rc-tk" style="--c:${f.col}" data-id="${f.c.id}">${esc(f.c.first || f.c.name)}</a>`).join('');
   box.querySelector('[data-hucards]').innerHTML = `<div class="hb-card still"><b>${fmt(still)}</b><span>${esc(K.still)}</span>${waiting ? `<div class="hb-f">${waiting}</div>` : ''}</div>`
     + X.cards.map(c => { const n = cnt[c.k] || 0; return `<div class="hb-card ${c.ok ? 'ok' : 'bad'}"><b>${fmt(n)}</b><span>${esc(c.l)}</span><i class="hb-bar"><i style="width:${n / (c.ok ? Math.max(1, c.n) : mxBad) * 100}%"></i></i>${c.eg ? `<small>${linkNames(c.eg, [c.egId])}</small>` : ''}${chips(c.k) ? `<div class="hb-f">${chips(c.k)}</div>` : ''}</div>`; }).join('');
+  // the Game of Dice: twelve throws on the felt, the one being thrown now lit, and how many lost on each
+  const dz = box.querySelector('[data-hudice]'); if(dz){ const lost = new Array(K.dur).fill(0); X.P.forEach(c => { const t = X.T.get(c.id); if(c.out === i && t <= h) lost[Math.min(K.dur - 1, Math.floor(t))]++; });
+    const face = '⚀⚁⚂⚃⚄⚅', cur = Math.min(K.dur - 1, Math.floor(h));
+    dz.innerHTML = lost.map((n, j) => `<span class="dz-d${j === cur && h < K.dur ? ' on' : ''}${j > h ? ' later' : ''}"><b>${j <= h ? face[nhashUI(S.seed + ':dz:' + i + ':' + j) % 6] : '·'}</b><small>${j <= h && n ? '−' + n : ''}</small></span>`).join(''); }
   box.querySelector('[data-hutake]').innerHTML = h >= K.dur ? `<b>${fmt(X.after)}</b> through, <b>${fmt(X.P.length - X.after)}</b> out.` : `<b>${fmt(still)}</b> ${esc(K.still)} · <b>${fmt(cnt._ok || 0)}</b> ${esc(K.ok.toLowerCase())} · <b>${fmt(done - (cnt._ok || 0))}</b> out`;
   const past = X.EV.filter(x => x.t <= h), last = past.slice(-5).reverse();
   box.querySelector('[data-hutick]').innerHTML = last.length ? last.map((x, j) => `<li class="k-${x.e.type}${j === 0 ? ' new' : ''}"><span>${huntClock(K, x.t)}</span><p>${linkNames(chTidy(x.e.text, PHASES[i]), x.e.ids || [])}</p></li>`).join('') + (past.length > 5 ? `<li class="more">${past.length - 5} earlier</li>` : '') : `<li class="more">${esc(X.ex)} gives the signal.</li>`;
