@@ -404,6 +404,8 @@ function renderBracket(){
       // the preliminary only on its own page; the rounds show the bracket (and the license bout) without it
       const d = asOf(up); return FC.col === 'P' ? d.prelim : FC.col === 'EX' ? d.solo : d.trees;
     })()}`;
+  // the tournament played bout by bout, above everything else (renderPhase lifts it under the header)
+  if(typeof fpHtml === 'function' && !RP.active){ const fh = fpHtml(); if(fh) el.insertAdjacentHTML('beforeend', `<div class="tw-full">${fh}</div>`); }
   layoutBracket(CW, GAP);
   const lx = $('lx'); if(lx) lx.scrollTop = lx.scrollHeight;
 }
@@ -754,8 +756,10 @@ function renderPhase0(){
 
 function renderLog(){
   const sel = $('logPhase');
-  if(sel.dataset.ed != S.edition + ':' + PHASES.length){ sel.length = 1; PHASES.forEach((p,i) => sel.add(new Option(p.name, i))); sel.dataset.ed = S.edition + ':' + PHASES.length; }
+  if(sel.dataset.ed != S.edition + ':' + PHASES.length){ sel.length = 1; PHASES.forEach((p,i) => { if(!(typeof trHiddenStep === 'function' && trHiddenStep(i))) sel.add(new Option(p.name, i)); }); sel.dataset.ed = S.edition + ':' + PHASES.length; }
   const t = $('logType').value, p = $('logPhase').value;
+  // a team trial and the duels inside it are one phase in the log too: one heading, one filter
+  const grp = q => { const a = typeof trPairA === 'function' ? trPairA(+q) : null; return a != null ? a : +q; };
   // highlights leave out the routine traffic (alliance joins, helping hands, every single duel); picking a type shows everything of that type
   const ROUTINE = ['ally', 'help', 'split', 'family', 'rescue', 'duel', 'fight', 'trade', 'info', 'team', 'veteran'];
   $('logMode').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', b.dataset.lm === logMode));
@@ -767,7 +771,7 @@ function renderLog(){
   castoutClean();
   const LOG = []; S.log.forEach((e, i) => { LOG.push(e); const nx = S.log[i + 1]; if(beats[e.p] && (!nx || nx.p !== e.p)){ LOG.push(...beats[e.p]); delete beats[e.p]; } });
   Object.values(beats).forEach(b => LOG.push(...b));
-  const rows = LOG.filter(e => !e.d && !(e.type === 'fav' && isMt(e)) && (e.type !== 'mtbeat' || !t || t === 'mt') && (!t || e.type === t || (t === 'fav' && (e.ids || []).some(isFav)) || (t === 'mt' && isMt(e))) && (p === '' || e.p == p) && (t || logMode === 'all' || !ROUTINE.includes(e.type) || (e.ids || []).some(isFav) || isMt(e))).reverse().slice(0, 400);
+  const rows = LOG.filter(e => !e.d && !(e.type === 'fav' && isMt(e)) && (e.type !== 'mtbeat' || !t || t === 'mt') && (!t || e.type === t || (t === 'fav' && (e.ids || []).some(isFav)) || (t === 'mt' && isMt(e))) && (p === '' || grp(e.p) === grp(p)) && (t || logMode === 'all' || !ROUTINE.includes(e.type) || (e.ids || []).some(isFav) || isMt(e))).reverse().slice(0, 400);
   // one heading per phase instead of the phase name on every line
   let last = null;
   // in highlights, a phase's new bonds fold into one line of pairs
@@ -779,7 +783,7 @@ function renderLog(){
     if(bondsBy[e.p] && bondsBy[e.p].length > 2 && bondsBy[e.p].includes(e)){ if(shown.has(e.p)) return ''; shown.add(e.p); const B = bondsBy[e.p]; body = `<div class="ev bond"><span class="txt">${B.length} new unbreakable bonds: ${B.map(x => `${lk(x.ids[0])} & ${lk(x.ids[1])}`).join(' · ')}</span></div>`; }
     else if(e.type === 'mtbeat'){ const x = e.b, P = MT_POST.find(o => o.k === x.post); body = `<div class="ev mt-beat k-${x.k}"><span class="txt"><i>◆</i><a data-id="${e.ids[0]}">${esc(e.nm.split(' ')[0])}</a><em>${esc(e.text)}</em>${x.ap ? `<span class="mt-fx${x.ap.call === 'right' ? ' up' : x.ap.call === 'wrong' ? ' dn' : ''}">${esc(x.ap.l)}</span>` : P ? `<span class="mt-fx">${P.l}</span>` : ''}${x.k === 'ok' && x.rank ? `<span class="mt-pct">${ordinal(x.rank)} of ${fmt(x.n)}</span>` : ''}</span></div>`; }
     else body = `<div class="ev ${e.type}${isMt(e) ? ' mt-ev' : ''}"><span class="txt">${linkNames(e.text, e.ids)}</span></div>`;
-    const hd = e.p !== last ? `<div class="log-ph"><span>${esc(PHASES[e.p].name)}</span><small>${rows.filter(x => x.p === e.p).length}</small></div>` : ''; last = e.p; return hd + body; }).join('')
+    const g = grp(e.p), hd = g !== last ? `<div class="log-ph"><span>${esc(PHASES[g].name)}</span><small>${rows.filter(x => grp(x.p) === g).length}</small></div>` : ''; last = g; return hd + body; }).join('')
     : `<div class="empty">${S.started ? 'No events match these filters.' : `${fmt(S.candidates.length)} applicants have registered. Press <b>Run</b> to begin.`}</div>`;
 }
 let logMode = 'hi';

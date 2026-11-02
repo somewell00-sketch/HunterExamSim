@@ -18,15 +18,15 @@ function lkIndex(){
 const LK_SKIP = 'a,button,select,option,textarea,input,script,style,svg,h1,h2,label,summary,.tabs,nav,.stepper,.controls,.fch-nav,.sh-t,[data-noal],.lk-card,.fs-i,.tile,.sc-card,.sc-pick,.tech';
 function lkLinkIn(root){
   if(!root || root.nodeType !== 1 || typeof S === 'undefined' || !S || !S.candidates || root.closest('[data-noal]')) return;
-  const L = lkIndex(); if(!L.re) return;
+  const L = lkIndex(); if(!L.map.size) return;
   const self = (root.closest('.sheet') || root.querySelector?.('.sheet') || {}).getAttribute?.('aria-label') || '';
   const tw = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {acceptNode: n => n.nodeValue.length > 4 && /[A-Z]\S* [A-Z]/.test(n.nodeValue) && !(n.parentElement && n.parentElement.closest(LK_SKIP)) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT});
   const todo = []; let n; while((n = tw.nextNode())) todo.push(n);
   todo.forEach(t => {
-    const s = t.nodeValue; L.re.lastIndex = 0; if(!L.re.test(s)) return; L.re.lastIndex = 0;
-    const frag = document.createDocumentFragment(); let at = 0, m, any = false;
-    while((m = L.re.exec(s))){
-      const name = m[2], st = m.index + m[1].length; if(name === self) continue;
+    const s = t.nodeValue, hits = lkScan(s, L.map); if(!hits.length) return;
+    const frag = document.createDocumentFragment(); let at = 0, any = false;
+    for(const [st, name] of hits){
+      if(name === self) continue;
       const [kind, id] = L.map.get(name); any = true;
       frag.append(s.slice(at, st)); const a = document.createElement('a'); a.setAttribute('data-' + kind, id); a.className = 'nl'; a.textContent = name; frag.append(a); at = st + name.length;
     }
@@ -37,13 +37,16 @@ function lkLinkIn(root){
 // a first name on its own ("Cleo looks back") is linked when the same scene or paragraph already names that person in full,
 // and nobody else there shares the first name. A missing link is better than the wrong one.
 const LK_BLOCK = 'li,td,p,blockquote,.story-p,.hb-card,.tr-st,.tl-b,.rc-tick';
+// who a link points to, by its id: looked up in maps built once per world, not by walking every list for every link
+const LKW = {k: null};
 function lkWho(a){
-  if(a.dataset.id){ const c = S.candidates.find(x => x.id === a.dataset.id); return c && ['id', c.id, c.name, lkFirst(c)]; }
-  if(a.dataset.hunter){ const h = HUNTERS.find(x => String(x.license) === a.dataset.hunter); return h && ['hunter', h.license, h.name, h.name.split(' ')[0]]; }
-  if(a.dataset.outlaw){ const w = (WORLD.wanted || []).find(x => String(x.id) === a.dataset.outlaw); return w && ['outlaw', w.id, w.name, w.name.split(' ')[0]]; }
+  const k = LKX.k; if(LKW.k !== k){ LKW.k = k; LKW.c = new Map(S.candidates.map(c => [c.id, c])); LKW.h = new Map(HUNTERS.map(h => [String(h.license), h])); LKW.w = new Map((WORLD.wanted || []).map(w => [String(w.id), w])); }
+  if(a.dataset.id){ const c = LKW.c.get(a.dataset.id); return c && ['id', c.id, c.name, lkFirst(c)]; }
+  if(a.dataset.hunter){ const h = LKW.h.get(a.dataset.hunter); return h && ['hunter', h.license, h.name, h.name.split(' ')[0]]; }
+  if(a.dataset.outlaw){ const w = LKW.w.get(a.dataset.outlaw); return w && ['outlaw', w.id, w.name, w.name.split(' ')[0]]; }
 }
 function lkFirstIn(root, self){
-  const selfF = self ? self.split(' ')[0] : '', B = new Map();
+  lkIndex(); const selfF = self ? self.split(' ')[0] : '', B = new Map();
   const ctx = el => { const b = el.closest('.wt-scene') || el.closest(LK_BLOCK) || el.parentElement; if(B.has(b)) return B.get(b);
     const by = {}, bad = new Set(selfF ? [selfF] : []);
     b.querySelectorAll('a[data-id],a[data-hunter],a[data-outlaw]').forEach(a => { const w = lkWho(a); if(!w || !w[2].includes(' ') || w[3].length < 2 || LK_WORDY.has(w[3])) return;
@@ -61,6 +64,15 @@ function lkFirstIn(root, self){
       frag.append(s.slice(at, st)); const a = document.createElement('a'); a.setAttribute('data-' + w[0], w[1]); a.className = 'nl'; a.textContent = f; frag.append(a); at = st + f.length; }
     if(!at) return; frag.append(s.slice(at)); t.parentNode.replaceChild(frag, t); });
 }
+// full names in a piece of text: runs of capitalised words, looked up two and three words at a time (longest first).
+// A hash lookup per word instead of one huge pattern of every name: the cost follows the text, not the size of the world.
+const LK_RUN = /(?<![\p{L}-])\p{Lu}[\p{L}-]*(?: \p{Lu}[\p{L}-]*)+(?![\p{L}-])/gu;
+function lkScan(s, map){
+  const out = []; LK_RUN.lastIndex = 0; let m;
+  while((m = LK_RUN.exec(s))){ const W = m[0].split(' '), pos = []; let o = m.index; W.forEach(w => { pos.push(o); o += w.length + 1; });
+    for(let k = 0; k < W.length - 1;){ const n3 = k + 2 < W.length ? W.slice(k, k + 3).join(' ') : null, n2 = W.slice(k, k + 2).join(' ');
+      if(n3 && map.has(n3)){ out.push([pos[k], n3]); k += 3; } else if(map.has(n2)){ out.push([pos[k], n2]); k += 2; } else k++; } }
+  return out; }
 // run on whatever the page draws, a frame later
 const LK_Q = new Set(); let LK_T = 0;
 const lkObs = new MutationObserver(ms => { ms.forEach(m => m.addedNodes.forEach(x => { if(x.nodeType === 1) LK_Q.add(x); else if(x.nodeType === 3 && x.parentElement) LK_Q.add(x.parentElement); })); if(!LK_T) LK_T = requestAnimationFrame(() => { LK_T = 0; const q = [...LK_Q]; LK_Q.clear(); lkObs.disconnect(); try { q.forEach(el => { if(el.isConnected) lkLinkIn(el); }); } catch(e){ console.error(e); } lkObs.observe(document.body, {childList: true, subtree: true}); lkHint(); }); });
