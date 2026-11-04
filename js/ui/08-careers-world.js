@@ -406,23 +406,33 @@ function worldTies(ed, add, items){
   act.forEach(h => { const o = h.spouse && byLic[h.spouse]; if(!o || h.license > o.license || o.status === 'Deceased' || o.status === 'Missing') return;
     const ages = [hunterAge(h), hunterAge(o)], kids = WORLD.heirs.filter(k => k.parents.includes(h.license)).length;
     const line = WORLD.heirs.some(k => k.cid && (k.cid === h.cid || k.cid === o.cid));
-    if(Math.min(...ages) < 20 || Math.max(...ages) > 46 || kids >= 3 || Math.random() >= (kids ? 0.05 : 0.09) * (line ? 1.5 : 1) * relKids(h, o)) return;
+    if(Math.min(...ages) < 20 || Math.max(...ages) > 46 || kids >= (line ? 4 : 3) || Math.random() >= (kids ? 0.05 : 0.09) * (line ? 2.5 : 1) * relKids(h, o)) return;   // a Hunter family pushes for the next generation
     const g = Math.random() < 0.47 ? 'Male' : Math.random() < 0.9 ? 'Female' : 'Non-binary', pool = g === 'Male' ? FIRST_M : g === 'Female' ? FIRST_F : FIRST_N;
     const first = pickR(pool), last = surname(Math.random() < 0.5 ? h : o), kid = {id: 'K' + (++WORLD.seq), first, name: `${first} ${last}`, gender: g, born: ed, parents: [h.license, o.license]};
     WORLD.heirs.push(kid);
     add(h, 'wed', `${h.name} and ${o.name} welcome a ${g === 'Male' ? 'son' : g === 'Female' ? 'daughter' : 'child'}, ${first}.`, 4, o);
   });
   // 🧬 a Hunter does not need another Hunter to start a family; a family name pushes the next one in
-  const lineDepth = h => { let d = 1, cur = h, guard = 0; while(cur && guard++ < 8){ const k = (WORLD.heirs || []).find(x => x.cid && x.cid === cur.cid); if(!k) break; d++; cur = k.parents.map(l => byLic[l]).find(Boolean); } return d; };
+  const lineDepth = h => { let d = 1, cur = h, guard = 0; while(cur && guard++ < 12){ const k = (WORLD.heirs || []).find(x => x.cid && x.cid === cur.cid); if(!k) break; d += k.grand ? 2 : 1; cur = (k.grand || k.parents).map(l => byLic[l]).find(Boolean); } return d; };
   const CIV = ['a lighthouse keeper', 'a schoolteacher', 'a ship\'s doctor', 'a baker', 'a cartographer', 'a retired soldier', 'a musician', 'a bookseller', 'a tea merchant', 'a carpenter', 'a nurse', 'a fisher'];
   act.forEach(h => { if(h.spouse || h.status !== 'Active Hunter') return; const a = hunterAge(h); if(a < 22 || a > 45) return;
-    const kids = WORLD.heirs.filter(k => k.parents.includes(h.license)).length, depth = lineDepth(h); if(kids >= 2) return;
-    if(Math.random() >= 0.003 * (depth >= 2 ? 1.6 : 1) * (kids ? 0.5 : 1)) return;
+    const kids = WORLD.heirs.filter(k => k.parents.includes(h.license)).length, depth = lineDepth(h); if(kids >= (depth >= 2 ? 3 : 2)) return;
+    if(Math.random() >= 0.003 * (depth >= 2 ? 4 : 1) * (kids ? 0.5 : 1)) return;
     const g = Math.random() < 0.47 ? 'Male' : Math.random() < 0.9 ? 'Female' : 'Non-binary', pool = g === 'Male' ? FIRST_M : g === 'Female' ? FIRST_F : FIRST_N;
     const first = pickR(pool), kid = {id: 'K' + (++WORLD.seq), first, name: `${first} ${surname(h)}`, gender: g, born: ed, parents: [h.license], civ: pickR(CIV), line: depth};
     WORLD.heirs.push(kid);
     add(h, 'life', `${h.name} has a ${g === 'Male' ? 'son' : g === 'Female' ? 'daughter' : 'child'}, ${first}, with ${kid.civ} from ${pickR(PLACES)}.${depth >= 2 ? ` The ${surname(h)} line goes on.` : ''}`, depth >= 2 ? 6 : 4);
   });
+  // 🧬 B: a line can skip a generation. A Hunter's child who never became a Hunter still has a life, and children of their own;
+  // years later a grandchild registers for the exam with the old name. One skip only: the grandchild's own children are not followed.
+  { const hc = new Set(HUNTERS.map(x => x.cid).filter(Boolean));
+    WORLD.heirs.filter(k => !k.grand && !(k.cid && hc.has(k.cid)) && (k.never || (k.entered && ed - k.entered >= 3)) && ed - k.born >= 22 && ed - k.born <= 42).forEach(k => {
+      const gk = WORLD.heirs.filter(x => x.via === k.id).length; if(gk >= 2 || Math.random() >= (gk ? 0.03 : 0.06)) return;
+      const g = Math.random() < 0.47 ? 'Male' : Math.random() < 0.9 ? 'Female' : 'Non-binary', pool = g === 'Male' ? FIRST_M : g === 'Female' ? FIRST_F : FIRST_N;
+      const first = pickR(pool), last = k.name.split(' ').slice(-1)[0];
+      WORLD.heirs.push({id: 'K' + (++WORLD.seq), first, name: `${first} ${last}`, gender: g, born: ed, parents: [], grand: k.parents.slice(), via: k.id, viaName: k.name});
+      const gp = k.parents.map(l => byLic[l]).find(x => x && hActive(x)); if(gp) add(gp, 'life', `${gp.name} becomes a grandparent: ${k.first} has a ${g === 'Male' ? 'son' : g === 'Female' ? 'daughter' : 'child'}, ${first}.`, 3);
+    }); }
   // 🤝 reunions: who pulled whom through the exam, years later
   act.forEach(h => {
     if(h.reunited || ed - h.edition < 2) return;

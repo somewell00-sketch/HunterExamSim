@@ -436,14 +436,22 @@ function heirsEnter(S){
   const pick = H.filter(k => !k.entered && !k.never && ed - k.born >= 12 && ed - k.born <= 22).filter(k => {
     const age = ed - k.born; if(age === 22 && Math.random() < 0.4){ k.never = true; return false; }   // some choose another life
     return Math.random() < 0.08 + (age - 12) * 0.03;
-  }).slice(0, 2);
+  }).slice(0, 4);
   pick.forEach(k => {
     const c = S.candidates.find(x => x.status === 'Active' && !x.fam && !x.heir && attemptsOf(x) <= 1 && !used.has(x.id) && !x.secret && !mtOf(x.id) && !isFav(x.id) && x.tier !== 'Elite'); if(!c) return;
-    const P = k.parents.map(hLic).filter(Boolean), age = ed - k.born;
+    const P = k.parents.map(hLic).filter(Boolean), G = (k.grand || []).map(hLic).filter(Boolean), age = ed - k.born;
+    if(!P.length && !G.length) return;
+    // a family of Hunters raises its children for the exam; the deeper the line, the better prepared
+    const deep = P.some(h => (WORLD.heirs || []).some(x => x.cid && x.cid === h.cid)) ? 4 : 0, src = P.length ? P : G;
     c.name = k.name; c.first = k.first; c.gender = k.gender; c.age = age; c.tier = 'Elite';
-    Object.keys(c.a).forEach(a => { const pv = P.map(h => (h.attrs && h.attrs[a]) || 60), avg = pv.reduce((s, x) => s + x, 0) / Math.max(1, pv.length);
-      c.a[a] = clamp(Math.round(avg * 0.55 + 34 + (Math.random() - 0.5) * 16 - Math.max(0, 16 - age) * 1.5), 35, 97); });
-    c.heir = {kid: k.id, parents: k.parents}; k.entered = ed; k.cid = c.id;
+    Object.keys(c.a).forEach(a => { const pv = src.map(h => (h.attrs && h.attrs[a]) || 60), avg = pv.reduce((s, x) => s + x, 0) / Math.max(1, pv.length);
+      c.a[a] = clamp(Math.round(avg * (P.length ? 0.55 : 0.45) + (P.length ? 34 : 38) + deep + (Math.random() - 0.5) * 16 - Math.max(0, 16 - age) * 1.5), 35, 97); });
+    c.heir = {kid: k.id, parents: k.parents, grand: k.grand || null}; k.entered = ed; k.cid = c.id;
+    if(!P.length){   // a grandchild: the line skipped a generation
+      const gn = G.map(h => h.name).join(' and ');
+      c.notes.unshift({p: 0, text: `Grandchild of Hunter${G.length > 1 ? 's' : ''} ${gn}, through ${k.viaName}`});
+      log(S, 0, 'heir', pickR([`${c.name}, ${age}, registers for the exam. The name is old: ${gn} ${G.length > 1 ? 'were' : 'was'} a Hunter, and ${k.viaName.split(' ')[0]}, ${c.first}'s parent, never was.`, `A grandchild of ${gn} is here: ${c.name}, ${age}. The line skipped a generation, and came back.`]), [c.id]);
+      return; }
     const pn = P.map(h => h.name).join(' and '), alive = P.filter(h => hActive(h));
     c.notes.unshift({p: 0, text: `Child of Hunter${P.length > 1 ? 's' : ''} ${pn}`});
     // following a parent means following the child; the Herald announces them

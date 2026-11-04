@@ -33,6 +33,11 @@ function makePaper(S){
   const add = (kind, score, heads, ids) => A.push({kind, score: score * (usedKinds.includes(kind) ? 0.25 : 1) * (0.85 + (nhashUI(seed + kind) % 30) / 100), heads, ids: ids || []});
   if(S.cat && S.cat.stage === 'done') add('cat', 9999, [`${S.cat.name}: The Exam That Never Ended`, `${S.cat.dead} Dead, ${n} Licensed in ${S.cat.name}`, `${S.cat.name} Ends the ${ordinal(S.edition)} Hunter Exam`, `Heroes of ${S.cat.name}: ${n} Licenses for Courage`]);
   if(favH) add('fav', 90, [`${favH.name} Earns a Hunter License`, `It Happened: ${favH.name} Is a Hunter`, `${favH.first}'s Day: License Secured`], [favH.id]);
+  // a record class, against exams of the same kind: broken, or matched (a Jubilee's 48 is matched often, and that is news too)
+  { const kind = S.special || null, same = HISTORY.filter(r => (r.special !== undefined ? r.special : (typeof specialOf === 'function' ? specialOf(r.edition) : null)) === kind);
+    if(same.length >= 4 && n){ const best = Math.max(...same.map(r => (r.hunters || []).length)), times = same.filter(r => (r.hunters || []).length === best).length, lab = kind === 'jubilee' ? 'Jubilee ' : kind === 'centenary' ? 'Centennial ' : '';
+      if(n > best) add('record', 75, [`Record ${lab}Class: ${n} New Hunters`, `${n} Licenses, the Most Ever in a ${lab || 'Regular '}Exam`, `A Record: ${n} New Hunters in One ${lab}Exam`]);
+      else if(n === best && times <= 2) add('record', 40 + Math.min(20, times * 2), [`${n} New Hunters Equal the ${lab}Record`, `${n} Licenses, Again: the ${lab}Record Matched for the ${ordinal(times + 1)} Time`]); } }
   if(!n) add('none', 85, ['No New Hunters This Year', 'Not a Single License', 'The Association Turns Everyone Away', `${fmt(N)} Tried. Nobody Passed.`]);
   if(dead.length >= 3) add('deaths', 30 + dead.length * 8, [`Bloodiest Exam in Years: ${dead.length} Dead`, `${dead.length} Candidates Will Not Be Going Home`, `A Deadly ${ordinal(S.edition)} Exam`, `Death Toll Rises to ${dead.length}`]);
   if(crush) add('crusher', 55, [`Rookie Crusher ${crush.name} Thrown Out`, `Caught in the Act: ${crush.name} Expelled`, `The Newcomers' Nightmare Is Finally Gone`, `${crush.name}'s Last Trick`], [crush.id]);

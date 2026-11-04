@@ -29,7 +29,7 @@ function registerHunters(){
       ...(c.starCup === 'champion' ? {st: 1, rp: RANK_AT[1]} : {}),
       history: JSON.parse(JSON.stringify(c.attempts || [])), attrs: {...c.a}, reason: c.reason,
       nen: c.nen ? JSON.parse(JSON.stringify(c.nen)) : null, career: c.career || hunterCareer(c), examined: [],
-      savedBy: c.rescuedBy || null, heirOf: c.heir ? c.heir.parents : null, hParent: c.hParent && legendKnown(c) ? c.hParent : null, savedIn: ((c.notes || []).find(n => /rescued by/.test(n.text)) || {text: ''}).text.split(':')[0] || null,
+      savedBy: c.rescuedBy || null, heirOf: c.heir && c.heir.parents.length ? c.heir.parents : null, grandOf: c.heir && c.heir.grand ? c.heir.grand : null, hParent: c.hParent && legendKnown(c) ? c.hParent : null, savedIn: ((c.notes || []).find(n => /rescued by/.test(n.text)) || {text: ''}).text.split(':')[0] || null,
       home: pickR(PLACES), scouted: ((SCOUT.ex[S.edition] || {}).picks || []).some(x => x.id === c.id) || undefined, mentored: MENTOR.appr.some(a => a.id === c.id) || undefined, mStart: (MENTOR.appr.find(a => a.id === c.id && a.start) || {}).start, keep: keepsake(c), prodigy: isProdigy(c.age, c.a) || undefined, status: 'Active Hunter', bonds: JSON.parse(JSON.stringify(c.bonds || [])), motive: c.motive, trait: c.trait, secret: c.secret && c.secret.revealed ? c.secret.k : null, rivals: (c.grudges || []).map(g => g.id), rivalWhy: Object.fromEntries((c.grudges || []).map(g => [g.id, g.why || ''])), nick: c.nick || null, nickWhy: c.nickWhy || null, nickEd: c.nickEd || null, avenge: c.avenge || null, dojo: c.dojo ? c.dojo.id : undefined, dojoNen: c.dojoNen || undefined
     });
     { const h = HUNTERS[HUNTERS.length - 1]; if(h.dojoNen && h.nen){ h.nen.mastery = Math.min(70, (h.nen.mastery || 0) + 12); h.nen.techniques = NEN_TECH.filter(t => h.nen.mastery >= t[1]).map(t => t[0]); h.nen.status = h.nen.mastery < 15 ? 'Partially Awakened' : h.nen.mastery < 35 ? 'Awakened' : h.nen.mastery < 55 ? 'Trained' : 'Advanced'; } }   // Nen learned before the license shows
@@ -281,36 +281,56 @@ function openArchive(ed){
   showModal(`<div class="sheet wide" role="dialog" aria-modal="true" aria-label="${ordinal(r.edition)} Hunter Exam">
     <div class="sheet-head"><div><div class="meta">Archive · seed ${r.seed}</div><h2>${ordinal(r.edition)} Hunter Exam</h2></div><button class="btn" id="mClose">Close</button></div>${body}</div>`);
 }
+// records that keep moving: a tie is counted and the latest holder shown (a Jubilee's 48 is matched again and again);
+// regular exams, Jubilees and Centennials keep their own; rates sit beside totals; and the last 50 years have records of their own
+let hofEra = 'all';
+const kindOfEd = ed => typeof specialOf === 'function' ? specialOf(ed) : null;
+function recOf(arr, f, best, ed){
+  if(!arr.length) return null; const vals = arr.map(f), v = best === 'min' ? Math.min(...vals) : Math.max(...vals), ties = arr.filter((x, i) => vals[i] === v).sort((a, b) => ed(a) - ed(b));
+  return {v, n: ties.length, first: ties[0], last: ties[ties.length - 1]};
+}
+const recTail = (R, ed, what) => R.n > 1 ? `${R.n} times · last in the ${ordinal(ed(R.last))}, first in the ${ordinal(ed(R.first))}` : `the ${ordinal(ed(R.last))}`;
 function hallOfFame(){
-  const ALLH = HUNTERS.filter(h => !h.legacy), H = ALLH.filter(h => !h.pro), rec = [];
+  const from = hofEra === 'era' ? S.edition - 50 : -Infinity;
+  const ALLH = HUNTERS.filter(h => !h.legacy && (h.edition || 0) >= from), H = ALLH.filter(h => !h.pro), rec = [];
   const by = (arr, f, best) => arr.reduce((b, x) => b === null || (best === 'min' ? f(x) < f(b) : f(x) > f(b)) ? x : b, null);
   const tr = by(ALLH.filter(hActive), h => h.rp || 0);
-  if(tr) rec.push(['Top-ranked Hunter', tr.name, `${starStr(hStars(tr)) || 'Unranked'} · ${(tr.career || '').replace(' Hunter', '')}`, tr.license]);
+  if(tr && hofEra === 'all') rec.push(['Top-ranked Hunter', tr.name, `${starStr(hStars(tr)) || 'Unranked'} · ${(tr.career || '').replace(' Hunter', '')}`, tr.license]);
   if(H.length){
-    const y = by(H, h => h.age, 'min'), o = by(H, h => h.age), at = by(H, h => h.attempts), ex = by(ALLH, h => (h.examined || []).length);
-    rec.push(['Youngest Hunter', y.name, `licensed at ${y.age} · ${ordinal(y.edition)}`, y.license]);
-    rec.push(['Oldest Hunter', o.name, `licensed at ${o.age} · ${ordinal(o.edition)}`, o.license]);
-    if(at.attempts > 1) rec.push(['Never gave up', at.name, `licensed on attempt ${at.attempts}`, at.license]);
-    if((ex.examined || []).length) rec.push(['Busiest examiner', ex.name, `${ex.examined.length} exam${ex.examined.length === 1 ? '' : 's'} judged`, ex.license]);
+    const he = h => h.edition || 0, y = recOf(H, h => h.age, 'min', he), o = recOf(H, h => h.age, 'max', he), at = recOf(H, h => h.attempts || 1, 'max', he), ex = by(ALLH, h => (h.examined || []).length);
+    const who = (R, what) => R.n > 1 ? `${what} · ${R.n} Hunters, the latest in the ${ordinal(he(R.last))}` : `${what} · ${ordinal(he(R.last))}`;
+    rec.push(['Youngest Hunter', y.last.name, who(y, `licensed at ${y.v}`), y.last.license]);
+    rec.push(['Oldest Hunter', o.last.name, who(o, `licensed at ${o.v}`), o.last.license]);
+    if(at.v > 1) rec.push(['Never gave up', at.last.name, who(at, `licensed on attempt ${at.v}`), at.last.license]);
+    if(ex && (ex.examined || []).length) rec.push(['Busiest examiner', ex.name, `${ex.examined.length} exam${ex.examined.length === 1 ? '' : 's'} judged`, ex.license]);
     const cc = {}; H.forEach(h => h.career && (cc[h.career] = (cc[h.career] || 0) + 1)); const topC = Object.entries(cc).sort((a, b) => b[1] - a[1])[0];
     if(topC) rec.push(['Most common path', topC[0], `${topC[1]} Hunter${topC[1] === 1 ? '' : 's'}`]);
   }
-  const eds = HISTORY.slice();
+  const eds = HISTORY.filter(r => r.edition >= from), re = r => r.edition, n = r => (r.hunters || []).length;
   if(eds.length){
-    const big = by(eds, r => r.hunters.length), small = by(eds, r => r.hunters.length, 'min'), large = by(eds, r => r.applicants);
-    rec.push(['Biggest class', ordinal(big.edition) + ' Hunter Exam', `${big.hunters.length} new Hunters`]);
-    rec.push(['Toughest year', ordinal(small.edition) + ' Hunter Exam', `${small.hunters.length} new Hunter${small.hunters.length === 1 ? '' : 's'}`]);
-    rec.push(['Largest field', ordinal(large.edition) + ' Hunter Exam', `${fmt(large.applicants)} applicants`]);
+    // each kind of exam against its own kind
+    [[null, ''], ['jubilee', ' · Jubilee'], ['centenary', ' · Centennial']].forEach(([k, lab]) => {
+      const E = eds.filter(r => (r.special !== undefined ? r.special : kindOfEd(r.edition)) === k); if(!E.length) return;
+      const big = recOf(E, n, 'max', re), small = recOf(E, n, 'min', re);
+      rec.push(['Biggest class' + lab, ordinal(re(big.last)) + ' Hunter Exam', `${big.v} new Hunters${big.n > 2 && E.every(r => !r.licenses || r.licenses <= big.v) ? ', a full class' : ''} · ${recTail(big, re)}`]);
+      if(!k){ rec.push(['Toughest year', ordinal(re(small.last)) + ' Hunter Exam', `${small.v} new Hunter${small.v === 1 ? '' : 's'} · ${recTail(small, re)}`]);
+        const rated = E.filter(r => r.applicants >= 50), rate = r => Math.round(n(r) / r.applicants * 1000) / 10, best = rated.length ? recOf(rated, rate, 'max', re) : null;
+        if(best) rec.push(['Best pass rate', ordinal(re(best.last)) + ' Hunter Exam', `${best.v}% of ${fmt(best.last.applicants)} applicants · ${recTail(best, re)}`]); }
+    });
+    const large = recOf(eds, r => r.applicants || 0, 'max', re);
+    rec.push(['Largest field', ordinal(re(large.last)) + ' Hunter Exam', `${fmt(large.v)} applicants`]);
     const withSnap = eds.filter(r => r.snap);
     if(withSnap.length){
       const dead = by(withSnap, r => r.snap.dead); if(dead.snap.dead) rec.push(['Deadliest exam', ordinal(dead.edition) + ' Hunter Exam', `${dead.snap.dead} candidate${dead.snap.dead === 1 ? '' : 's'} killed`]);
-      let bestA = null; withSnap.forEach(r => (r.snap.alliances || []).forEach(A => { if(!bestA || A.hunters > bestA.A.hunters) bestA = {A, ed: r.edition}; }));
+      let bestA = null; withSnap.forEach(r => (r.snap.alliances || []).forEach(A => { if(!bestA || A.hunters >= bestA.A.hunters) bestA = {A, ed: r.edition}; }));
       if(bestA && bestA.A.hunters) rec.push(['Most successful alliance', bestA.A.name, `${bestA.A.hunters} Hunter${bestA.A.hunters === 1 ? '' : 's'} · ${ordinal(bestA.ed)}`]);
     }
   }
   if(!rec.length) return '';
-  return `<div><div class="section-h">Hall of Fame</div><div class="hl">${rec.map(([l, n, d, lic]) => `<div ${lic ? `data-hunter="${esc(lic)}"` : 'style="cursor:default"'}><small>${esc(l)}</small><b>${esc(n)}</b><span>${esc(d)}</span></div>`).join('')}</div></div>`;
+  const tabs = HISTORY.length > 50 ? `<span class="hof-era">${[['all', 'All time'], ['era', 'Last 50 years']].map(([k, l]) => `<button type="button" class="btn small${hofEra === k ? ' on' : ''}" data-hofera="${k}">${l}</button>`).join('')}</span>` : '';
+  return `<div><div class="section-h">Hall of Fame${tabs}</div><div class="hl">${rec.map(([l, nm, d, lic]) => `<div ${lic ? `data-hunter="${esc(lic)}"` : 'style="cursor:default"'}><small>${esc(l)}</small><b>${esc(nm)}</b><span>${esc(d)}</span></div>`).join('')}</div></div>`;
 }
+document.addEventListener('click', e => { const b = e.target.closest && e.target.closest('[data-hofera]'); if(b){ hofEra = b.dataset.hofera; renderHistory(); } const r = e.target.closest && e.target.closest('[data-hirange]'); if(r){ hiRange = +r.dataset.hirange; renderHistory(); } });
 // new Hunters per edition: lives in History, each bar opens its edition
 function edChartHtml(){
   const HE = HUNTERS.filter(h => !h.pro);
@@ -318,16 +338,19 @@ function edChartHtml(){
   const eds = {}; HISTORY.forEach(r => eds[r.edition] = 0); if(S.finished) eds[S.edition] = 0;
   const rg = {};   // stacked: the main exam at the bottom, regional offices on top
   HE.forEach(h => { eds[h.edition] = (eds[h.edition] || 0) + 1; if(h.regional) rg[h.edition] = (rg[h.edition] || 0) + 1; });
-  const series = Object.entries(eds).map(([e, n]) => [+e, n, rg[e] || 0]).filter(x => !WORLD.recordsFrom || x[0] >= WORLD.recordsFrom).sort((a,b) => a[0] - b[0]).slice(-30);
+  let series = Object.entries(eds).map(([e, n]) => [+e, n, rg[e] || 0]).filter(x => !WORLD.recordsFrom || x[0] >= WORLD.recordsFrom).sort((a,b) => a[0] - b[0]);
+  if(hiRange) series = series.slice(-hiRange);
+  // more than a hundred editions: one column per decade, the average of its exams
+  const byDec = series.length > 100; if(byDec){ const D = {}; series.forEach(([e, n, r]) => { const d = Math.floor(e / 10) * 10; (D[d] = D[d] || []).push([n, r]); }); series = Object.entries(D).map(([d, L]) => [+d, Math.round(L.reduce((a, x) => a + x[0], 0) / L.length), Math.round(L.reduce((a, x) => a + x[1], 0) / L.length), L.length]); }
   const maxN = Math.max(7, ...series.map(x => x[1]));
   // the chart is plain flex columns, so it stretches to fill its side of the page
   const chart = series.length ? `<div class="hc">${series.some(x => x[2]) ? `<div class="hleg"><span><i style="background:var(--gold)"></i>Main exam</span><span><i style="background:#5aa8d6"></i>Regional offices</span></div>` : ''}
       <div class="hc-plot">
-        ${series.map(([e, n, r]) => `<div class="hc-col"${HISTORY.some(r => r.edition === e && r.snap) ? ` data-arch="${e}"` : ''} title="${ordinal(e)}: ${n - r} from the main exam${r ? `, ${r} from regional offices` : ''}"><b>${n}</b><div class="hc-bar" style="height:${n / maxN * 100}%">${r ? `<i class="rg" style="flex:${r}"></i>` : ''}<i style="flex:${Math.max(n - r, 0.0001)}"></i></div><small>${e}</small></div>`).join('')}</div></div>`
+        ${series.map(([e, n, r, k]) => `<div class="hc-col"${!byDec && HISTORY.some(r => r.edition === e && r.snap) ? ` data-arch="${e}"` : ''} title="${byDec ? `The ${e}s: ${n} new Hunters a year on average, over ${k} exam${k === 1 ? '' : 's'}` : `${ordinal(e)}: ${n - r} from the main exam${r ? `, ${r} from regional offices` : ''}`}"><b>${n}</b><div class="hc-bar" style="height:${n / maxN * 100}%">${r ? `<i class="rg" style="flex:${r}"></i>` : ''}<i style="flex:${Math.max(n - r, 0.0001)}"></i></div><small>${e}</small></div>`).join('')}</div></div>`
     : '<p class="muted">Finish this exam to start the chart.</p>';
   return chart;
 }
-let hiSort = {k: 'ed', dir: -1}, hiAll = false;   // editions: the latest 20 unless expanded   // editions: newest first until a header is clicked
+let hiSort = {k: 'ed', dir: -1}, hiAll = false, hiRange = 30;   // editions: the latest 20 unless expanded   // editions: newest first until a header is clicked
 function renderHistory(){
   const el = $('pane-history');
   const kf = {ed: r => r.edition, app: r => r.applicants || 0, hun: r => (r.hunters || []).length}[hiSort.k] || (r => r.edition);
@@ -337,7 +360,7 @@ function renderHistory(){
   const names = r => { const L = r.hunters || []; return L.length ? L.slice(0, 3).map(hh => esc(hh.name)).join(', ') + (L.length > 3 ? ` <span class="muted">+${L.length - 3}</span>` : '') : '<span class="muted">None</span>'; };
   const O = WORLD.origin, pre = O ? (WORLD.chairHist || []).filter(x => x.from < O.ed) : [];
   // the record first (editions), then what it adds up to (fame), then the world it happened in, oldest memories last
-  const editions = `<div><div class="section-h">Editions</div><div class="hi-chart"><div class="hi-cap">New Hunters per edition</div>${edChartHtml()}</div><div class="tablebox hi-tab"><table><thead><tr>${hth('ed', 'Edition')}${hth('app', 'Applicants').replace('<th ', '<th data-c="app" ')}${hth('hun', 'Hunters')}<th class="hi-names">New Hunters</th></tr></thead><tbody>${cur}` +
+  const editions = `<div><div class="section-h">Editions</div><div class="hi-chart"><div class="hi-cap">New Hunters per edition${HISTORY.length > 30 ? `<span class="hi-rng">${[[30, '30'], [100, '100'], [0, 'All']].filter(([v]) => !v || HISTORY.length > v - 20 || v === 30).map(([v, l]) => `<button type="button" class="btn small${hiRange === v ? ' on' : ''}" data-hirange="${v}">${l}</button>`).join('')}</span>` : ''}${hiRange === 0 && HISTORY.length > 100 ? ' · by decade' : ''}</div>${edChartHtml()}</div><div class="tablebox hi-tab"><table><thead><tr>${hth('ed', 'Edition')}${hth('app', 'Applicants').replace('<th ', '<th data-c="app" ')}${hth('hun', 'Hunters')}<th class="hi-names">New Hunters</th></tr></thead><tbody>${cur}` +
     (hiAll ? rows : rows.slice(0, 20)).map(r => `<tr class="archrow" data-arch="${r.edition}" title="${r.snap ? 'Open this edition' : 'Only a summary was kept for this older edition'}"><td>${ordinal(r.edition)} Hunter Exam${r.snap ? ' <span class="muted">›</span>' : ''}</td><td class="num hi-app">${fmt(r.applicants)}</td><td class="num">${r.hunters.length}</td><td class="hi-names">${names(r)}</td></tr>`).join('') +
     `</tbody></table></div>` + (rows.length > 20 ? `<button type="button" class="btn small hi-more" id="hiMore">${hiAll ? 'Show the latest 20' : `Show all ${fmt(rows.length)} editions`}</button>` : '') + (rows.length ? '<p class="muted" style="margin:6px 0 0;font-size:12.5px">Tap an edition to reopen its route, bracket, island and key events.</p>' : '<p class="muted">Finished exams are archived here when you start the next exam.</p>') + '</div>';
   el.innerHTML = pageHead('The records', 'History', '#6fa8dc') + editions + hallOfFame() + statsHtml() + scRecordHtml() + mtRecordHtml();   // the world and its origin live in World

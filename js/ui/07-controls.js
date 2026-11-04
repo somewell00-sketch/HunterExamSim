@@ -76,7 +76,7 @@ function snapshot(S){
 function archive(S){
   const ap = S.candidates.filter(c => c.status === 'Approved');
   return {
-    edition: S.edition, applicants: S.config.applicants, licenses: S.config.licenses, seed: S.seed,
+    edition: S.edition, applicants: S.config.applicants, licenses: S.config.licenses, seed: S.seed, special: S.special || null,
     funnel: S.stats.map(s => s.after),
     hunters: ap.map(c => ({name:c.name, reg:c.reg, age:c.age, best: topAttrs(c,2).map(k => ATTR_LABEL[k]).join(', '), reason:c.reason, career:c.career || null})),
     snap: snapshot(S), paper: S.paper || null

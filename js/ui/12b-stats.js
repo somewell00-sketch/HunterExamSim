@@ -52,20 +52,21 @@ const stList = (title, rows) => rows.length ? `<div class="mk"><div class="secti
 function statsHtml(){
   const Y = WORLD.yearly || [], T = WORLD.tally || {}, H = HUNTERS.filter(h => !h.legacy), act = H.filter(hActive);
   const hl = h => h ? `<a data-hunter="${esc(h.license)}">${esc(h.name)}</a>` : '—', pct = (v, t) => `${v} · ${Math.round(v / t * 100)}%`;
-  const recent = Y.slice(-200);
+  // the same range as the editions chart above; long ranges are averaged by decade so the line keeps its shape
+  const yr = typeof hiRange !== 'undefined' && hiRange ? Y.slice(-hiRange) : Y, recent = yr.length > 200 ? Object.values(yr.reduce((D, r) => { const d = Math.floor(r.ed / 10) * 10; (D[d] = D[d] || []).push(r); return D; }, {})).map(L => ({ed: L[0].ed, a: Math.round(L.reduce((s, r) => s + r.a, 0) / L.length), s: [0, 1, 2, 3].map(j => Math.round(L.reduce((s, r) => s + ((r.s || [])[j] || 0), 0) / L.length)), d: L.reduce((D2, r) => { Object.entries(r.d || {}).forEach(([k, v]) => D2[k] = (D2[k] || 0) + v / L.length); return D2; }, {})})) : yr;
   // deaths
   const D = {}; Y.forEach(r => Object.entries(r.d || {}).forEach(([k, v]) => D[k] = (D[k] || 0) + v)); const dTot = Object.values(D).reduce((a, b) => a + b, 0);
   const life = H.filter(h => h.status === 'Deceased' && h.diedEd != null && !h.pro), career = life.length ? (life.reduce((a, h) => a + (h.diedEd - h.edition), 0) / life.length).toFixed(1) : '—';
   // exam pass rate
-  const ex = HISTORY.filter(r => r.applicants).slice(-200).map(r => ({ed: r.edition, p: Math.round(r.hunters.length / r.applicants * 1000) / 10}));
+  const ex = HISTORY.filter(r => r.applicants).slice(typeof hiRange !== 'undefined' && hiRange ? -hiRange : 0).map(r => ({ed: r.edition, p: Math.round(r.hunters.length / r.applicants * 1000) / 10}));
   // Nen and careers
   const nen = NEN_CATS.map(c => [c, act.filter(h => h.nen && h.nen.category === c).length]).sort((a, b) => b[1] - a[1]);
   const top3 = NEN_CATS.map(c => { const n = H.filter(h => h.nen && h.nen.category === c), t = n.filter(h => hStars(h) >= 3).length; return [c, n.length ? Math.round(t / n.length * 1000) / 10 : 0]; }).sort((a, b) => b[1] - a[1]);
   const car = {}; act.forEach(h => { const c = (h.career || '—').replace(' Hunter', ''); car[c] = (car[c] || 0) + 1; });
   // families: generations through the heirs, and surnames with the most Hunters
-  const byCid = new Map(H.map(h => [h.cid, h])), gen = h => { let d = 1, cur = h, g = 0; while(cur && g++ < 12){ const k = (WORLD.heirs || []).find(x => x.cid === cur.cid); const p = k && k.parents.map(l => hLic(l)).find(Boolean); if(!p) break; d++; cur = p; } return d; };
-  const dyn = H.filter(h => h.heirOf || h.hParent).map(h => [h, gen(h)]).sort((a, b) => b[1] - a[1]).slice(0, 5);
-  const fam = {}; H.filter(h => h.heirOf || h.hParent || (WORLD.heirs || []).some(k => k.parents.includes(h.license))).forEach(h => { const s = h.name.split(' ').slice(-1)[0]; fam[s] = (fam[s] || 0) + 1; });
+  const byCid = new Map(H.map(h => [h.cid, h])), gen = h => { let d = 1, cur = h, g = 0; while(cur && g++ < 12){ const k = (WORLD.heirs || []).find(x => x.cid === cur.cid); const p = k && (k.grand || k.parents).map(l => hLic(l)).find(Boolean); if(!p) break; d += k.grand ? 2 : 1; cur = p; } return d; };
+  const dyn = H.filter(h => h.heirOf || h.hParent || h.grandOf).map(h => [h, gen(h)]).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  const fam = {}; H.filter(h => h.heirOf || h.hParent || h.grandOf || (WORLD.heirs || []).some(k => k.parents.includes(h.license))).forEach(h => { const s = h.name.split(' ').slice(-1)[0]; fam[s] = (fam[s] || 0) + 1; });
   // schools, cases, outlaws, relics, chairs
   const Sc = (WORLD.schools || []).map(s => ({s, all: H.filter(h => h.school === s.id).length})).sort((a, b) => b.all - a.all).slice(0, 5);
   const C = WORLD.cases || [], V = WORLD.caseV || {};

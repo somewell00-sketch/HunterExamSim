@@ -85,7 +85,7 @@ function ensureChair(ed){
 // an election by the anime's rules: everyone votes and can be voted for; 95% turnout or the vote is void; over 50% wins, otherwise the leaders go to another round
 function runElection(ed, reason, add, items){
   const voters = HUNTERS.filter(h => hActive(h) && !h.legacy), away = voters.filter(h => WORLD.exped && h.exped === WORLD.exped.id).length;
-  const zod = new Set(Object.values(WORLD.zodiac || {})), inc = WORLD.chair && hLic(WORLD.chair.lic);
+  const zod = new Set(Object.values(WORLD.zodiac || {})), inc = WORLD.chair && hLic(WORLD.chair.lic), prevVice = WORLD.vice, prevZod = {...(WORLD.zodiac || {})};
   // a magnetic personality can carry a Hunter with few or no stars into contention
   const cha = h => (h.attrs && h.attrs.charisma) || 50, star = h => cha(h) >= 90 && hStars(h) <= 1 ? 8 + (cha(h) - 90) * 1.2 : 1;
   const base = h => (1 + hStars(h)) ** 2.2 * star(h) * (1 + (h.rp || 0) / 600) * (cha(h) / 55) ** 2 * (WORLD.vice === h.license ? 6 : 1) * (zod.has(h.license) ? 3 : 1) * (inc === h && hActive(h) ? 4 : 1) * (Math.random() < 0.02 ? 6 : 1) * caseW(h, ed) * (h.claimEd === ed ? 3 : 1) * relVote(h);
@@ -117,7 +117,7 @@ function runElection(ed, reason, add, items){
   WORLD.chair = {lic: winner.license, since: again ? WORLD.chair.since : ed, how: `${again ? 're-elected' : 'elected'} in round ${rounds.length}`, prevLic: prev}; chairTerm(winner.license, ed);
   const { vice, why: viceWhy, refused } = pickVice(winner, second, last, WORLD.vice && hLic(WORLD.vice));
   WORLD.vice = vice ? vice.license : null; seatSince('vice', ed);
-  const zc = fillZodiac(ed, add, prev === winner.license ? 0.85 : 0.5);
+  const zc = fillZodiac(ed, add, prev === winner.license ? 0.9 : 0.7);
   WORLD.elections.push({ed, reason, rounds, winner: winner.license, vice: WORLD.vice, viceWhy, refused: refused ? refused.license : null, prev, kept: zc.kept.length});
   if(refused) add(refused, 'rival', `${refused.name} turns down the Vice-Chairmanship ${winner.name} offers after the vote. "I did not run to be second."`, 6, winner);
   if(WORLD.elections.length > 10) WORLD.elections = WORLD.elections.slice(-10);
@@ -126,12 +126,58 @@ function runElection(ed, reason, add, items){
   items.push({lic: '', name: '', kind: 'election', text: `${reason} Every Hunter is a voter and a candidate.`, rank: 10});
   // the crowd favourite: a low-ranked Hunter who made it deep into the vote on charisma alone
   const fav = rounds.filter(r => !r.void && r.top).flatMap(r => r.top.slice(0, 3)).map(x => hLic(x.l)).find(h => h && hStars(h) <= 1 && cha(h) >= 90);
-  if(fav) add(fav, 'election', fav === winner ? `${fav.name}, ${hStars(fav) ? 'a one-star Hunter' : 'a Hunter without a single star'}, wins the chairmanship on charisma and nerve. The old guard is stunned.` : pickR([`${fav.name}, ${hStars(fav) ? 'a one-star Hunter' : 'a Hunter with no stars at all'}, finishes among the leaders on charisma alone. Nobody saw it coming.`, `The surprise of the vote: ${fav.name}, ${hStars(fav) ? 'one star' : 'no stars'}, but a following no veteran can match.`, `${fav.name} never led a famous hunt, but half the Association knows ${pro('{their}', fav)} name. ${pro('{They}', fav)} ${pro('{are}', fav)} a real contender.`]), 9);
+  if(fav && fav !== winner) add(fav, 'election', fav === winner ? `${fav.name}, ${hStars(fav) ? 'a one-star Hunter' : 'a Hunter without a single star'}, wins the chairmanship on charisma and nerve. The old guard is stunned.` : pickR([`${fav.name}, ${hStars(fav) ? 'a one-star Hunter' : 'a Hunter with no stars at all'}, finishes among the leaders on charisma alone. Nobody saw it coming.`, `The surprise of the vote: ${fav.name}, ${hStars(fav) ? 'one star' : 'no stars'}, but a following no veteran can match.`, `${fav.name} never led a famous hunt, but half the Association knows ${pro('{their}', fav)} name. ${pro('{They}', fav)} ${pro('{are}', fav)} a real contender.`]), 9);
   { const ER = WORLD.elections[WORLD.elections.length - 1]; ER.named = zc.named.map(([z, h]) => ({z, l: h.license})); if(fav) ER.fav = fav.license; }   // kept for the Herald's election special
   if(rounds.length > 1) items.push({lic: '', name: '', kind: 'election', text: `${rounds.length} rounds of voting${voids ? `, ${voids} of them void for turnout under 95%` : ''}. ${rounds.filter(r => !r.void && r.adv).length ? `Nobody reached a majority until round ${rounds.length}.` : ''}`, rank: 9});
   { const P = prev && prev !== winner.license && hLic(prev); if(P && P.status !== 'Deceased') chairLeft(P, winner, ed, ed - prevSince, P.status === 'Missing' ? 'miss' : /abdicates/.test(reason) ? 'abd' : /renew/.test(reason) ? 'lost' : 'ret'); }
   add(winner, 'election', `${winner.name} ${pct > 50 ? `is ${again ? 're-elected' : 'elected'} Chairman of the Hunter Association with ${pct}% of the vote` : `is named Chairman of the Hunter Association after ${rounds.length} inconclusive rounds, as the last candidate standing`}${vice ? `, and names ${vice.name} Vice-Chairman${viceWhy ? ` (${viceWhy})` : ''}` : ''}.`, 11, vice || undefined);
+  // who the new Chairman is, and why they won: a line or two told from their own story
+  winnerStory(winner, {ed, pct, rounds, again, prev: prev && hLic(prev), second, reason, inc, prevVice, prevZod, last, cha}).forEach((t, k) => add(winner, 'election', t, 10 - k));
   if(zc.named.length) items.push({lic: zc.named[0][1].license, name: zc.named[0][1].name, kind: 'zodiac', text: `The new Zodiac: ${zc.named.map(([z, h]) => `${h.name} (${z})`).join(', ')}${zc.kept.length ? `. ${zc.kept.length} kept their seat${zc.kept.length > 1 ? 's' : ''}` : ''}.`, rank: 8});
+}
+// the story of a new Chairman: the strongest angles of who they are and how the vote went, at most two lines.
+// Every angle reads from the record: stars, age, years licensed, seats held, family, school, rivals, the last thing they did.
+function winnerStory(W, x){
+  const st = hStars(W), age = hunterAge(W), yrs = x.ed - (W.edition || x.ed), F = W.name.split(' ')[0], P = PR(W), A = [], cha = x.cha(W);
+  const add = (w, ...o) => A.push([w, pickR(o)]);
+  const H = WORLD.chairHist || [], past = H.filter(e => e.lic !== W.license).map(e => { const h = hLic(e.lic); return h ? hunterAge(h) - (S.edition - e.from) : null; }).filter(v => v != null);
+  const youngest = past.length >= 3 && past.every(a => a > age), oldest = past.length >= 3 && past.every(a => a < age);
+  const deed = (W.log || []).filter(e => e.ed >= x.ed - 6 && ['exped', 'relic', 'case', 'rival', 'hunt'].includes(e.k) && e.text.startsWith(W.name)).pop();
+  const deedT = deed ? deed.text.replace(new RegExp('^' + W.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ' '), '').split(/(?<=[.!?])\s/)[0].replace(/\.$/, '') : null;
+  const top = x.last && x.last.top || [], lead = top[0] && top[1] ? (top[0].v - top[1].v) / Math.max(1, x.last.valid) : 1, sec = x.second;
+  const wasVice = x.prevVice === W.license, zSeat = Object.entries(x.prevZod).find(([, l]) => l === W.license), roles = (W.pastRoles || []).length;
+  const kid = (WORLD.heirs || []).find(k => k.cid && k.cid === W.cid), parents = kid ? kid.parents.map(hLic).filter(Boolean) : [], chairParent = parents.find(p => H.some(e => e.lic === p.license));
+  const school = W.school && (WORLD.schools || []).find(z => z.id === W.school), rival = sec && ((W.rivals || []).includes(sec.cid) || (sec.rivals || []).includes(W.cid));
+  // the long shots: few stars or few years, and how they did it
+  if(st <= 1 && !x.again){
+    const how = cha >= 90 ? pickR([`on charisma alone`, `with a following no veteran can match`, `because half the Association has shared a fire with ${P.them}`])
+      : deedT ? `on the strength of one story everyone tells: ${P.they} ${deedT}` : school ? `with ${capS(school.name)} voting as one behind ${P.them}` : yrs <= 3 ? `with the votes of the young, who turned out as never before` : `as the old favourites split the vote between them`;
+    add(9, `${W.name}, ${st ? 'a one-star Hunter' : 'a Hunter without a single star'}, wins the chairmanship ${how}. The old guard is stunned.`,
+      `Nobody had ${F} on a list. ${st ? 'One star' : 'No stars'}, ${yrs <= 1 ? 'a license still warm from the exam' : `${yrs} year${yrs === 1 ? '' : 's'} licensed`}, and now the seal of the Association, won ${how}.`,
+      `The upset of a generation: ${W.name}, ${st ? 'one star' : 'no stars'}, takes the chair ${how}. ${x.second ? `${sec.name}${hStars(sec) >= 3 ? ', with three stars,' : ''} concedes before the count is done.` : ''}`);
+    add(4, `Veterans ask who ${F} is. By the evening, every Hunter in the Association knows.`, `${pickR(['Three', 'Two', 'Several'])} senior Hunters ask for a recount. There is nothing to recount.`, `The Zodiac waits outside the hall to meet a Chairman most of them have never spoken to.`);
+  }
+  if(age <= 29) add(youngest ? 8 : 7, youngest ? `At ${age}, ${F} is the youngest Chairman the Association has ever had.` : `${F} is ${age}. Some of the Hunters who voted for ${P.them} have held their licenses longer than ${P.they} ${P.are === 'are' ? 'have' : 'has'} been alive.`, `At ${age}, ${W.name} becomes Chairman; ${P.their} first speech is three sentences long.`);
+  if(age >= 66) add(oldest ? 7 : 4, W.longlived && age >= 100 ? `${F} has seen ${Math.floor(age / 10) * 10} years and more Chairmen than anyone alive. Now ${P.they} ${P.are} one.` : oldest ? `At ${age}, ${F} is the oldest Hunter ever to take the chair.` : `At ${age}, ${F} takes the chair ${P.they} turned down twice before. "Someone has to."`, `${F} is ${age}. The Association votes for a steady hand.`);
+  if(yrs <= 2) add(5, `${yrs <= 1 ? 'A year' : 'Two years'} ago ${F} was a candidate in the exam. Now ${P.they} will sign the next one's licenses.`);
+  if(st >= 3 && !x.again) add(3, `Three stars and ${yrs} years in the field: few are surprised. ${F} was the name in every corridor.`, `The expected result. ${W.name}, three stars, wins as the favourite always does: carefully.`);
+  if(wasVice) add(6, `${F} steps up from the Vice-Chairman's chair to the Chairman's.`, `After years as Vice-Chairman, ${F} needs only to move one seat to the left.`);
+  else if(zSeat) add(5, `${F} leaves the ${zSeat[0]} seat of the Zodiac for the chair at its head.`);
+  else if(!roles && st >= 2) add(3, `${F} never held a seat in the Association before today.`);
+  if(chairParent) add(8, `${F} takes the chair ${chairParent.name} once held. ${pickR(['The portrait in the hall looks familiar.', 'Some of the old staff still call the office by the parent\'s name.'])}`);
+  else if(parents.length) add(4, `${F} is the child of ${parents.map(p => p.name).join(' and ')}. The name carried a share of the vote.`);
+  if(x.pct >= 72) add(4, `A landslide: ${x.pct}% in the last round.`, `${x.pct}% of the vote. Even ${P.their} rivals voted for ${P.them}.`);
+  else if(lead < 0.04 && top[1]) add(5, `By ${Math.max(1, top[0].v - top[1].v)} vote${top[0].v - top[1].v === 1 ? '' : 's'}${sec ? `, over ${sec.name}` : ''}. The closest vote anyone can remember.`);
+  const ledEarly = x.rounds.slice(0, -1).some(r => !r.void && r.top && r.top[0] && r.top[0].l === W.license);
+  if(x.rounds.length >= 4) add(4, ledEarly ? `It took ${x.rounds.length} rounds, and ${F} led most of them.` : `It took ${x.rounds.length} rounds. ${F} was never first until the last one.`);
+  if(rival) add(7, `${F} beats ${sec.name} in the last round, and an old rivalry gets a new chapter.`, `${sec.name} loses the vote to ${P.their} oldest rival. They do not shake hands.`);
+  if(x.prev && x.prev !== W && /renew/.test(x.reason)) add(5, `${x.prev.name} called the vote to be confirmed, and lost it to ${F}.`);
+  if(x.again && st <= 1) add(6, `Re-elected, and nobody calls it luck any more. ${F} still has ${st ? 'one star' : 'no stars'}, and the chair.`);
+  else if(x.again) add(3, `Re-elected. The Association knows what it is getting with ${F}, and wants more of it.`);
+  if(cha >= 90 && st >= 2) add(3, `${F} works the hall the night before the vote and shakes nine hundred hands.`);
+  // the two strongest angles, never two that say the same kind of thing
+  const out = []; A.sort((a, b) => b[0] - a[0]).forEach(([, t]) => { if(out.length < 2 && t && !out.includes(t)) out.push(t); });
+  return out;
 }
 // the outgoing Chairman's own line: how the chairmanship ended
 function chairLeft(P, W, ed, Y, how){
@@ -291,7 +337,7 @@ function politicsCore(ed, add, items){
       if(cq){ quit = true; qwhy = cq; }
       else if(WORLD.stay[z] === cur.license){ quit = true; qwhy = pickR(['keeps the promise of one more year, and not a day longer', 'gave the Chairman the extra year and now walks away']); delete WORLD.stay[z]; }
       else if(purge.has(z)){ quit = true; qwhy = pickR([`is replaced as the new Chairman reshapes the Zodiac`, `loses the seat in the new Chairman's first reshuffle`, `is thanked for ${PR(cur).their} service and let go by the new Chairman`]); }
-      else if(tenure >= 1 && Math.random() < Math.min(0.9, 0.19 + tenure * 0.01 + Math.max(0, effAge(cur, age) - 65) * 0.01)){   // a desk job: 20% after the first year, +1% each year after
+      else if(tenure >= 1 && Math.random() < Math.min(0.9, (tenure < 8 ? 0.03 : 0.03 + (tenure - 7) * 0.02) + Math.max(0, effAge(cur, age) - 65) * 0.012)){   // a seat is for years: 3% a year at first, rising after the eighth year, and with age
         if(Math.random() < 0.25){ WORLD.stay[z] = cur.license; add(cur, 'zodiac', `${cur.name} asks to leave the ${z} seat. Chairman ${ch.name} asks for one more year, and ${cur.name.split(' ')[0]} agrees.`, 5); return; }
         quit = true;
         const R = [[`steps down after ${tenure} year${tenure === 1 ? '' : 's'}, saying ${PR(cur).they} ${PR(cur).are} tired`, tenure >= 6 ? 3 : 0.5], [`retires from the Zodiac at ${age}`, age >= 60 ? 4 : 0], [`resigns after a public clash with Chairman ${ch.name}`, (ch.rivals || []).includes(cur.cid) ? 5 : 1], [`resigns as a scandal breaks around ${PR(cur).their} last mission`, 0.6], [`gives up the seat to go back to the field`, 2], [`leaves to take care of ${PR(cur).their} family`, 1], [`resigns in protest at the last election`, (WORLD.elections || []).some(e => e.ed >= ed - 2) ? 1.5 : 0], [`steps down, saying the work is elsewhere`, 1]];

@@ -845,3 +845,4 @@ a.golink.sm{font-size:12.5px}
 .rl-fam{display:flex;flex-direction:column;gap:6px;margin-top:6px}
 .rl-fam > small{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
 @media (max-width:560px){.wd-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));overflow:visible}.wd-tabs .tab{padding:10px 2px;font-size:11px;text-align:center}}
+.hi-rng,.hof-era{display:inline-flex;gap:4px;margin-left:10px;vertical-align:middle}.hi-rng .btn,.hof-era .btn{padding:2px 8px;font-size:11px}.hi-rng .btn.on,.hof-era .btn.on{border-color:var(--gold);color:var(--gold)}
