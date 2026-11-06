@@ -55,6 +55,10 @@ haSort = 'rank'; haDir = 'desc';
 try { const s = JSON.parse(localStorage.getItem('hxsim-ha2') || 'null'); if(s) ({haView = 'all', haSt = 'Active', haStar = '', haNen = '', haCar = '', haEd = '', haFormer = '', haFam = '', haSort = 'rank', haDir = 'desc', haPane = 'register', haSch = '', haRel = '', haCase = '', haMas = ''} = s); } catch(e){}
 const haKeep = () => { try { localStorage.setItem('hxsim-ha2', JSON.stringify({haView, haSt, haStar, haNen, haCar, haEd, haFormer, haFam, haSort, haDir, haPane, haSch, haRel, haCase, haMas})); } catch(e){} };
 const HA_TEXT = ['name','career','gender','status'];   // text columns start A→Z, numbers start high→low
+// what the register draws from changes only when the world does: a year passes, a phase runs, someone is licensed, a seat changes
+const HA_KEEP = {k: null, v: {}};
+const haKey = () => [S.edition, S.phase, S.finished ? 1 : 0, HUNTERS.length, HISTORY.length, WORLD.seq, (WORLD.chair || {}).lic, WORLD.vice, (WORLD.cases || []).length, typeof CC_OPEN !== 'undefined' ? [...CC_OPEN].join() : ''].join('|');
+function haKept(name, make){ const k = haKey(); if(HA_KEEP.k !== k || HA_KEEP.a !== HUNTERS || HA_KEEP.w !== WORLD){ HA_KEEP.k = k; HA_KEEP.a = HUNTERS; HA_KEEP.w = WORLD; HA_KEEP.v = {}; } return name in HA_KEEP.v ? HA_KEEP.v[name] : (HA_KEEP.v[name] = make()); }
 function renderAssociation(){
   const el = $('pane-hunters'); let TOP10 = [];
   const H = HUNTERS, HE = HUNTERS.filter(h => !h.pro);
@@ -75,11 +79,12 @@ function renderAssociation(){
   const stOf = h => hActive(h) ? 'Active' : h.status === 'Deceased' ? 'Deceased' : h.status === 'Missing' ? 'Missing' : 'Retired';
   const edOk = h => !haEd || (haEd === 'main' ? !h.pro && !h.regional : haEd === 'pro' ? h.pro : haEd === 'reg' ? !!h.regional : haEd === 'jub' ? h.special === 'jubilee' : haEd === 'cen' ? h.special === 'centenary' : !h.pro && h.edition === +haEd);
   // family ties with other Hunters: a Hunter spouse (or late spouse), Hunter parents, Hunter children, other Hunter relatives
-  const famT = new Map(), byCid = new Map(HUNTERS.map(x => [x.cid, x]));
-  const kidsLeg = new Map(); HUNTERS.forEach(x => { if(x.hParent) kidsLeg.set(x.hParent, (kidsLeg.get(x.hParent) || 0) + 1); });
-  // the same ties the Family block shows, from two small indexes built once (walking the whole family of every Hunter was the slow part)
-  const HP = new Map(), HK = new Map(), byL = new Map(HUNTERS.map(x => [x.license, x])), kidOf = new Map((WORLD.heirs || []).filter(k => k.cid).map(k => [k.cid, k]));
-  HUNTERS.forEach(x => { const k = kidOf.get(x.cid), ps = ((k && k.parents) || x.heirOf || (x.hParent ? [x.hParent] : [])).filter(l => byL.has(l)); HP.set(x.license, ps); ps.forEach(l => { if(!HK.has(l)) HK.set(l, []); HK.get(l).push(x.license); }); });
+  // the family indexes and every Hunter's ties are kept between clicks, and rebuilt only when the world moves on
+  const FC = haKept('fam', () => { const famT = new Map(), byCid = new Map(HUNTERS.map(x => [x.cid, x])), kidsLeg = new Map(); HUNTERS.forEach(x => { if(x.hParent) kidsLeg.set(x.hParent, (kidsLeg.get(x.hParent) || 0) + 1); });
+    const HP = new Map(), HK = new Map(), byL = new Map(HUNTERS.map(x => [x.license, x])), kidOf = new Map((WORLD.heirs || []).filter(k => k.cid).map(k => [k.cid, k]));
+    HUNTERS.forEach(x => { const k = kidOf.get(x.cid), ps = ((k && k.parents) || x.heirOf || (x.hParent ? [x.hParent] : [])).filter(l => byL.has(l)); HP.set(x.license, ps); ps.forEach(l => { if(!HK.has(l)) HK.set(l, []); HK.get(l).push(x.license); }); });
+    return {famT, byCid, kidsLeg, HP, HK}; });
+  const {famT, byCid, kidsLeg, HP, HK} = FC;
   const fam = h => { if(famT.has(h.license)) return famT.get(h.license);
     const ps = HP.get(h.license) || [], ks = HK.get(h.license) || [], t = {wed: !!((h.spouse && hLic(h.spouse)) || (h.widowOf && hLic(h.widowOf))), par: ps.length > 0, kid: ks.length > 0 || kidsLeg.has(h.license), kin: false};
     // other Hunter relatives: siblings, grandparents, grandchildren, parents' siblings, siblings' children
@@ -110,14 +115,15 @@ function renderAssociation(){
   const val = {license: h => h.pro ? -1 : parseInt(h.license.slice(3)), name: h => h.name, career: h => h.career || '', gender: h => h.gender || '', status: h => h.status || '',
     rank: h => (hActive(h) ? 1e7 : 0) + hStars(h) * 1e6 + (h.rp || 0), school: h => { const x = schOf(h.school); return x ? x.name.replace(/^the /, '') : ''; }, age: h => apAge(h), now: h => hunterAge(h), attempts: h => h.attempts || -1, edition: h => h.pro ? -1 : h.edition}[sk] || (h => h.attrs ? h.attrs[sk] : -1);
   const dir = haDir === 'asc' ? 1 : -1;
-  rows.sort((a, b) => { const x = val(a), y = val(b); const c = typeof x === 'string' ? x.localeCompare(y) : x - y; return c * dir || a.license.localeCompare(b.license); });
+  // each row's sort value is worked out once, not at every comparison
+  rows = rows.map(h => [val(h), h]).sort(([x, a], [y, b]) => { const c = typeof x === 'string' ? x.localeCompare(y) : x - y; return c * dir || a.license.localeCompare(b.license); }).map(r => r[1]);
   const per = 25, pages = Math.max(1, Math.ceil(rows.length / per)); haPage = clamp(haPage, 0, pages - 1);
   const th = (k, l) => `<th class="sortable${sk === k ? ' on' : ''}" data-hasort="${k}" aria-sort="${sk === k ? (haDir === 'asc' ? 'ascending' : 'descending') : 'none'}" title="Sort by ${l}">${l}<i>${sk === k ? (haDir === 'asc' ? '▲' : '▼') : '↕'}</i></th>`;
   const edOpts = (H.some(h => h.pro) ? `<option value="pro" ${haEd === 'pro' ? 'selected' : ''}>Veterans (before records)</option>` : '') + [...new Set(HE.map(h => h.edition))].sort((a,b) => b - a).map(e => `<option value="${e}" ${haEd == e ? 'selected' : ''}>${ordinal(e)} Hunter Exam</option>`).join('');
   const sortOpts = [['license','License ID'],['rank','Rank'],['name','Name'],['career','Specialty'],['gender','Gender'],['status','Status'],['now','Current age'],['age','Age at approval'],['attempts','Number of attempts'],['edition','Exam edition']].concat(ATTRS.map(a => [a[0], a[1]])).map(([v,l]) => `<option value="${v}" ${haSort === v ? 'selected' : ''}>Sort: ${l}</option>`).join('');
   $('pane-assoc').innerHTML = '';
   el.innerHTML = `${pageHead('Council & register', 'Hunter Association', 'var(--gold)')}${advanceBarHtml()}
-    ${`<div class="stats hastats">
+    ${haKept('top', () => `<div class="stats hastats">
       <div class="stat gold"><b>${H.filter(hActive).length}</b><span>Active Hunters</span></div>
       <div class="stat"><b>${H.length}</b><span>Registered Hunters</span></div>
       <div class="stat"><b>${H.filter(h => hActive(h) && hStars(h) === 3).length}</b><span>★★★ Hunters</span></div>
@@ -127,7 +133,7 @@ function renderAssociation(){
     </div>
     ${councilHtml()}
     <div class="ha-two"><div><div class="section-h">Top Hunters</div><div class="toph">${(TOP10 = H.filter(h => hActive(h) && !h.legacy).sort((a, b) => rpRecent(b) - rpRecent(a) || hStars(b) - hStars(a)).slice(0, 10)).map((h, i) => `<div data-hunter="${esc(h.license)}"><small>${i + 1}</small><span><b>${esc(h.name)}</b> <span class="muted">${esc((h.career || '').replace(' Hunter', ''))}</span></span><span class="stars">${starStr(hStars(h)) || '<span class="muted">—</span>'}</span></div>`).join('') || '<p class="muted" style="margin:0">Nobody yet.</p>'}</div></div>
-        <div><div class="section-h">Rising Hunters</div><div class="toph">${H.filter(h => hActive(h) && !h.legacy && !TOP10.includes(h) && S.edition - h.edition <= 10 && h.edition < S.edition + (S.finished ? 1 : 0)).sort((a, b) => (b.rp || 0) / Math.max(1, S.edition - b.edition) - (a.rp || 0) / Math.max(1, S.edition - a.edition) || hStars(b) - hStars(a)).slice(0, 5).map((h, i) => `<div data-hunter="${esc(h.license)}"><small>${i + 1}</small><span><b>${esc(h.name)}</b> <span class="muted">${esc((h.career || '').replace(' Hunter', ''))}</span></span><span class="stars">${starStr(hStars(h)) || `<span class="muted mono-s">${ordinal(h.edition)} · ${hunterAge(h)}</span>`}</span></div>`).join('') || '<p class="muted" style="margin:0">Nobody yet.</p>'}</div></div></div>`}${`
+        <div><div class="section-h">Rising Hunters</div><div class="toph">${H.filter(h => hActive(h) && !h.legacy && !TOP10.includes(h) && S.edition - h.edition <= 10 && h.edition < S.edition + (S.finished ? 1 : 0)).sort((a, b) => (b.rp || 0) / Math.max(1, S.edition - b.edition) - (a.rp || 0) / Math.max(1, S.edition - a.edition) || hStars(b) - hStars(a)).slice(0, 5).map((h, i) => `<div data-hunter="${esc(h.license)}"><small>${i + 1}</small><span><b>${esc(h.name)}</b> <span class="muted">${esc((h.career || '').replace(' Hunter', ''))}</span></span><span class="stars">${starStr(hStars(h)) || `<span class="muted mono-s">${ordinal(h.edition)} · ${hunterAge(h)}</span>`}</span></div>`).join('') || '<p class="muted" style="margin:0">Nobody yet.</p>'}</div></div></div>`)}${`
     <div class="section-h ha-regh">Register</div>
     ${(() => {
       const nMore = [haCar, haNen, /^\d/.test(haEd) ? haEd : '', haFormer, haFam, haSch, haRel, haCase, haMas, ATTR_LABEL[haSort] ? 1 : ''].filter(Boolean).length;

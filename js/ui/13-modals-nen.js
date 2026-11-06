@@ -66,9 +66,16 @@ function lineage(lic, cid){
   const me = lic ? ofLic(lic) || {lic, kid: null} : cid ? (k => k ? {lic: licOfKid(k), kid: k} : null)(kidOfCid(cid)) : null;
   if(!me) return out;
   const key = p => p.lic || (p.kid && p.kid.id);
-  const parents = p => { const h = p.lic && hLic(p.lic); return ((p.kid && p.kid.parents) || (h && (h.heirOf || (h.hParent ? [h.hParent] : null))) || []).map(ofLic).filter(Boolean); };
-  const children = l => !l ? [] : H.filter(k => k.parents.includes(l)).map(k => ({lic: licOfKid(k), kid: k}))
-    .concat(HUNTERS.filter(x => (x.hParent === l || (x.heirOf || []).includes(l)) && !H.some(k => k.cid === x.cid)).map(x => ({lic: x.license, kid: null})));   // a Hunter listed as the heir of l is l's child too
+  // a grandchild through a parent who never became a Hunter: that parent is on record as a child too (k.via), and stands between them
+  const byId = new Map(H.map(k => [k.id, k])), viaOf = k => k && !(k.parents || []).length && k.via ? byId.get(k.via) || null : null;
+  const parents = p => { const v = viaOf(p.kid); if(v) return [{lic: licOfKid(v), kid: v}]; const h = p.lic && hLic(p.lic); return ((p.kid && p.kid.parents) || (h && (h.heirOf || (h.hParent ? [h.hParent] : null))) || []).map(ofLic).filter(Boolean); };
+  const children = q => { const l = q && (typeof q === 'string' ? q : q.lic), kd = q && typeof q === 'object' ? q.kid : null; if(!l && !kd) return [];
+    return H.filter(k => (l && k.parents.includes(l)) || (kd && k.via === kd.id && !(k.parents || []).length)).map(k => ({lic: licOfKid(k), kid: k}))
+      .concat(!l ? [] : HUNTERS.filter(x => (x.hParent === l || (x.heirOf || []).includes(l)) && !H.some(k => k.cid === x.cid)).map(x => ({lic: x.license, kid: null}))); };   // a Hunter listed as the heir of l is l's child too
+  // when the parent in between left no record, the grandparents are still known from the grandchild's own record
+  const grandOf = p => { const h = p.lic && hLic(p.lic), G = (p.kid && p.kid.grand) || (h && h.grandOf) || []; return viaOf(p.kid) ? [] : G.map(ofLic).filter(Boolean); };
+  const grandKids = l => !l ? [] : H.filter(k => (k.grand || []).includes(l) && !viaOf(k)).map(k => ({lic: licOfKid(k), kid: k}))
+    .concat(HUNTERS.filter(x => (x.grandOf || []).includes(l) && !H.some(k => k.cid === x.cid)).map(x => ({lic: x.license, kid: null})));
   const uniq = arr => { const m = new Map(); arr.forEach(p => { const k = key(p); if(k && !m.has(k)) m.set(k, p); }); return [...m.values()]; };
   [me].forEach(p => seen.add(key(p))); if(me.kid) seen.add(me.kid.id); if(me.lic) seen.add(me.lic);
   const add = (p, rel, step) => { const k = key(p); if(!k || seen.has(k) || (p.kid && seen.has(p.kid.id))) return false; seen.add(k); if(p.kid) seen.add(p.kid.id); if(p.lic) seen.add(p.lic);
@@ -78,17 +85,17 @@ function lineage(lic, cid){
   const spouses = l => { const h = l && hLic(l); if(!h) return []; return [h.spouse, !h.spouse && h.widowOf].filter(x => x && wed(h, hLic(x))).map(ofLic).filter(Boolean); };
   const P = parents(me), PL = P.map(p => p.lic);
   P.forEach(p => add(p, x => g(x, 'father', 'mother', 'parent')));
-  const GP = uniq(P.flatMap(parents)); GP.forEach(p => add(p, x => g(x, 'grandfather', 'grandmother', 'grandparent')));
-  const AU = uniq(GP.flatMap(p => children(p.lic))).filter(p => !PL.includes(p.lic) && !P.some(q => q.kid && p.kid && q.kid.id === p.kid.id)).filter(p => add(p, x => g(x, 'uncle', 'aunt', "parent's sibling")));
+  const GP = uniq(P.flatMap(parents).concat(grandOf(me))); GP.forEach(p => add(p, x => g(x, 'grandfather', 'grandmother', 'grandparent')));
+  const AU = uniq(GP.flatMap(p => children(p))).filter(p => !PL.includes(p.lic) && !P.some(q => q.kid && p.kid && q.kid.id === p.kid.id)).filter(p => add(p, x => g(x, 'uncle', 'aunt', "parent's sibling")));
   // a step-parent who is also a parent's sibling is named by blood (aunt, uncle), as the other side names them (niece, nephew)
   const SP = uniq(P.flatMap(p => spouses(p.lic))).filter(s => !PL.includes(s.lic)).filter(p => add(p, x => g(x, 'stepfather', 'stepmother', 'step-parent'), 1));
-  const SIB = uniq(P.flatMap(p => children(p.lic))).filter(s => { const sp = parents(s).map(q => q.lic), full = sp.length === PL.length && PL.every(l => sp.includes(l)); return add(s, x => (full ? '' : 'half-') + g(x, 'brother', 'sister', 'sibling')); });
-  const K = uniq(children(me.lic)); K.forEach(p => add(p, x => g(x, 'son', 'daughter', 'child')));
-  uniq(SP.flatMap(p => children(p.lic))).forEach(p => add(p, x => g(x, 'stepbrother', 'stepsister', 'step-sibling'), 1));
-  uniq(AU.flatMap(p => children(p.lic))).forEach(p => add(p, () => 'cousin'));
-  uniq(SIB.flatMap(p => children(p.lic))).forEach(p => add(p, x => g(x, 'nephew', 'niece', "sibling's child")));
-  uniq(spouses(me.lic).flatMap(p => children(p.lic))).forEach(p => add(p, x => g(x, 'stepson', 'stepdaughter', 'stepchild'), 1));
-  uniq(K.flatMap(p => children(p.lic))).forEach(p => add(p, x => g(x, 'grandson', 'granddaughter', 'grandchild')));
+  const SIB = uniq(P.flatMap(p => children(p))).filter(s => { const sp = parents(s).map(key), PK = P.map(key), full = sp.length === PK.length && PK.every(l => sp.includes(l)); return add(s, x => (full ? '' : 'half-') + g(x, 'brother', 'sister', 'sibling')); });
+  const K = uniq(children(me)); K.forEach(p => add(p, x => g(x, 'son', 'daughter', 'child')));
+  uniq(SP.flatMap(p => children(p))).forEach(p => add(p, x => g(x, 'stepbrother', 'stepsister', 'step-sibling'), 1));
+  uniq(AU.flatMap(p => children(p))).forEach(p => add(p, () => 'cousin'));
+  uniq(SIB.flatMap(p => children(p))).forEach(p => add(p, x => g(x, 'nephew', 'niece', "sibling's child")));
+  uniq(spouses(me.lic).flatMap(p => children(p))).forEach(p => add(p, x => g(x, 'stepson', 'stepdaughter', 'stepchild'), 1));
+  uniq(K.flatMap(p => children(p)).concat(grandKids(me.lic))).forEach(p => add(p, x => g(x, 'grandson', 'granddaughter', 'grandchild')));
   return out;
 }
 // the spouse sits at the top of the Family block, styled like every other relative

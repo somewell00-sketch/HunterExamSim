@@ -985,6 +985,7 @@ function worldStart(prev, ed, add, busy, items){
       if(live.length){ const changed = Math.random() < 0.35 ? pickR(live) : null; const dn = pickR(live), dnT = deedNick(dn, ['Far Shore', 'the Returned', 'Came-Back', 'Other Side', 'Driftwood'], 'for coming back from the Dark Continent'); items.push({lic: live[0].license, name: live[0].name, kind: 'exped', text: `The Dark Continent expedition returns: ${andList(live.map(h => h.name))} ${live.length === 1 ? 'comes' : 'come'} home${E.lost.length ? `, ${E.lost.length} short` : ''}.${!E.rescue && !relicFromExped(E, live, ed, add, items) && Math.random() < 0.6 ? ' ' + pickR(DC_HAUL) : ''}${changed ? ' ' + pickR(DC_CHANGED)(changed) : ''}${dnT ? ` ${dn.name.split(' ')[0]} comes back with a new name: "${dn.nick}".` : ''}`, rank: 10}); if(changed && Math.random() < 0.5){ changed.status = 'Retired'; retireRec(changed, ed, 'after what they saw on the Dark Continent'); } }
       else items.push({lic: '', name: '', kind: 'exped', text: 'The Dark Continent expedition is declared lost. Nobody came back.', rank: 10});
       HUNTERS.forEach(h => { if(h.exped === E.id) delete h.exped; });
+      { const ret = items.slice().reverse().find(it => it.kind === 'exped' && /expedition returns|declared lost|rescue expedition (finds|brings)|brings .* home from the Dark Continent/.test(it.text)); if(typeof expRecord === 'function') expRecord(E, ed, live, ret ? ret.text : ''); }
       WORLD.exped = null; WORLD.lastExpEd = ed;
     }
   }

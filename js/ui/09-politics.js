@@ -724,12 +724,13 @@ function renderWorld(){
   const P = {
     herald: () => herald,
     underworld: () => (wantedHtml() || none('Blacklist', 'Nobody is wanted right now.')) + (typeof underworldHtml === 'function' ? underworldHtml() || none('Groups', 'No organised group is known.') : ''),
-    atlas: () => dcHtml() + (atlasHtml() || none('Regions', 'Everywhere is quiet, for now.')) + marksHtml(),
+    atlas: () => (atlasHtml() || none('Regions', 'Everywhere is quiet, for now.')) + marksHtml(),
+    dc: () => typeof dcPageHtml === 'function' ? dcPageHtml() : dcHtml(),
     relics: () => relicsHtml() || none('Relics', 'No relic has been found yet.'),
     schools: () => schoolsHtml() || none('Schools of Nen', 'No school has been founded yet.'),
     council: () => (docketHtml() || none('The council', 'No case is open.')) + originHtml()
   };
-  const LBL = {herald: 'Herald', underworld: 'Underworld', atlas: 'Atlas', relics: 'Relics', schools: 'Schools', council: 'Council'};
+  const LBL = {herald: 'Herald', underworld: 'Underworld', atlas: 'Atlas', dc: 'Dark Continent', relics: 'Relics', schools: 'Schools', council: 'Council'};
   if(!P[wdTab]) wdTab = 'herald';
   el.innerHTML = `${pageHead('Beyond the exam', 'World', '#e0703a')}${advanceBarHtml()}<div class="tabs wd-tabs" role="tablist" aria-label="The world">${Object.keys(P).map(k => `<button type="button" class="tab" role="tab" data-wtab="${k}" aria-selected="${k === wdTab}">${LBL[k]}</button>`).join('')}</div><div class="wd-pane">${P[wdTab]()}</div>`;
   el.querySelectorAll('[data-wtab]').forEach(x => x.onclick = () => { wdTab = x.dataset.wtab; try { localStorage.setItem('hxsim-wtab', wdTab); } catch(e){} renderWorld(); });
