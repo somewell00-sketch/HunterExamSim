@@ -77,23 +77,34 @@ function renderAssociation(){
   // family ties with other Hunters: a Hunter spouse (or late spouse), Hunter parents, Hunter children, other Hunter relatives
   const famT = new Map(), byCid = new Map(HUNTERS.map(x => [x.cid, x]));
   const kidsLeg = new Map(); HUNTERS.forEach(x => { if(x.hParent) kidsLeg.set(x.hParent, (kidsLeg.get(x.hParent) || 0) + 1); });
+  // the same ties the Family block shows, from two small indexes built once (walking the whole family of every Hunter was the slow part)
+  const HP = new Map(), HK = new Map(), byL = new Map(HUNTERS.map(x => [x.license, x])), kidOf = new Map((WORLD.heirs || []).filter(k => k.cid).map(k => [k.cid, k]));
+  HUNTERS.forEach(x => { const k = kidOf.get(x.cid), ps = ((k && k.parents) || x.heirOf || (x.hParent ? [x.hParent] : [])).filter(l => byL.has(l)); HP.set(x.license, ps); ps.forEach(l => { if(!HK.has(l)) HK.set(l, []); HK.get(l).push(x.license); }); });
   const fam = h => { if(famT.has(h.license)) return famT.get(h.license);
-    const t = {wed: !!((h.spouse && hLic(h.spouse)) || (h.widowOf && hLic(h.widowOf))), par: !!(h.hParent && hLic(h.hParent)), kid: kidsLeg.has(h.license), kin: false};
-    lineage(h.license, h.cid).forEach(x => { if(!x.h || x.step) return; if(/^(father|mother|parent)$/.test(x.rel)) t.par = true; else if(/^(son|daughter|child)$/.test(x.rel)) t.kid = true; else t.kin = true; });
+    const ps = HP.get(h.license) || [], ks = HK.get(h.license) || [], t = {wed: !!((h.spouse && hLic(h.spouse)) || (h.widowOf && hLic(h.widowOf))), par: ps.length > 0, kid: ks.length > 0 || kidsLeg.has(h.license), kin: false};
+    // other Hunter relatives: siblings, grandparents, grandchildren, parents' siblings, siblings' children
+    const sib = ps.flatMap(l => HK.get(l) || []).filter(l => l !== h.license), gp = ps.flatMap(l => HP.get(l) || []), gk = ks.flatMap(l => HK.get(l) || []), au = gp.flatMap(l => HK.get(l) || []).filter(l => !ps.includes(l)), nep = sib.flatMap(l => HK.get(l) || []), cou = au.flatMap(l => HK.get(l) || []);
+    t.kin = sib.length + gp.length + gk.length + au.length + nep.length + cou.length > 0;
     ((h.keep && h.keep.fam && h.keep.fam.kin) || []).forEach(x => { if(byCid.has(x.id)) t.kin = true; });
     famT.set(h.license, t); return t; };
-  const RLS = WORLD.relics || {}, holdsR = h => RELICS.some(d => RLS[d.id] && (RLS[d.id].st === 'held' || RLS[d.id].st === 'missing') && (RLS[d.id].holder === h.license || RLS[d.id].holder2 === h.license));
-  const relOk2 = (h, f) => f === 'now' ? holdsR(h) : RELICS.some(d => RLS[d.id] && ((RLS[d.id].owners || []).some(o => o.lic === h.license)));
-  const CS = WORLD.cases || [], caseOk = (h, f) => f === 'open' ? !!caseOf(h) : f === 'guilty' ? !!h.guiltyEd || !!h.revoked : f === 'cleared' ? !!h.clearedEd : CS.some(c => c.lic === h.license);
+  // relic holders and the accused, looked up from small sets built once per draw
+  const RLS = WORLD.relics || {}, RNOW = new Set(), REVER = new Set();
+  RELICS.forEach(d => { const r = RLS[d.id]; if(!r) return; if(r.st === 'held' || r.st === 'missing'){ if(r.holder) RNOW.add(r.holder); if(r.holder2) RNOW.add(r.holder2); } (r.owners || []).forEach(o => REVER.add(o.lic)); });
+  const relOk2 = (h, f) => f === 'now' ? RNOW.has(h.license) : REVER.has(h.license);
+  const CS = new Set((WORLD.cases || []).map(c => c.lic)), caseOk = (h, f) => f === 'open' ? !!caseOf(h) : f === 'guilty' ? !!h.guiltyEd || !!h.revoked : f === 'cleared' ? !!h.clearedEd : CS.has(h.license);
+  const HEADS = new Set((WORLD.schools || []).map(s => schHead(s)).filter(Boolean).map(x => x.lic));
   const pupilsOf = new Map(); HUNTERS.forEach(x => { if(x.master) pupilsOf.set(x.master, (pupilsOf.get(x.master) || 0) + 1); });
-  const masOk = (h, f) => f === 'master' ? pupilsOf.has(h.license) : f === 'pupil' ? !!h.master : f === 'head' ? (WORLD.schools || []).some(s => schHead(s) && schHead(s).lic === h.license) : true;
+  const masOk = (h, f) => f === 'master' ? pupilsOf.has(h.license) : f === 'pupil' ? !!h.master : f === 'head' ? HEADS.has(h.license) : true;
   const famOk = (h, f) => { const t = fam(h); return f === 'any' ? t.wed || t.par || t.kid || t.kin : t[f]; };
   const passF = (h, skip) => (skip === 'fam' || !haFam || famOk(h, haFam)) && (skip === 'st' || !haSt || stOf(h) === haSt) && (skip === 'star' || !haStar || hStars(h) >= +haStar) && (skip === 'car' || !haCar || h.career === haCar) && (skip === 'nen' || !haNen || (h.nen && h.nen.category === haNen)) && (skip === 'ed' || edOk(h)) && (skip === 'off' || !haFormer || wasR(h, haFormer)) && (skip === 'sch' || !haSch || (haSch === 'any' ? !!h.school : h.school === haSch)) && (skip === 'rel' || !haRel || relOk2(h, haRel)) && (skip === 'case' || !haCase || caseOk(h, haCase)) && (skip === 'mas' || !haMas || masOk(h, haMas));
   const base = H.filter(h => inView(h) && (!q || h.name.toLowerCase().includes(q) || h.license.toLowerCase().includes(q) || h.cid.toLowerCase().includes(q)));
   let rows = base.filter(h => passF(h));
   // option counts follow the other active filters, so an option never leads to an empty table
-  const cnt = (skip, f) => base.filter(h => passF(h, skip) && f(h)).length;
-  const opt = (skip, cur, list) => list.map(([v, l, f]) => { const n = v === '' ? null : cnt(skip, f); return n === 0 && cur !== v ? '' : `<option value="${esc(v)}" ${cur === v ? 'selected' : ''}>${esc(l)}${n != null ? ` (${n})` : ''}</option>`; }).join('');
+  const BS = {}, cnt = (skip, f) => (BS[skip] = BS[skip] || base.filter(h => passF(h, skip))).reduce((n, h) => n + (f(h) ? 1 : 0), 0);   // the rows that pass the other filters, once per menu
+  const TL = {}, tally = (skip, key) => { const k = skip + '|' + key; if(TL[k]) return TL[k]; const m = new Map(); cnt(skip, () => false); BS[skip].forEach(h => { const x = KEY[key](h); if(x != null) m.set(x, (m.get(x) || 0) + 1); }); return TL[k] = m; };
+  const KEY = {ed: h => h.pro ? null : h.edition, car: h => h.career || null, nen: h => h.nen ? h.nen.category : null, sch: h => h.school || null};
+  // a long menu (every exam, every school) is counted in one pass: its options carry their number instead of a test
+  const opt = (skip, cur, list) => list.map(([v, l, f]) => { const n = v === '' ? null : typeof f === 'number' ? f : cnt(skip, f); return n === 0 && cur !== v ? '' : `<option value="${esc(v)}" ${cur === v ? 'selected' : ''}>${esc(l)}${n != null ? ` (${n})` : ''}</option>`; }).join('');
   haKeep();
   const sk = haSort;
   const val = {license: h => h.pro ? -1 : parseInt(h.license.slice(3)), name: h => h.name, career: h => h.career || '', gender: h => h.gender || '', status: h => h.status || '',
@@ -138,16 +149,16 @@ function renderAssociation(){
       </div>
       ${haOpen ? `<div class="ha-panel">
         <div><small>Specialty & Nen</small>
-          <select id="hacar" aria-label="Specialty">${opt('car', haCar, [['', 'Any specialty']].concat(careers.map(c => [c, c.replace(' Hunter', ''), h => h.career === c])))}</select>
-          <select id="hanen" aria-label="Nen type">${opt('nen', haNen, [['', 'Any Nen type']].concat(NEN_CATS.map(c => [c, c, h => h.nen && h.nen.category === c])))}</select></div>
+          <select id="hacar" aria-label="Specialty">${opt('car', haCar, [['', 'Any specialty']].concat(careers.map(c => [c, c.replace(' Hunter', ''), tally('car', 'car').get(c) || 0])))}</select>
+          <select id="hanen" aria-label="Nen type">${opt('nen', haNen, [['', 'Any Nen type']].concat(NEN_CATS.map(c => [c, c, tally('nen', 'nen').get(c) || 0])))}</select></div>
         <div><small>Origin</small>
-          <select id="haed" aria-label="Origin">${opt('ed', haEd, [['', 'Any origin'], ['main', 'Main exam', h => !h.pro && !h.regional], ['pro', 'Veterans (before records)', h => h.pro], ['reg', 'Regional offices', h => !!h.regional], ['jub', 'Jubilee exams', h => h.special === 'jubilee'], ['cen', 'Centennial exams', h => h.special === 'centenary']].concat([...new Set(HE.map(h => h.edition))].sort((a, b) => b - a).map(e => [String(e), ordinal(e) + ' Hunter Exam', h => !h.pro && h.edition === e])))}</select></div>
+          <select id="haed" aria-label="Origin">${opt('ed', haEd, [['', 'Any origin'], ['main', 'Main exam', h => !h.pro && !h.regional], ['pro', 'Veterans (before records)', h => h.pro], ['reg', 'Regional offices', h => !!h.regional], ['jub', 'Jubilee exams', h => h.special === 'jubilee'], ['cen', 'Centennial exams', h => h.special === 'centenary']].concat([...new Set(HE.map(h => h.edition))].sort((a, b) => b - a).map(e => [String(e), ordinal(e) + ' Hunter Exam', tally('ed', 'ed').get(e) || 0])))}</select></div>
         <div><small>Office</small>
           <select id="haformer" aria-label="Office">${opt('off', haFormer, [['', 'Any'], ['any', 'Any former office', h => wasR(h, 'any')], ['Chairman', 'Former Chairmen', h => wasR(h, 'Chairman')], ['Vice-Chairman', 'Former Vice-Chairmen', h => wasR(h, 'Vice-Chairman')], ['Zodiac', 'Former Zodiac', h => wasR(h, 'Zodiac')], ['Elder', 'Elders of the Association', h => isElder(h)]])}</select></div>
         <div><small>Family</small>
           <select id="hafam" aria-label="Family">${opt('fam', haFam, [['', 'Any'], ['any', 'Any Hunter in the family', h => famOk(h, 'any')], ['wed', 'Married to a Hunter', h => famOk(h, 'wed')], ['par', 'Child of a Hunter', h => famOk(h, 'par')], ['kid', 'Parent of a Hunter', h => famOk(h, 'kid')], ['kin', 'Siblings & other relatives', h => famOk(h, 'kin')]])}</select></div>
         <div><small>School</small>
-          <select id="hasch" aria-label="School">${opt('sch', haSch, [['', 'Any'], ['any', 'In any school', h => !!h.school]].concat(sch.map(x => [x.id, capS(x.name), h => h.school === x.id])))}</select>
+          <select id="hasch" aria-label="School">${opt('sch', haSch, [['', 'Any'], ['any', 'In any school', h => !!h.school]].concat(sch.map(x => [x.id, capS(x.name), tally('sch', 'sch').get(x.id) || 0])))}</select>
           <select id="hamas" aria-label="Master">${opt('mas', haMas, [['', 'Teacher or student: any'], ['master', 'Has students', h => masOk(h, 'master')], ['head', 'Master of a school', h => masOk(h, 'head')], ['pupil', 'Trained by a master', h => masOk(h, 'pupil')]])}</select></div>
         <div><small>Relics & cases</small>
           <select id="harel" aria-label="Relics">${opt('rel', haRel, [['', 'Relics: any'], ['now', 'Holds a relic', h => relOk2(h, 'now')], ['ever', 'Ever held a relic', h => relOk2(h, 'ever')]])}</select>
@@ -163,7 +174,8 @@ function renderAssociation(){
       <div class="pager"><span>${rows.length} Hunter${rows.length === 1 ? '' : 's'} · page ${haPage+1} of ${pages}</span><button class="btn small" data-hap="-1" ${haPage === 0 ? 'disabled' : ''}>Prev</button><button class="btn small" data-hap="1" ${haPage >= pages-1 ? 'disabled' : ''}>Next</button></div>`
       : `<div class="empty">${H.length ? 'No Hunters match this search.' : 'No Hunters registered yet. Finish an exam and its new Hunters are added here automatically.'}</div>`}`}`;
   el.querySelectorAll('[data-hapill]').forEach(b => b.onclick = () => { const [k, v] = b.dataset.hapill.split(':'); if(k === 'st') haSt = v; else if(k === 'star') haStar = v; else if(k === 'nen') haNen = haNen === v ? '' : v; else if(k === 'ed') haEd = v; haPage = 0; renderAssociation(); });
-  $('haq').oninput = e => { haQ = e.target.value; haPage = 0; renderAssociation(); const i = $('haq'); i.focus(); i.setSelectionRange(i.value.length, i.value.length); };
+  // typing waits a moment before the table redraws, so a long register does not redraw on every key
+  $('haq').oninput = e => { haQ = e.target.value; haPage = 0; clearTimeout(window._haqT); window._haqT = setTimeout(() => { renderAssociation(); const i = $('haq'); if(i){ i.focus(); i.setSelectionRange(i.value.length, i.value.length); } }, 180); };
   const set = (id, fn) => { const x = $(id); if(x) x.onchange = e => { fn(e.target.value); haPage = 0; renderAssociation(); }; };
   set('haed', v => haEd = v); set('hacar', v => haCar = v); set('haformer', v => haFormer = v); set('hafam', v => haFam = v); set('hast', v => haSt = v); set('hastar', v => haStar = v); set('hanen', v => haNen = v); set('hasch', v => haSch = v); set('harel', v => haRel = v); set('hacase', v => haCase = v); set('hamas', v => haMas = v);
   set('hasort', v => { haSort = v || 'rank'; haDir = 'desc'; });
@@ -203,11 +215,11 @@ function openHunter(license){
       const kids = [], par = [];   // children and parents now live in the Family block
       const kl = kids.length ? `<p class="h-fam"><span>✦</span> ${kids.length === 1 ? 'Child' : 'Children'}: ${kids.map(k => { const kh = HUNTERS.find(x => x.cid === k.cid); return `${kh ? L(kh.license) : esc(k.name)} <span class="muted">(born after the ${ordinal(k.born)}${kh ? ', licensed in the ' + ordinal(kh.edition) : k.entered ? ', took the ' + ordinal(k.entered) + ' exam' : ''})</span>`; }).join(', ')}</p>` : '';
       const pl = par.length ? `<p class="h-fam"><span>✦</span> Child of ${par.map(x => L(x.license)).join(' and ')}</p>` : '';
-      return pl + kl; })()}${lineageHtml(h.license, h.cid, spouseRow(h))}${(() => { const K = S.candidates.filter(c => c.hParent === h.license && legendKnown(c)); return K.length ? `<p class="h-fam"><span>✦</span> ${K.length === 1 ? 'Child' : 'Children'} in the ${ordinal(S.edition)} exam: ${K.map(c => `<a data-id="${c.id}">${esc(c.name)}</a>`).join(', ')}</p>` : ''; })()}${schoolRowHtml(h)}`;
+      return pl + kl; })()}${lineageHtml(h.license, h.cid, spouseRow(h))}${typeof famTreeBtn === 'function' ? famTreeBtn(h) : ''}${(() => { const K = S.candidates.filter(c => c.hParent === h.license && legendKnown(c)); return K.length ? `<p class="h-fam"><span>✦</span> ${K.length === 1 ? 'Child' : 'Children'} in the ${ordinal(S.edition)} exam: ${K.map(c => `<a data-id="${c.id}">${esc(c.name)}</a>`).join(', ')}</p>` : ''; })()}${schoolRowHtml(h)}`;
   const exCard = `<div class="hcard">${h.pro ? `<div><small>Licensed</small><b>Before the exam records began</b></div><div><small>At</small><b>${h.age - (h.years || 0)}</b></div>`
       : h.regional ? `<div><small>Licensed by</small><b>The ${esc(h.regional.replace(/^the /, ''))} office</b></div><div><small>The year of</small><b>the ${ordinal(h.edition)} Hunter Exam</b></div><div><small>At</small><b>${h.age}</b></div>`
       : `<div><small>Licensed in</small><b>the ${ordinal(h.edition)} exam</b></div><div><small>At</small><b>${h.age}</b></div><div><small>Attempts</small><b>${h.attempts || 1}</b></div>`}<div><small>${h.pro ? 'Background' : h.regional ? 'How' : 'How they passed'}</small><b style="font-weight:400;font-size:13px">${esc(h.reason || '—')}</b></div></div>`;
-  const T = [['chron', 'Chronicle', roleBanner(h) + retireBanner(h) + two(famSide, `${(h.log || []).length || h.originNote ? `<div><div class="section-h">Year by year</div><div class="bulletin career">${careerHtml(h)}${h.originNote ? `<div class="bl origin"><i>◉</i><span><span class="muted">Before the records</span> ${esc(h.originNote.startsWith(h.name + ' ') ? h.originNote.slice(h.name.length + 1) : h.originNote)}</span></div>` : ''}</div></div>` : ''}${typeof hunterUwHtml === 'function' ? hunterUwHtml(h) : ''}${(h.examined || []).length ? `<details class="pf-more"><summary>Examiner duty · ${h.examined.length}</summary><div class="duty">${h.examined.map(x => `<div><b>${ordinal(x.edition)} Hunter Exam</b><span>${esc(x.phase)}</span><span class="exs ${x.style}">${esc(x.style)}</span></div>`).join('')}</div></details>` : ''}`)],
+  const T = [['chron', 'Chronicle', roleBanner(h) + retireBanner(h) + two(famSide, `${(h.log || []).length || h.originNote ? `<div><div class="section-h">Year by year</div><div class="bulletin career">${careerHtml(h)}${h.originNote ? `<div class="bl origin"><i>◉</i><span><span class="muted">Before the records</span> ${esc(h.originNote.startsWith(h.name + ' ') ? h.originNote.slice(h.name.length + 1) : h.originNote)}</span></div>` : ''}</div></div>` : ''}${typeof hunterUwHtml === 'function' ? hunterUwHtml(h) : ''}${(h.examined || []).length ? `<details class="pf-more"><summary>Examiner duty · ${h.examined.length}</summary><div class="duty">${h.examined.map(x => `<div><b>${ordinal(x.edition)} Hunter Exam</b><span>${esc(x.phase)}</span><span class="exs ${x.style}">${esc(x.style)}</span></div>`).join('')}</div></details>` : ''}`) + (typeof rankingsHtml === 'function' ? rankingsHtml(h) : '')],
     ['portrait', 'Portrait', typeof hunterStoryHtml === 'function' ? two(whoHtml(h), hunterStoryHtml(h)) : ''],
     ['nen', 'Nen &amp; stats', `<div class="pmain">${relicStripHtml(h)}${h.nen ? nenPanel({nen: h.nen}) : '<p class="muted" style="margin:0">No Nen on record.</p>'}<details class="pf-more" open><summary>${h.attrs0 ? `Attributes <span class="muted" style="font-weight:400;text-transform:none;letter-spacing:0">· ${hActive(h) ? 'now' : h.status === 'Deceased' ? 'at death' : h.status === 'Missing' ? 'when last seen' : 'at retirement'}, against the year they were licensed</span>` : h.pro ? 'Attributes' : 'Attributes at approval'}</summary>${h.attrs ? `<div class="attrs">${attrs}</div>` : '<p class="muted" style="margin:0">Not recorded for this older entry.</p>'}</details></div>`],
     ['exam', h.pro || h.regional ? 'License' : 'Exam', `${exCard}${h.pro ? '' : keepExamHtml(h) + (hist ? `<div class="ehs">${hist}</div>` : '')}${h.cid && !h.pro ? `<div class="pf-id">Candidate ID ${esc(h.cid)}</div>` : ''}`]].filter(t => t[2]);
@@ -279,7 +291,7 @@ function openArchive(ed){
       ${r.paper ? paperHtml(r.paper, false) : ''}${sn.chronicle ? `<div class="chron"><div class="section-h">Chronicle</div>${sn.chronicle.map(p => `<p>${esc(p)}</p>`).join('')}</div>` : ''}${sec('Route & examiners', route)}${sec('New Hunters', hunters)}${sec('Final Tournament', br)}${sec('Zevil Island · final standings', zv)}${sec('Notable alliances', al)}${sec('Key events by trial', `<div class="causes">${byPhase}</div>`)}`;
   }
   showModal(`<div class="sheet wide" role="dialog" aria-modal="true" aria-label="${ordinal(r.edition)} Hunter Exam">
-    <div class="sheet-head"><div><div class="meta">Archive · seed ${r.seed}</div><h2>${ordinal(r.edition)} Hunter Exam</h2></div><button class="btn" id="mClose">Close</button></div>${body}</div>`);
+    <div class="sheet-head"><div><div class="meta">Archive · seed ${r.seed}</div><h2>${ordinal(r.edition)} Hunter Exam</h2></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" data-year="${r.edition}">The year ›</button><button class="btn" id="mClose">Close</button></div></div>${body}</div>`);
 }
 // records that keep moving: a tie is counted and the latest holder shown (a Jubilee's 48 is matched again and again);
 // regular exams, Jubilees and Centennials keep their own; rates sit beside totals; and the last 50 years have records of their own
@@ -312,23 +324,24 @@ function hallOfFame(){
     [[null, ''], ['jubilee', ' · Jubilee'], ['centenary', ' · Centennial']].forEach(([k, lab]) => {
       const E = eds.filter(r => (r.special !== undefined ? r.special : kindOfEd(r.edition)) === k); if(!E.length) return;
       const big = recOf(E, n, 'max', re), small = recOf(E, n, 'min', re);
-      rec.push(['Biggest class' + lab, ordinal(re(big.last)) + ' Hunter Exam', `${big.v} new Hunters${big.n > 2 && E.every(r => !r.licenses || r.licenses <= big.v) ? ', a full class' : ''} · ${recTail(big, re)}`]);
-      if(!k){ rec.push(['Toughest year', ordinal(re(small.last)) + ' Hunter Exam', `${small.v} new Hunter${small.v === 1 ? '' : 's'} · ${recTail(small, re)}`]);
+      rec.push(['Biggest class' + lab, '@' + re(big.last), `${big.v} new Hunters${big.n > 2 && E.every(r => !r.licenses || r.licenses <= big.v) ? ', a full class' : ''} · ${recTail(big, re)}`]);
+      if(!k){ rec.push(['Toughest year', '@' + re(small.last), `${small.v} new Hunter${small.v === 1 ? '' : 's'} · ${recTail(small, re)}`]);
         const rated = E.filter(r => r.applicants >= 50), rate = r => Math.round(n(r) / r.applicants * 1000) / 10, best = rated.length ? recOf(rated, rate, 'max', re) : null;
-        if(best) rec.push(['Best pass rate', ordinal(re(best.last)) + ' Hunter Exam', `${best.v}% of ${fmt(best.last.applicants)} applicants · ${recTail(best, re)}`]); }
+        if(best) rec.push(['Best pass rate', '@' + re(best.last), `${best.v}% of ${fmt(best.last.applicants)} applicants · ${recTail(best, re)}`]); }
     });
     const large = recOf(eds, r => r.applicants || 0, 'max', re);
-    rec.push(['Largest field', ordinal(re(large.last)) + ' Hunter Exam', `${fmt(large.v)} applicants`]);
+    rec.push(['Largest field', '@' + re(large.last), `${fmt(large.v)} applicants`]);
     const withSnap = eds.filter(r => r.snap);
     if(withSnap.length){
-      const dead = by(withSnap, r => r.snap.dead); if(dead.snap.dead) rec.push(['Deadliest exam', ordinal(dead.edition) + ' Hunter Exam', `${dead.snap.dead} candidate${dead.snap.dead === 1 ? '' : 's'} killed`]);
+      const dead = by(withSnap, r => r.snap.dead); if(dead.snap.dead) rec.push(['Deadliest exam', '@' + dead.edition, `${dead.snap.dead} candidate${dead.snap.dead === 1 ? '' : 's'} killed`]);
       let bestA = null; withSnap.forEach(r => (r.snap.alliances || []).forEach(A => { if(!bestA || A.hunters >= bestA.A.hunters) bestA = {A, ed: r.edition}; }));
       if(bestA && bestA.A.hunters) rec.push(['Most successful alliance', bestA.A.name, `${bestA.A.hunters} Hunter${bestA.A.hunters === 1 ? '' : 's'} · ${ordinal(bestA.ed)}`]);
     }
   }
   if(!rec.length) return '';
   const tabs = HISTORY.length > 50 ? `<span class="hof-era">${[['all', 'All time'], ['era', 'Last 50 years']].map(([k, l]) => `<button type="button" class="btn small${hofEra === k ? ' on' : ''}" data-hofera="${k}">${l}</button>`).join('')}</span>` : '';
-  return `<div><div class="section-h">Hall of Fame${tabs}</div><div class="hl">${rec.map(([l, nm, d, lic]) => `<div ${lic ? `data-hunter="${esc(lic)}"` : 'style="cursor:default"'}><small>${esc(l)}</small><b>${esc(nm)}</b><span>${esc(d)}</span></div>`).join('')}</div></div>`;
+  return `<div><div class="section-h">Hall of Fame${tabs}</div><div class="hl">${rec.map(([l, nm, d, lic]) => { const ed = /^@\d+$/.test(nm) ? +nm.slice(1) : null, arch = ed && HISTORY.some(r => r.edition === ed && r.snap);
+    return `<div ${lic ? `data-hunter="${esc(lic)}"` : arch ? `data-arch="${ed}" title="Open the ${ordinal(ed)} exam"` : 'style="cursor:default"'}><small>${esc(l)}</small><b>${esc(ed ? ordinal(ed) + ' Hunter Exam' : nm)}</b><span>${esc(d)}</span></div>`; }).join('')}</div></div>`;
 }
 document.addEventListener('click', e => { const b = e.target.closest && e.target.closest('[data-hofera]'); if(b){ hofEra = b.dataset.hofera; renderHistory(); } const r = e.target.closest && e.target.closest('[data-hirange]'); if(r){ hiRange = +r.dataset.hirange; renderHistory(); } });
 // new Hunters per edition: lives in History, each bar opens its edition

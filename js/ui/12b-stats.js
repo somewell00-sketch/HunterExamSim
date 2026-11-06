@@ -84,11 +84,17 @@ function statsHtml(){
     <div class="st-three">${stBars('Causes of death', Object.entries(D).map(([k, v]) => [ST_CAUSE[k] || k, v]).sort((a, b) => b[1] - a[1]), pct)}${stBars('Nen, active Hunters', nen, pct)}${stBars('Reach ★★★ by Nen, %', top3, v => v + '%')}</div>
     <div class="st-three">${stBars('Specialties, active', Object.entries(car).sort((a, b) => b[1] - a[1]).slice(0, 8), pct)}${stBars('Crises by kind', crisisN)}${stBars('Cases', [['Guilty', V.guilty || 0], ['Cleared', V.cleared || 0], ['Reopened', C.filter(c => c.re).length], ['Licenses revoked', H.filter(h => h.revoked).length]])}</div>
     <div class="marks">
-      ${stList('Longest lines', dyn.map(([h, g]) => [hl(h), `${g} generations of Hunters`]))}
-      ${stList('Families with the most Hunters', Object.entries(fam).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([s, n]) => [esc(s), `${n} Hunters`]))}
+      ${stList('Longest lines', dyn.map(([h, g]) => [hl(h), `${g} generations${(WORLD.heirs || []).some(k => k.grand && k.cid === h.cid) ? ', one without a Hunter' : ''} · <a data-tree="${esc(h.license)}">the family tree</a>`]))}
+      ${stList('Families with the most Hunters', Object.entries(fam).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([s, n]) => { const best = H.filter(h => h.name.split(' ').slice(-1)[0] === s).sort((a, b) => (b.rp || 0) - (a.rp || 0))[0];
+        return [`<a data-famq="${esc(s)}" title="The family tree of the ${esc(s)}s">${esc(s)}</a>`, `${n} Hunters${best ? ` · best known: ${hl(best)}` : ''}`]; }))}
       ${stList('Largest schools', Sc.map(({s, all}) => [`<a data-school="${s.id}">${esc(capS(s.name))}</a>`, `${all} students · ${s.heads.length} master${s.heads.length === 1 ? '' : 's'} · ${s.st}`]))}
-      ${stList('Deadliest outlaws', dead.map(w => [esc(w.name) + (w.nick ? ` “${esc(w.nick)}”` : ''), `${w.kills} Hunter${w.kills === 1 ? '' : 's'} killed · ${w.status}`]))}
+      ${stList('Deadliest outlaws', dead.map(w => [`<a data-outlaw="${esc(w.id)}">${esc(w.name)}</a>` + (w.nick ? ` “${esc(w.nick)}”` : ''), `${w.kills} Hunter${w.kills === 1 ? '' : 's'} killed · ${w.status}`]))}
       ${stList('Relics', most.map(r => [`<a data-relic="${r.id}">${esc(capS(RDEF[r.id].name))}</a>`, `${r.n || 0} owners`]).concat(longHold ? [[hl(hLic(longHold.o.lic)) || esc(longHold.o.name), `held ${esc(RDEF[longHold.r.id].name)} for ${longHold.y} years`]] : []))}
       ${stList('Records of the world', [longChair ? [hl(hLic(longChair[0])), `Chairman for ${longChair[1]} years`] : null, [`${T.expBack || 0} of ${T.exp || 0}`, 'expeditions came home'], [`${T.disc || 0}`, 'places discovered'], [`${W.filter(w => w.status === 'captured').length} / ${W.length}`, 'outlaws captured']].filter(Boolean))}
     </div></div>`;
 }
+
+// a family name opens its tree; from the tree, the register filtered to that name lists every Hunter of the family with all their data
+document.addEventListener('click', e => { const t = e.target.closest && e.target.closest('[data-famq]'); if(t){ e.preventDefault(); treeBySurname(t.dataset.famq); } });
+document.addEventListener('click', e => { const f = e.target.closest && e.target.closest('[data-famreg]'); if(!f) return; e.preventDefault();
+  haQ = f.dataset.famreg; haPage = 0; if(typeof closeModal === 'function') try { closeModal(); } catch(_){} showTab('hunters'); renderAssociation(); scrollTo(0, 0); });

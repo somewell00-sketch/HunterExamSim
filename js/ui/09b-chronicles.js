@@ -4,7 +4,7 @@
 const CH_HIST = 6;
 const chNote = (o, ed, t) => { (o.hist = o.hist || []).push({ed, t}); if(o.hist.length > CH_HIST) o.hist = o.hist.slice(-CH_HIST); };
 const chFirst = h => h.first || h.name.split(' ')[0];
-const chAct = () => HUNTERS.filter(h => hActive(h) && !h.legacy);
+const chAct = () => HUNTERS.filter(h => hActive(h) && !h.legacy && !(typeof away === 'function' && away(h)));   // not those away on the Dark Continent
 const chY = n => n === 1 ? 'a year' : n + ' years';
 
 /* ---------- 1. Cases: an accusation, an investigation, a trial, a verdict, and sometimes the truth years later ---------- */

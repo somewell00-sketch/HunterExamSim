@@ -22,6 +22,9 @@ function zwRun(i){
     const wa = {}, wb = {}; Object.entries(Z.days[d - 1].hold).forEach(([h, L]) => L.forEach(b => wa[b] = h)); Object.entries(Z.days[d].hold).forEach(([h, L]) => L.forEach(b => wb[b] = h));
     Object.entries(wb).forEach(([b, h]) => { if(wa[b] === h) return; const tag = '#' + reg(b), ev = EV.find(x => x.e.day === d && x.e.text.includes(tag));
       MOVES.push({s: ev ? ev.s : (d - 1) * 3 + 1 + nhashUI(S.seed + ':zwm:' + b + d) % 3, b, fr: wa[b] || null, to: h}); });
+    // a badge that left play (confiscated with a killer caught): taken out at the time of that event
+    Object.entries(wa).forEach(([b, h]) => { if(b in wb) return; const tag = '#' + reg(b), ev = EV.find(x => x.e.day === d && (x.e.text.includes(tag) || x.e.type === 'death'));
+      MOVES.push({s: ev ? ev.s : d * 3, b, fr: h, to: null}); });
   }
   const cast = new Set(typeof chCastAt === 'function' ? chCastAt(i) : []), P = Z.ids.map(id => cm[id]).filter(Boolean), F = [];
   P.filter(c => isFav(c.id) || (!MENTOR.off && mtOf(c.id))).concat(P.filter(c => cast.has(c.id))).forEach(c => { if(F.length < 10 && !F.includes(c)) F.push(c); });
@@ -31,7 +34,7 @@ function zwRun(i){
   ZW_C.key = key; return ZW_C.v = {i, Z, cm, reg, EV, MOVES, P, F: F.map((c, j) => ({c, col: COL[j % COL.length]})), after: st.after, n: st.before, ex: ph.ex ? ph.ex.name : 'The examiner'};
 }
 function zwHold(X, s){ const H = {}; Object.entries(X.Z.days[0].hold).forEach(([id, L]) => H[id] = L.slice());
-  X.MOVES.filter(m => m.s <= s).forEach(m => { if(m.fr && H[m.fr]) H[m.fr] = H[m.fr].filter(b => b !== m.b); (H[m.to] = H[m.to] || []).push(m.b); }); return H; }
+  X.MOVES.filter(m => m.s <= s).forEach(m => { if(m.fr && H[m.fr]) H[m.fr] = H[m.fr].filter(b => b !== m.b); if(m.to) (H[m.to] = H[m.to] || []).push(m.b); }); return H; }
 function zwHtml(i){
   const X = zwRun(i); if(!X) return '';
   return `<div class="tw-full"><div class="rc-box zw-box" data-zw="${i}"><div class="tv-top"><div class="section-h" style="margin:0">The week on the island</div></div>
@@ -50,7 +53,7 @@ function zwDraw(box){
   const tok = (id, b, miss) => { const k = b === id ? 'own' : b === T[id] ? 'tgt' : 'any', g = now.some(m => m.b === b && m.to === id);
     return `<span class="bdg ${k}${miss ? ' miss' : ''}${g ? ' gain' : ''}" title="${k === 'own' ? 'Own badge' : k === 'tgt' ? 'Target' : 'Badge'} #${X.reg(b)}">${X.reg(b)}</span>`; };
   const moved = id => { const m = now.find(m => m.to === id || m.fr === id); if(!m) return ''; const t = cm[m.to], f = m.fr && cm[m.fr];
-    return m.to === id ? `<small class="zw-g">+ #${X.reg(m.b)} from ${f ? `<a data-id="${f.id}">${esc(f.first)}</a>` : 'the sand'}</small>` : `<small class="zw-l">− #${X.reg(m.b)} to <a data-id="${t.id}">${esc(t.first)}</a></small>`; };
+    return m.to === id ? `<small class="zw-g">+ #${X.reg(m.b)} from ${f ? `<a data-id="${f.id}">${esc(f.first)}</a>` : 'the sand'}</small>` : !t ? `<small class="zw-l">− #${X.reg(m.b)} out of play</small>` : `<small class="zw-l">− #${X.reg(m.b)} to <a data-id="${t.id}">${esc(t.first)}</a></small>`; };
   // one short row per person: the name with the points under it, the badges in hand with what just changed under them
   box.querySelector('[data-zwrows]').innerHTML = X.F.map(f => ({f, v: pts(f.c.id), b: H[f.c.id] || []})).sort((a, b) => b.v - a.v).map(({f, v, b}) => {
     const id = f.c.id, tg = T[id], gone = (X.Z.days[Math.min(X.Z.days.length - 1, Math.ceil(s / 3))].gone || {})[id], st = gone ? 'bad' : v >= 6 ? 'ok' : end || !v ? 'bad' : '';

@@ -43,6 +43,9 @@ function calibrateStars(force){
 // age when the license was granted (veterans: their record age minus the years they had already served)
 const apAge = h => h.pro ? Math.max(10, h.age - (h.years || 0)) : h.age;
 const hActive = h => (h.status || 'Active Hunter') === 'Active Hunter';
+// away on the Dark Continent: a member of the expedition still out there
+const away = h => !!(h && h.exped && WORLD.exped && h.exped === WORLD.exped.id);
+const DC_KINDS = new Set(['exped', 'death', 'missing', 'zodiac', 'election', 'award', 'star', 'retire']);
 function rnorm(){ let u = 0, v = 0; while(!u) u = Math.random(); while(!v) v = Math.random(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
 function careerSkill(h){
   if(!h.attrs) return 55;
@@ -383,14 +386,14 @@ function worldTies(ed, add, items){
   // 💍 weddings: bonds from the exam, a rescue, or years of working side by side
   const seen = new Set();
   act.forEach(h => {
-    if(h.spouse || hunterAge(h) < 18) return;
+    if(h.spouse || hunterAge(h) < 18 || away(h)) return;
     const cand = new Map();
     (h.bonds || []).forEach(b => { const o = byCid[b.id]; if(o && !b.fam) cand.set(o, (cand.get(o) || 0) + 0.012); });
     if(h.savedBy && byCid[h.savedBy]) cand.set(byCid[h.savedBy], (cand.get(byCid[h.savedBy]) || 0) + 0.008);
     Object.entries(h.ties || {}).forEach(([lic, n]) => { const o = byLic[lic]; if(o) cand.set(o, (cand.get(o) || 0) + Math.min(0.015, n * 0.003)); });
     cand.forEach((pr, o) => {
       const key = [h.license, o.license].sort().join('|'); if(seen.has(key)) return; seen.add(key);
-      if(h.spouse || o.spouse || !hActive(o) || o.legacy || hunterAge(o) < 18 || Math.abs(hunterAge(o) - hunterAge(h)) > 15 || surname(o) === surname(h) || o.widowEd === ed || h.widowEd === ed) return;
+      if(h.spouse || o.spouse || !hActive(o) || o.legacy || away(o) || hunterAge(o) < 18 || Math.abs(hunterAge(o) - hunterAge(h)) > 15 || surname(o) === surname(h) || o.widowEd === ed || h.widowEd === ed) return;
       if(Math.random() >= pr * relMarry(h) * relMarry(o)) return;
       h.spouse = o.license; o.spouse = h.license; h.wedEd = o.wedEd = ed;
       const pl = pickR(PLACES), how = (h.bonds || []).some(b => b.id === o.cid) ? `inseparable since the ${ordinal(h.edition)} exam` : h.savedBy === o.cid ? `ever since ${o.name.split(' ')[0]} pulled ${h.name.split(' ')[0]} through ${h.savedIn ? thePhase(h.savedIn) : 'the exam'}` : 'after years of working side by side';
@@ -403,7 +406,7 @@ function worldTies(ed, add, items){
     add(h, 'wed', pickR([`${h.name} and ${o.name} separate, quietly. They still take the same contracts.`, `${h.name} and ${o.name} are no longer married. Neither will say why.`]), 4, o); });
   // 🧬 children: married Hunters, both alive, at a plausible age
   WORLD.heirs = WORLD.heirs || [];
-  act.forEach(h => { const o = h.spouse && byLic[h.spouse]; if(!o || h.license > o.license || o.status === 'Deceased' || o.status === 'Missing') return;
+  act.forEach(h => { const o = h.spouse && byLic[h.spouse]; if(!o || h.license > o.license || o.status === 'Deceased' || o.status === 'Missing' || away(h) || away(o)) return;
     const ages = [hunterAge(h), hunterAge(o)], kids = WORLD.heirs.filter(k => k.parents.includes(h.license)).length;
     const line = WORLD.heirs.some(k => k.cid && (k.cid === h.cid || k.cid === o.cid));
     if(Math.min(...ages) < 20 || Math.max(...ages) > 46 || kids >= (line ? 4 : 3) || Math.random() >= (kids ? 0.05 : 0.09) * (line ? 2.5 : 1) * relKids(h, o)) return;   // a Hunter family pushes for the next generation
@@ -938,6 +941,10 @@ function worldStart(prev, ed, add, busy, items){
       const len = rescueGo ? 2 : pickR([2, 3, 3, 3, 4, 4, 5]);
       WORLD.exped = {id: 'X' + (++WORLD.seq), ed, year: 0, len, rescue: rescueGo ? LX.id : null, goal: rescueGo ? null : (PL0 && PL0.goal) || pickR(DC_GOALS), members: team.map(h => h.license), lost: []};
       team.forEach(h => h.exped = WORLD.exped.id);
+      // every member's own record says they left, and with whom: the years out there may bring no other news
+      team.forEach((h, i) => { const w = andList(team.filter(x => x !== h).map(x => x.name));
+        (h.log = h.log || []).push({ed, k: 'exped', text: rescueGo ? `${i ? 'Joins' : 'Leads'} a rescue expedition to the Dark Continent, to look for ${LX.names.length ? andList(LX.names) : 'the lost expedition'}, with ${w}.`
+          : i ? `Sent to the Dark Continent ${WORLD.exped.goal}, with ${w}.` : `Leads the expedition to the Dark Continent ${WORLD.exped.goal}${zLead ? `, leaving the ${zLead[0]} seat of the Zodiac to go` : ''}, with ${w}.`}); });
       const lead = zLead ? `led by ${team[0].name}, who leaves the ${zLead[0]} seat of the Zodiac to go` : `led by ${team[0].name}`;
       items.push({lic: team[0].license, name: team[0].name, kind: 'exped', text: rescueGo
         ? `A rescue expedition sets out for the Dark Continent to look for ${LX.names.length ? andList(LX.names) : 'the lost expedition'}: ${team.length} Hunters, ${lead}, with ${andList(team.slice(1).map(h => h.name))}.`
@@ -952,8 +959,18 @@ function worldStart(prev, ed, add, busy, items){
     const live = alive.filter(h => hActive(h));
     if(live.length && E.year < (E.len || 3)) { const la = pickR(live), lb = live.length > 1 ? pickR(live.filter(h => h !== la)) : null, L = DC_LETTERS({a: la, b: lb, yr: E.year, goal: E.goal, firsts: live.map(h => h.first || h.name.split(' ')[0]).join(', ')});
       E.said = E.said || []; const fresh = L.map((x, i) => i).filter(i => !E.said.includes(i)); const i = fresh.length ? pickR(fresh) : pickR(L.map((x, j) => j)); E.said.push(i); add(L[i].includes(la.name) ? la : pk(), 'exped', L[i], 7); }
+    // each member's own year out there: what they do and what it does to them, by what they are good at
+    if(E.year < (E.len || 3)) live.forEach(h => { if(Math.random() >= 0.55) return; const n = h.nen && h.nen.category, F = h.name, P = PR(h), d = 120 + E.year * 365 + Math.floor(Math.random() * 200);
+      const L = [`Day ${d} on the Dark Continent: ${F} maps a river that runs uphill, and marks the map "do not drink".`, `${F} keeps the expedition's count of the dead and the missing, in a notebook nobody else may read.`,
+        `${F} learns to sleep in two-hour shifts on the Dark Continent, and stops dreaming.`, `On the Dark Continent, ${F} trades rations with something that is not quite a person. Both sides seem satisfied.`,
+        `${F} carries a wounded member of the expedition for nine days to the last safe camp on the Dark Continent.`, `${F} writes a letter home from the Dark Continent and burns it. ${P.they.charAt(0).toUpperCase() + P.they.slice(1)} send${P.are === 'are' ? '' : 's'} the second one.`,
+        `${F} stands the night watch on the Dark Continent and counts lights in the sky that should not be there.`, `On the Dark Continent, ${F} finds the camp of an expedition from a hundred years ago. The coffee is still warm.`]
+        .concat(n === 'Enhancement' ? [`${F} holds a collapsing pass open on the Dark Continent long enough for the others to cross.`] : n === 'Conjuration' ? [`On the Dark Continent, ${F}'s conjured things come back wrong. ${P.they.charAt(0).toUpperCase() + P.they.slice(1)} stop${P.are === 'are' ? '' : 's'} using them.`] : n === 'Emission' ? [`${F} sends a signal flare from the Dark Continent that the Association's tower sees from across the sea.`] : n === 'Manipulation' ? [`${F} tries to command one of the Dark Continent's creatures and spends a week unable to move ${P.their} left hand.`] : n === 'Transmutation' ? [`${F} turns ${P.their} aura into a lure on the Dark Continent, and something enormous follows it for two days.`] : n === 'Specialization' ? [`${F}'s ability does something on the Dark Continent it has never done before. ${P.they.charAt(0).toUpperCase() + P.they.slice(1)} write${P.are === 'are' ? '' : 's'} it down and tell no one.`] : [])
+        .concat(E.goal ? [`${F} is the first to see it: the expedition came ${E.goal}, and the end of it is closer than anyone thought.`] : []);
+      add(h, 'exped', pickR(L), 4); });
     if(E.year >= (E.len || 3) || !live.length){
-      live.forEach(h => { h.rp = (h.rp || 0) + 180 + 40 * ((E.len || 3) - 3); delete h.exped; });
+      live.forEach(h => { h.rp = (h.rp || 0) + 180 + 40 * ((E.len || 3) - 3); delete h.exped;
+        (h.log = h.log || []).push({ed, k: 'exped', text: `Comes home from the Dark Continent after ${E.year} year${E.year === 1 ? '' : 's'}${E.lost.length ? `, with ${E.lost.length} of the expedition left behind` : ''}.`}); });
       // a rescue may find someone who went missing
       if(E.rescue && live.length){
         const miss = HUNTERS.filter(h => h.status === 'Missing' && h.lostIn === E.rescue);

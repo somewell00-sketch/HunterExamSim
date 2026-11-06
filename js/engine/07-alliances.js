@@ -237,7 +237,8 @@ function runZevil(S, ph, p, rng, active){
   if(allyCount) zlog(0, 'ally', `Arrival: ${allyCount} alliance${allyCount === 1 ? '' : 's'} from earlier phases land together.`, []);
   snap(0);
 
-  const take = (from, to, b) => { from.badges.splice(from.badges.indexOf(b), 1); to.badges.push(b); };
+  // a badge changes hands only if the giver really holds it (a missing one used to take the giver's last badge and copy this one)
+  const take = (from, to, b) => { const i = from.badges.indexOf(b); if(i < 0) return false; from.badges.splice(i, 1); to.badges.push(b); return true; };
   const value = (c, b) => (b === c.id || b === c.target ? 3 : 1);
   // allies still short of 6 — family and bonds first, then whoever is closest
   const zNeedy = c => alliesOf(S, c).filter(o => o.status === 'Active' && active.includes(o) && zevilPoints(S, o) < 6)

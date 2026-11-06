@@ -1,7 +1,11 @@
 /* ===== The Chairman, the Vice-Chairman and the Zodiac ===== */
 const ZSIGNS = ['Rat','Ox','Tiger','Rabbit','Dragon','Snake','Horse','Sheep','Monkey','Rooster','Dog','Boar'];
 const ZKANJI = {Rat:'鼠', Ox:'牛', Tiger:'虎', Rabbit:'兔', Dragon:'龍', Snake:'蛇', Horse:'馬', Sheep:'羊', Monkey:'猴', Rooster:'雞', Dog:'狗', Boar:'豬'};
-const hLic = l => l ? HUNTERS.find(h => h.license === l) : null;
+// a licence lookup from an index of the register, rebuilt when the register changes (a search through thousands of Hunters on every call was slow)
+let HL_IX = {a: null, n: -1, m: null};
+const hlIndex = () => { HL_IX = {a: HUNTERS, n: HUNTERS.length, m: new Map()}; HUNTERS.forEach(h => { if(!HL_IX.m.has(h.license)) HL_IX.m.set(h.license, h); }); };
+const hLic = l => { if(!l) return null; if(HL_IX.a !== HUNTERS || HL_IX.n !== HUNTERS.length) hlIndex();
+  let h = HL_IX.m.get(l); if(h && h.license === l) return h; hlIndex(); h = HL_IX.m.get(l); return h || undefined; };
 const zodOf = h => h ? (Object.entries(WORLD.zodiac || {}).find(([, l]) => l === h.license) || [])[0] || null : null;   // a Zodiac seat, even when the Chairman or the Vice also holds one
 const roleFull = h => { const r = roleOf(h), z = zodOf(h); return r && z && !r.startsWith('Zodiac') ? `${r} and the ${z} of the Zodiac` : r && r.startsWith('Zodiac') ? `the ${z} of the Zodiac` : r; };
 const council = () => new Set([WORLD.chair && WORLD.chair.lic, WORLD.vice].concat(Object.values(WORLD.zodiac || {})).filter(Boolean));
@@ -279,7 +283,7 @@ function careerHtml(h){
   (h.log || []).slice().reverse().forEach(x => { const g = groups[groups.length - 1]; if(g && g.ed === x.ed) g.list.push(x); else groups.push({ed: x.ed, list: [x]}); });
   const line = x => { const k = careerKind(x), txt = x.text.startsWith(h.name + ' ') && !x.text.startsWith(h.name + ' and ') ? x.text.slice(h.name.length + 1) : x.text;
     return `<div class="bl ${k}"><i>${CAREER_IC[k] || '·'}</i><span>${typeof uwLinkOutlaws === 'function' ? uwLinkOutlaws(esc(txt.charAt(0).toUpperCase() + txt.slice(1)), h.name) : esc(txt.charAt(0).toUpperCase() + txt.slice(1))}</span></div>`; };   // outlaw names link to their page
-  const block = g => `<div class="cy"><div class="cy-h">After the ${ordinal(g.ed)}</div>${g.list.map(line).join('')}</div>`;
+  const block = g => `<div class="cy"><div class="cy-h">${HISTORY.some(r => r.edition === g.ed) ? `<a data-year="${g.ed}" title="The year of the ${ordinal(g.ed)} exam">After the ${ordinal(g.ed)}</a>` : `After the ${ordinal(g.ed)}`}</div>${g.list.map(line).join('')}</div>`;
   const KEEP = 5, recent = groups.slice(0, KEEP), older = groups.slice(KEEP);
   return recent.map(block).join('') + (older.length ? `<details class="cy-old"><summary>Earlier years · ${older.length}</summary>${older.map(block).join('')}</details>` : '');
 }
@@ -374,6 +378,22 @@ function retireBanner(h){
   const line = r => `Retired${r.age ? ` at ${r.age}` : ''}${r.ed ? `, after the ${ordinal(r.ed)}` : ''}${r.why && r.why !== 'of age' ? ` · ${r.why}` : ''}`;
   return `<div class="rolebanner past"><small>${now ? 'Retired' : 'Career'}</small>${now ? `<div class="rb-l">${esc(line(now))}</div>` : ''}${past.map(r => `<div class="rb-l muted">${esc(line(r))}${r.back ? ` — came out of retirement after the ${ordinal(r.back)}` : ''}</div>`).join('')}</div>`;
 }
+// who held a seat before and after: every term of every holder, oldest first (Chairman from its history, the others from the
+// Hunters' past roles and whoever sits there now)
+function seatTimeline(seat){
+  const T = seat === 'Chairman' ? (WORLD.chairHist || []).map(x => ({lic: x.lic, from: x.from, to: x.to || null}))
+    : HUNTERS.flatMap(h => (h.pastRoles || []).filter(r => r.r === seat && r.from != null).map(r => ({lic: h.license, from: r.from, to: r.to})));
+  const now = (WORLD.seatHold || {})[seat]; if(now && now.lic && !T.some(x => x.lic === now.lic && x.from === now.from && !x.to)) T.push({lic: now.lic, from: now.from, to: null});
+  return T.filter(x => x.from != null).sort((a, b) => a.from - b.from || (a.to ?? 1e9) - (b.to ?? 1e9));
+}
+function succHtml(seat, from, lic, current){
+  const T = seatTimeline(seat), i = T.findIndex(x => x.lic === lic && x.from === from); if(i < 0) return '';
+  const nm = x => { const h = x && hLic(x.lic); return h ? `<a data-hunter="${esc(h.license)}">${esc(h.name)}</a>` : 'a Hunter lost to the records'; };
+  const prev = T.slice(0, i).reverse().find(x => x.lic !== lic), next = T.slice(i + 1).find(x => x.lic !== lic);
+  if(!prev && !next && current) return '';
+  // one quiet line under the seat: who held it before, and who after
+  return `<div class="rb-ps">${prev ? `after ${nm(prev)}` : 'the first on record'}${current ? '' : ` · before ${next ? nm(next) : '—'}`}</div>`;
+}
 function roleBanner(h){
   rolesReady();
   const S2 = WORLD.since || {}, cur = roleOf(h), lines = [];
@@ -392,11 +412,11 @@ function roleBanner(h){
   // every former seat on its own line, most recent first; elections below a dotted rule
   const formers = terms.filter(x => x.to).map(x => ({r: 'Chairman', from: x.from, to: x.to})).concat(pastOther)
     .sort((a, b) => ((b.to ?? b.from ?? 0) - (a.to ?? a.from ?? 0)));
-  formers.forEach(x => lines.push(`Former ${x.r === 'Chairman' || x.r === 'Vice-Chairman' ? x.r : x.r + ' of the Zodiac'} (${yrs(x)})`));
+  formers.forEach(x => lines.push('\u0003' + esc(`Former ${x.r === 'Chairman' || x.r === 'Vice-Chairman' ? x.r : x.r + ' of the Zodiac'} (${yrs(x)})`) + succHtml(x.r, x.from, h.license, false)));
   if(votes.length) lines.push('\u0001Elections: ' + votes.slice(-3).map(v => `${ordinal(v.ed)} — ${v.won ? 'won' : `best round ${(v.m * 100).toFixed(1)}%`}`).join(' · '));
-  const ln = (l, mu) => l.startsWith('\u0001') ? `<div class="rb-l rb-el${mu ? ' muted' : ''}">${esc(l.slice(1))}</div>` : `<div class="rb-l${mu ? ' muted' : ''}">${esc(l)}</div>`;
+  const ln = (l, mu) => l.startsWith('\u0003') ? `<div class="rb-l${mu ? ' muted' : ''}">${l.slice(1)}</div>` : l.startsWith('\u0001') ? `<div class="rb-l rb-el${mu ? ' muted' : ''}">${esc(l.slice(1))}</div>` : `<div class="rb-l${mu ? ' muted' : ''}">${esc(l)}</div>`;
   if(!cur) return `<div class="rolebanner past"><small>Association politics</small>${lines.map(l => ln(l)).join('')}</div>`;
-  return `<div class="rolebanner ${k}"><span class="kj" aria-hidden="true">${kj}</span><small>${k === 'zod' ? 'Zodiac' : 'Hunter Association'}</small><b>${title}</b>${sub ? `<div class="rb-l">${sub}</div>` : ''}${zAlso ? `<div class="rb-l rb-also"><i>${ZKANJI[zAlso]}</i><span>Also the ${zAlso} of the Zodiac${S2[zAlso] ? ` · seat held since the ${ordinal(S2[zAlso])}` : ''}</span></div>` : ''}${lines.map(l => ln(l, true)).join('')}</div>`;
+  return `<div class="rolebanner ${k}"><span class="kj" aria-hidden="true">${kj}</span><small>${k === 'zod' ? 'Zodiac' : 'Hunter Association'}</small><b>${title}</b>${sub ? `<div class="rb-l">${sub}</div>` : ''}${(() => { const seat = cur === 'Chairman' || cur === 'Vice-Chairman' ? cur : cur.split(' · ')[1], hd = (WORLD.seatHold || {})[seat]; return hd ? succHtml(seat, hd.from, h.license, true) : ''; })()}${zAlso ? `<div class="rb-l rb-also"><i>${ZKANJI[zAlso]}</i><span>Also the ${zAlso} of the Zodiac${S2[zAlso] ? ` · seat held since the ${ordinal(S2[zAlso])}` : ''}</span></div>` : ''}${lines.map(l => ln(l, true)).join('')}</div>`;
 }
 const CC_OPEN = new Set();
 function councilHtml(){
@@ -405,9 +425,10 @@ function councilHtml(){
   const E = WORLD.elections[WORLD.elections.length - 1];
   rolesReady();
   // past holders of a seat, most recent first
-  const seatHist = seat => (seat === 'Chairman' ? (WORLD.chairHist || []).filter(x => x.to).map(x => ({lic: x.lic, from: x.from, to: x.to}))
-      : HUNTERS.flatMap(h => (h.pastRoles || []).filter(r => r.r === seat).map(r => ({lic: h.license, from: r.from, to: r.to}))))
-    .sort((a, b) => (b.to ?? b.from ?? 0) - (a.to ?? a.from ?? 0));
+  // every seat's past holders in one pass over the register (one pass per seat was the slow part with thousands of Hunters)
+  const SH = {Chairman: (WORLD.chairHist || []).filter(x => x.to).map(x => ({lic: x.lic, from: x.from, to: x.to}))};
+  HUNTERS.forEach(h => (h.pastRoles || []).forEach(r => { if(r.r !== 'Chairman') (SH[r.r] = SH[r.r] || []).push({lic: h.license, from: r.from, to: r.to}); }));
+  const seatHist = seat => (SH[seat] || []).slice().sort((a, b) => (b.to ?? b.from ?? 0) - (a.to ?? a.from ?? 0));
   const past = seat => { const L = seatHist(seat); if(!L.length) return '';
     return `<button class="cc-h" data-seathist="${seat}" aria-expanded="${CC_OPEN.has(seat)}">${L.length} before</button><div class="cc-past"${CC_OPEN.has(seat) ? '' : ' hidden'}>${L.map(x => { const h = hLic(x.lic); return `<div>${h ? `<a data-hunter="${esc(h.license)}">${esc(h.name)}</a>` : '—'} <span>${yrs(x)}${h && !hActive(h) ? ' · ' + esc(h.status.toLowerCase()) : ''}</span></div>`; }).join('')}</div>`; };
   const yrsIn = s => { if(s == null) return ''; const n = Math.max(0, S.edition - s); return n ? `(${n} yr${n === 1 ? '' : 's'})` : '(new)'; };
@@ -429,7 +450,8 @@ function councilHtml(){
 const rpRecent = h => (h.rp || 0) - (h.rpH && h.rpH.length >= 10 ? h.rpH[0] : 0);
 function hunterYear(prev){
   const items = [], ed = prev.edition, nextEd = ed + 1;
-  const add = (h, kind, text, rank, o) => { text = String(text).replace(/\.\.$/, '.'); if((kind === 'job' || kind === 'hunt' || kind === 'life') && !o && typeof traitTag === 'function') text = traitTag(h, text); items.push({lic: h.license, name: h.name, kind, text, rank: rank || 0, o: o ? {lic: o.license, name: o.name} : undefined}); (h.log = h.log || []).push({ed, text, k: kind}); if(o) (o.log = o.log || []).push({ed, text, k: kind}); if(o && ['job', 'epilogue', 'reunion'].includes(kind)) tieUp(h, o); };
+  // on the Dark Continent nobody takes contracts, marries or feuds at home: only the expedition's own news is told for them
+  const add = (h, kind, text, rank, o) => { if((away(h) || away(o)) && !DC_KINDS.has(kind) && !/Dark Continent|expedition/i.test(String(text))) return; text = String(text).replace(/\.\.$/, '.'); if((kind === 'job' || kind === 'hunt' || kind === 'life') && !o && typeof traitTag === 'function') text = traitTag(h, text); items.push({lic: h.license, name: h.name, kind, text, rank: rank || 0, o: o ? {lic: o.license, name: o.name} : undefined}); (h.log = h.log || []).push({ed, text, k: kind}); if(o) (o.log = o.log || []).push({ed, text, k: kind}); if(o && ['job', 'epilogue', 'reunion'].includes(kind)) tieUp(h, o); };
   const busy = new Set();
   relicsStart(ed);
   const W = worldStart(prev, ed, add, busy, items);

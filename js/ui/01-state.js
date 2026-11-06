@@ -36,7 +36,14 @@ async function load(){
   if(!d){ try{ d = JSON.parse(localStorage.getItem(KEY) || 'null'); }catch(e){ d = null; } }
   if(!(d && d.S)) return false;
   S = d.S; if(!S.started && !S.special) S.config.licenses = MAX_LICENSES;
-  HISTORY = d.HISTORY || []; HUNTERS = d.HUNTERS || []; FAV = d.FAV || {}; SCOUT = scoutFix(d.SCOUT); MENTOR = mentorFix(d.MENTOR);
+  HISTORY = d.HISTORY || []; HUNTERS = d.HUNTERS || [];
+  // older saves: Hunters licensed in a catastrophe never awakened Nen; they do now, the same way the others did
+  try { HUNTERS.forEach(h => { if(!h.nen && h.attrs && /^Licensed for /.test(h.reason || '') && typeof generateNen === 'function') h.nen = generateNen({seed: (d.S && d.S.seed) || 1}, {id: h.cid || h.license, a: h.attrs}, new Set()); }); } catch(e){ console.error(e); }
+  // older saves: a Hunter out on the Dark Continent whose record never said they left
+  try { const X = d.WORLD && d.WORLD.exped; if(X && X.goal !== undefined){ const T = (X.members || []).map(l => HUNTERS.find(h => h.license === l)).filter(Boolean);
+    T.forEach((h, i) => { if((h.log || []).some(e => e.k === 'exped' && e.ed >= X.ed && /^(Leads|Sent to|Joins) /.test(e.text))) return; const w = T.filter(x => x !== h).map(x => x.name), wl = w.length > 1 ? w.slice(0, -1).join(', ') + ' and ' + w[w.length - 1] : w[0] || 'nobody else';
+      (h.log = h.log || []).push({ed: X.ed, k: 'exped', text: X.rescue ? `${i ? 'Joins' : 'Leads'} a rescue expedition to the Dark Continent, with ${wl}.` : `${i ? 'Sent to the Dark Continent' : 'Leads the expedition to the Dark Continent'} ${X.goal || ''}, with ${wl}.`.replace(/  +/g, ' ').replace(' ,', ',')}); h.log.sort((a, b) => (a.ed || 0) - (b.ed || 0)); }); } } catch(e){ console.error(e); }
+  FAV = d.FAV || {}; SCOUT = scoutFix(d.SCOUT); MENTOR = mentorFix(d.MENTOR);
   // slim older saves: the attempt in progress needs no snapshot, Hunter records need no route lists
   (S.candidates || []).forEach(c => { const at = c.attempts && c.attempts[c.attempts.length - 1]; if(at && at.edition === S.edition){ delete at.start; delete at.ids; delete at.passedIds; } });
   HUNTERS.forEach(h => (h.history || []).forEach(x => { delete x.ids; delete x.passedIds; delete x.start; }));

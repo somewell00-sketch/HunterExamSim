@@ -58,6 +58,8 @@ function runCatastrophe(S, p){
   const P = c => PR(c), nm = c => c.name;
   heroes.forEach((c, i) => { c.status = 'Approved'; c.catHero = S.edition; c.out = null; c.reason = `Licensed for ${PR(c).their} part in ${K.name.toLowerCase()}`;
     if(i < 14) log(S, p, 'major', pro(vpick(S, K.hero.concat(CAT_HERO), c.id + 'ch')({c: nm(c), n: 2 + Math.floor(rng() * 9), P: P(c)}), c), [c.id]); c.notes.push({p, text: `Licensed for ${PR(c).their} part in ${K.name.toLowerCase()}`}); });
+  // the licensed survivors awaken Nen like any other new Hunter: the Final never came, but the license did
+  if(heroes.length && typeof awakenHunters === 'function') awakenHunters(S, p);
   dead.slice().sort((x, y) => notable(y) - notable(x)).slice(0, 8).forEach(c => log(S, p, 'death', vpick(S, K.die.concat(CAT_DIE), c.id + 'cd')({c: nm(c), P: P(c)}), [c.id]));
   if(dead.length > 8) log(S, p, 'death', `${dead.length} candidates died in ${K.name.toLowerCase()}.`, []);
   const fled = alive.filter(c => !heroes.includes(c));

@@ -34,7 +34,9 @@ $('bNext').onclick = () => {
   // keep the full replay for the 12 most recent editions; older ones keep the paper, route and key moments
   HISTORY.slice(0, -12).forEach(r => { if(r.snap && !r.slim){ r.snap.events = r.snap.events.filter(e => ['death','betray','major','sabot','arc','rival','event'].includes(e.t)).slice(0, 120); r.snap.alliances = (r.snap.alliances || []).slice(0, 6); r.slim = true; } });
   finalizeAttempts(S);
+  yrRank(S.edition);   // the year on record: the rankings as it ends, then the council the year leaves behind
   hunterYear(S);
+  yrCouncil(S.edition);
   mtForceReturn(); const prev = S; S = fresh(S.edition + 1, S); FORCE_RETURN = new Set(); favReturn(prev); heirsEnter(S); try { schoolsEnter(S); } catch(e){ console.error(e); } try { if(typeof underworldEnter === 'function') underworldEnter(S); } catch(e){ console.error(e); } selPhase = null; save(); render(); showTab('phase');
 };
 // wiping the whole world lives in History, next to the save file, behind a second click
