@@ -166,7 +166,7 @@ const schOf = id => id ? (WORLD.schools || []).find(s => s.id === id) || null : 
 const schHead = s => s && s.heads.length && s.heads[s.heads.length - 1].to == null ? s.heads[s.heads.length - 1] : null;
 const schPlace = pl => { let s = String(pl || '').replace(/^the /, ''); if(/ of /.test(s)) s = s.split(' of ').pop(); s = s.replace(/^the /, '').replace(/ (City|Province|Republic|Kingdom|Union)$/, ''); const caps = s.split(' ').filter(w => /^[A-Z]/.test(w)).join(' '); return caps || s; };
 function schName(f, cat, home, taken){
-  const sur = f.name.split(' ').slice(-1)[0], I = pickR(SCH_IMG[cat] || SCH_IMG.Specialization);
+  const sur = f.last || f.name.split(' ').slice(-1)[0], I = pickR(SCH_IMG[cat] || SCH_IMG.Specialization);
   for(let t = 0; t < 12; t++){
     const r = Math.random();
     const n = r < 0.3 ? pickR([`${sur}-ryū`, `the ${sur} School`, `the House of ${sur}`])
@@ -182,7 +182,7 @@ const schBranchName = (s, taken, f) => {
   let root = s, g = 0; while(root.parent && g++ < 8){ const p = schOf(root.parent); if(!p) break; root = p; }
   const strip = n => n.replace(/^the /, '').replace(/^.+? line of (the )?/, '').replace(new RegExp('^(' + SCH_PRE.join('|') + ') '), '');
   const base = strip(root.name), words = new Set(base.split(/[ -]/)), pre = SCH_PRE.filter(p => !words.has(p));
-  const sur = f.name.split(' ').slice(-1)[0], rootN = /^[A-Z]/.test(base) && !/^the /.test(root.name) ? base : 'the ' + base;
+  const sur = f.last || f.name.split(' ').slice(-1)[0], rootN = /^[A-Z]/.test(base) && !/^the /.test(root.name) ? base : 'the ' + base;
   const deep = !!s.parent;   // the parent is itself a branch
   const opts = deep ? [`${sur}-ryū`, `the ${sur} School`, `the ${pickR(pre)} ${base}`, `the ${sur} line of ${rootN}`] : [`the ${pickR(pre)} ${base}`, `the ${pickR(pre)} ${base}`, `the ${sur} line of ${rootN}`];
   for(let t = 0; t < 12; t++){ const n = pickR(opts); if(!taken.has(n)) return n; }

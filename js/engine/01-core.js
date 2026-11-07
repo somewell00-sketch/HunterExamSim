@@ -144,16 +144,16 @@ function buildFamilies(list, count, edition, seed){
     let size = r < 0.45 ? 2 : r < 0.75 ? 3 : r < 0.92 ? 4 : 5;
     size = Math.min(size, target, pool.length - pi);
     if(size < 2) break;
-    let last, tries = 0;
-    do { last = rng.pick(LAST); tries++; } while(famLast.has(last) && tries < 50);
-    famLast.add(last);
+    let fc, F, fk, tries = 0;
+    do { fc = ncCulture(rng); F = ncFamily(fc, rng); fk = F.pat ? ncPat(fc, F.base, 'Male') : ncKey(fc, F.base); tries++; } while(famLast.has(fk) && tries < 50);
+    famLast.add(fk); const last = fk;
     const members = [], firsts = new Set();
     while(members.length < size && pi < pool.length){
       const c = pool[pi++];
-      const nm = c.first + ' ' + last;
-      if(firsts.has(c.first) || (used.has(nm) && nm !== c.name)) continue;
+      const N2 = mkName(rng, c.gender, {cul: fc, fam: F}), nm = N2.name;
+      if(firsts.has(N2.first) || (used.has(nm) && nm !== c.name)) continue;
       used.delete(c.name); used.add(nm);
-      c.last = last; c.name = nm; firsts.add(c.first);
+      c.first = N2.first; c.last = N2.last; c.surK = N2.surK; c.cul = fc; c.name = nm; firsts.add(N2.first);
       members.push(c);
     }
     if(members.length < 2){ members.forEach(c => delete c.famActive); continue; }
@@ -200,14 +200,8 @@ function generateCandidates(edition, count, seed, returning){
   for(let i=0;i<newCount;i++){
     const gr = rng();
     const gender = gr < 0.46 ? 'Male' : gr < 0.92 ? 'Female' : 'Non-binary';
-    const pool = gender === 'Male' ? FIRST_M : gender === 'Female' ? FIRST_F : FIRST_N;
-    let first, last, name, tries = 0;
-    do {
-      first = rng.pick(pool);
-      last = tries < 20 ? rng.pick(LAST) : rng.pick(SYL_A) + rng.pick(SYL_B);
-      name = first + ' ' + last; tries++;
-    } while(used.has(name) && tries < 200);
-    used.add(name);
+    // names from one naming culture (see 01a-names); a full name already in this exam is drawn again
+    const NM = mkName(rng, gender, {used}), {first, last, name} = NM;
 
     // most first-timers are young and willing to risk it: about 5 in 6 are 13–22, averaging 17
     const ar = rng(), age = ar < 0.04 ? rng.int(11, 12) : ar < 0.88 ? clamp(Math.round(rng.gauss(17, 2.6)), 13, 22) : ar < 0.96 ? rng.int(23, 35) : rng.int(36, 60);
@@ -232,7 +226,7 @@ function generateCandidates(edition, count, seed, returning){
 
     list.push({
       id: 'HX' + edition + '-' + (seed % 9973).toString(36) + '-' + i.toString(36),
-      reg: regs[i], first, last, name, age, gender, tier, a,
+      reg: regs[i], first, last, name, surK: NM.surK, cul: NM.cul, age, gender, tier, a,
       status: 'Active', out: null, reason: '', fatigue: 0,
       scores: {}, notes: [], wins: 0, losses: 0,
       badges: [], target: null, points: 0,

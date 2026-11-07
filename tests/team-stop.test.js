@@ -8,7 +8,7 @@ const assert = require('assert'), {openGame} = require('./lib');
     for(let ed = 401; ed < 520 && Object.keys(seen).length < 3 || ed < 440; ed++){
       S = fresh(ed); useLineup(S); const a = PHASES.findIndex((p, i) => PAIR[p.id] && PHASES[i + 1] && PHASES[i + 1].id === PAIR[p.id]); if(a < 0) continue;
       let g = 0; while(S.phase <= a + 1 && !S.finished && g++ < 40) runPhase(S);
-      const R = S.teamRun && S.teamRun[a]; if(!R) continue; const cm = cmap(S), st = S.stats.find(s => s.p === a + 1);
+      const R = S.teamRun && S.teamRun[a]; if(!R) continue; const cm = cmap(S), st = S.stats.find(s => s.p === a + 1); if(!st) continue;   // the exam ended before the second half
       if(R.merged !== a + 1 || R.done !== a + 1) bad.push(ed + ': not merged');
       if(!/\(the /.test(PHASES[a + 1].name)) bad.push(ed + ': second half not named after the first');
       R.teams.forEach(t => {

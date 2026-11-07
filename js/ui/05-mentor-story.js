@@ -443,16 +443,16 @@ function heirsEnter(S){
     if(!P.length && !G.length) return;
     // a family of Hunters raises its children for the exam; the deeper the line, the better prepared
     const deep = P.some(h => (WORLD.heirs || []).some(x => x.cid && x.cid === h.cid)) ? 4 : 0, src = P.length ? P : G;
-    c.name = k.name; c.first = k.first; c.gender = k.gender; c.age = age; c.tier = 'Elite';
+    c.name = k.name; c.first = k.first; c.last = k.last || k.name.split(' ').slice(1).join(' '); c.surK = k.surK || surOf(k); c.cul = k.cul || null; c.gender = k.gender; c.age = age; c.tier = 'Elite';
     Object.keys(c.a).forEach(a => { const pv = src.map(h => (h.attrs && h.attrs[a]) || 60), avg = pv.reduce((s, x) => s + x, 0) / Math.max(1, pv.length);
       c.a[a] = clamp(Math.round(avg * (P.length ? 0.55 : 0.45) + (P.length ? 34 : 38) + deep + (Math.random() - 0.5) * 16 - Math.max(0, 16 - age) * 1.5), 35, 97); });
     c.heir = {kid: k.id, parents: k.parents, grand: k.grand || null}; k.entered = ed; k.cid = c.id;
     if(!P.length){   // a grandchild: the line skipped a generation
-      const gn = G.map(h => h.name).join(' and ');
+      const gn = G.map(h => typeof polName === 'function' ? polName(h) : h.name).join(' and ');
       c.notes.unshift({p: 0, text: `Grandchild of Hunter${G.length > 1 ? 's' : ''} ${gn}, through ${k.viaName}`});
-      log(S, 0, 'heir', pickR([`${c.name}, ${age}, registers for the exam. The name is old: ${gn} ${G.length > 1 ? 'were' : 'was'} a Hunter, and ${k.viaName.split(' ')[0]}, ${c.first}'s parent, never was.`, `A grandchild of ${gn} is here: ${c.name}, ${age}. The line skipped a generation, and came back.`]), [c.id]);
+      log(S, 0, 'heir', pickR([`${c.name}, ${age}, registers for the exam. The name is old: ${gn} ${G.length > 1 ? 'were Hunters' : 'was a Hunter'}, and ${k.viaName.split(' ')[0]}, ${c.first}'s parent, never was.`, `A grandchild of ${gn} is here: ${c.name}, ${age}. The line skipped a generation, and came back.`]), [c.id]);
       return; }
-    const pn = P.map(h => h.name).join(' and '), alive = P.filter(h => hActive(h));
+    const pn = P.map(h => typeof polName === 'function' ? polName(h) : h.name).join(' and '), alive = P.filter(h => hActive(h));   // a parent's seat in the Association comes with the name
     c.notes.unshift({p: 0, text: `Child of Hunter${P.length > 1 ? 's' : ''} ${pn}`});
     // following a parent means following the child; the Herald announces them
     if(P.some(h => isFav(h.cid))){ FAV[c.id] = c.name; try{ updateFavCss(); }catch(e){} }

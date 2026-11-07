@@ -66,7 +66,7 @@ function statsHtml(){
   // families: generations through the heirs, and surnames with the most Hunters
   const byCid = new Map(H.map(h => [h.cid, h])), kidC = new Map((WORLD.heirs || []).filter(x => x.cid).map(x => [x.cid, x])), gen = h => { let d = 1, cur = h, g = 0; while(cur && g++ < 12){ const k = kidC.get(cur.cid); const p = k && (k.grand || k.parents).map(l => hLic(l)).find(Boolean); if(!p) break; d += k.grand ? 2 : 1; cur = p; } return d; };
   const dyn = H.filter(h => h.heirOf || h.hParent || h.grandOf).map(h => [h, gen(h)]).sort((a, b) => b[1] - a[1]).slice(0, 5);
-  const PARS = new Set((WORLD.heirs || []).flatMap(k => k.parents || [])), fam = {}; H.filter(h => h.heirOf || h.hParent || h.grandOf || PARS.has(h.license)).forEach(h => { const s = h.name.split(' ').slice(-1)[0]; fam[s] = (fam[s] || 0) + 1; });
+  const PARS = new Set((WORLD.heirs || []).flatMap(k => k.parents || [])), fam = {}; H.filter(h => h.heirOf || h.hParent || h.grandOf || PARS.has(h.license)).forEach(h => { const s = surOf(h); fam[s] = (fam[s] || 0) + 1; });
   // schools, cases, outlaws, relics, chairs
   const Sc = (WORLD.schools || []).map(s => ({s, all: H.filter(h => h.school === s.id).length})).sort((a, b) => b.all - a.all).slice(0, 5);
   const C = WORLD.cases || [], V = WORLD.caseV || {};
@@ -85,7 +85,7 @@ function statsHtml(){
     <div class="st-three">${stBars('Specialties, active', Object.entries(car).sort((a, b) => b[1] - a[1]).slice(0, 8), pct)}${stBars('Crises by kind', crisisN)}${stBars('Cases', [['Guilty', V.guilty || 0], ['Cleared', V.cleared || 0], ['Reopened', C.filter(c => c.re).length], ['Licenses revoked', H.filter(h => h.revoked).length]])}</div>
     <div class="marks">
       ${stList('Longest lines', dyn.map(([h, g]) => [hl(h), `${g} generations${(WORLD.heirs || []).some(k => k.grand && k.cid === h.cid) ? ', one without a Hunter' : ''} · <a data-tree="${esc(h.license)}">the family tree</a>`]), 'lines')}
-      ${stList('Families with the most Hunters', Object.entries(fam).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([s, n]) => { const best = H.filter(h => h.name.split(' ').slice(-1)[0] === s).sort((a, b) => (b.rp || 0) - (a.rp || 0))[0];
+      ${stList('Families with the most Hunters', Object.entries(fam).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([s, n]) => { const best = H.filter(h => surOf(h) === s).sort((a, b) => (b.rp || 0) - (a.rp || 0))[0];
         return [`<a data-famq="${esc(s)}" title="The family tree of the ${esc(s)}s">${esc(s)}</a>`, `${n} Hunters${best ? ` · best known: ${hl(best)}` : ''}`]; }), 'families')}
       ${stList('Largest schools', Sc.map(({s, all}) => [`<a data-school="${s.id}">${esc(capS(s.name))}</a>`, `${all} students · ${s.heads.length} master${s.heads.length === 1 ? '' : 's'} · ${s.st}`]), 'schools')}
       ${stList('Deadliest outlaws', dead.map(w => [`<a data-outlaw="${esc(w.id)}">${esc(w.name)}</a>` + (w.nick ? ` “${esc(w.nick)}”` : ''), `${w.kills} Hunter${w.kills === 1 ? '' : 's'} killed · ${w.status}`]), 'outlaws')}

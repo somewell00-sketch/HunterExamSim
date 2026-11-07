@@ -281,7 +281,7 @@ function underworldEnter(S){
   const sv = (WORLD.uwSurv || []).find(x => S.edition - x.ed >= 4);
   if(sv){ const young = pool.filter(c => c.age >= 14 && c.age <= 26 && !c.uwSpy).sort((a, b) => total(b) - total(a)).slice(0, 12); const c = young.length ? pickR(young) : null;   // among the strongest of the young: they have trained for this
     if(c){ WORLD.uwSurv.splice(WORLD.uwSurv.indexOf(sv), 1);
-      if(!S.candidates.some(o => o.name === c.first + ' ' + sv.clan)){ c.last = sv.clan; c.name = c.first + ' ' + sv.clan; }
+      if(!S.candidates.some(o => o.name === c.first + ' ' + sv.clan)){ c.last = sv.clan; c.surK = sv.clan; c.name = c.first + ' ' + sv.clan; }
       ['determination', 'courage', 'perception', 'combat'].forEach(k => { if(c.a[k] != null) c.a[k] = Math.min(97, c.a[k] + 7); });   // years spent getting ready
       c.uwSurv = {g: sv.g, gname: sv.gname, pl: sv.pl, clan: sv.clan, ed: sv.ed};
       (WORLD.uwSurvC = WORLD.uwSurvC || []).push({cid: c.id, g: sv.g}); if(WORLD.uwSurvC.length > 30) WORLD.uwSurvC = WORLD.uwSurvC.slice(-30);

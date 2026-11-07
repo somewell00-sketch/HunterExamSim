@@ -10,6 +10,15 @@ const zodOf = h => h ? (Object.entries(WORLD.zodiac || {}).find(([, l]) => l ===
 const roleFull = h => { const r = roleOf(h), z = zodOf(h); return r && z && !r.startsWith('Zodiac') ? `${r} and the ${z} of the Zodiac` : r && r.startsWith('Zodiac') ? `the ${z} of the Zodiac` : r; };
 const council = () => new Set([WORLD.chair && WORLD.chair.lic, WORLD.vice].concat(Object.values(WORLD.zodiac || {})).filter(Boolean));
 const roleOf = h => !h ? null : WORLD.chair && WORLD.chair.lic === h.license ? 'Chairman' : WORLD.vice === h.license ? 'Vice-Chairman' : (Object.entries(WORLD.zodiac || {}).find(([, l]) => l === h.license) || [])[0] ? 'Zodiac · ' + Object.entries(WORLD.zodiac).find(([, l]) => l === h.license)[0] : null;
+// a Hunter's name with their place in the Association's politics: the seat they hold now, or else the highest they held
+// (a former Zodiac is just that: the animal is named only while they hold it)
+function polName(h){ if(!h) return ''; const cur = roleOf(h), n = h.name;
+  if(cur === 'Chairman') return `Chairman ${n}`; if(cur === 'Vice-Chairman') return `Vice-Chairman ${n}`; if(cur) return `${n} (the ${cur.split(' · ')[1]} of the Zodiac)`;
+  const P = h.pastRoles || [];
+  if((WORLD.chairHist || []).some(x => x.lic === h.license && x.to) || P.some(r => r.r === 'Chairman')) return `former Chairman ${n}`;
+  if(P.some(r => r.r === 'Vice-Chairman')) return `former Vice-Chairman ${n}`;
+  if(P.some(r => ZSIGNS.includes(r.r))) return `${n} (former Zodiac)`;
+  return n; }
 const seatSince = (k, ed) => { WORLD.since = WORLD.since || {}; WORLD.since[k] = ed; };
 const chairTerm = (lic, ed) => { WORLD.chairHist = WORLD.chairHist || []; const last = WORLD.chairHist[WORLD.chairHist.length - 1]; if(last && !last.to && last.lic === lic) return;   // re-elected: same term continues
   if(last && !last.to) last.to = ed; WORLD.chairHist.push({lic, from: ed}); };
@@ -209,7 +218,8 @@ function trackRoles(ed){
       if(h){
         h.log = (h.log || []).filter(x => !(x.ed === ed && x.text.includes(h.name) && !x.text.startsWith(h.name) && /Zodiac|Vice-Chairman/.test(x.text)));
         const fromZ = (h.pastRoles || []).find(x => x.to === ed && x.r !== r);
-        h.log.push({ed, k: 'zodiac', text: `${h.name} ${r === 'Vice-Chairman' ? 'becomes Vice-Chairman of the Hunter Association' : `becomes the ${r} of the Zodiac`}${ch && ch !== h ? `, named by Chairman ${ch.name}` : ''}${fromZ ? `, leaving the ${fromZ.r === 'Chairman' ? 'chairmanship' : fromZ.r === 'Vice-Chairman' ? 'Vice-Chairmanship' : fromZ.r + ' seat'}` : ''}.`});
+        const as = ZSIGNS.includes(r) && typeof zodPersona === 'function' ? zodPersona(h, r, ed) : null;
+        h.log.push({ed, k: 'zodiac', text: `${h.name} ${r === 'Vice-Chairman' ? 'becomes Vice-Chairman of the Hunter Association' : `becomes the ${r} of the Zodiac`}${ch && ch !== h ? `, named by Chairman ${ch.name}` : ''}${fromZ ? `, leaving the ${fromZ.r === 'Chairman' ? 'chairmanship' : fromZ.r === 'Vice-Chairman' ? 'Vice-Chairmanship' : fromZ.r + ' seat'}` : ''}.${as ? ` As the Zodiac do, ${PR(h).they} ${PR(h).s ? 'takes' : 'take'} on the animal's look, and a name in the Council: "${as}".` : ''}`});
       }
     }
     next[r] = lic ? (was && was.lic === lic ? was : {lic, from: r === 'Chairman' ? WORLD.chair.since : r === 'Vice-Chairman' ? (S2.vice || ed) : (S2[r] || ed)}) : null;
@@ -405,14 +415,14 @@ function roleBanner(h){
   let k = 'past', kj = '', title = '', sub = '';
   if(cur === 'Chairman'){ k = 'chair'; kj = '会長'; title = 'Chairman of the Hunter Association'; sub = `In office since the ${ordinal(WORLD.chair.since)} exam · ${esc(WORLD.chair.how || '')}`; }
   else if(cur === 'Vice-Chairman'){ k = 'vice'; kj = '副会長'; title = 'Vice-Chairman of the Hunter Association'; sub = S2.vice ? `Named after the ${ordinal(S2.vice)} exam` : ''; }
-  else if(cur){ const z = cur.split(' · ')[1]; k = 'zod'; kj = ZKANJI[z]; title = `The ${z} of the Zodiac`; sub = (S2[z] ? `Holds the ${z} seat since the ${ordinal(S2[z])} exam` : 'One of the twelve'); }
+  else if(cur){ const z = cur.split(' · ')[1]; k = 'zod'; kj = ZKANJI[z]; title = `The ${z} of the Zodiac`; sub = (h.zp && h.zp[z] ? `Known in the Council as “${esc(h.zp[z])}” · ` : '') + (S2[z] ? `Holds the ${z} seat since the ${ordinal(S2[z])} exam` : 'One of the twelve'); }
   const zAlso = (cur === 'Chairman' || cur === 'Vice-Chairman') && zodOf(h);
   if(cur === 'Vice-Chairman' && CHAIR && CHAIR.title) sub = (sub ? sub + ' · ' : '') + 'Acting Chairman while the Chairman is missing';
   if(cur && !hActive(h)) sub = (sub ? sub + ' · ' : '') + (h.status === 'Missing' ? `missing since the ${ordinal(h.missEd || 0)}` : h.status === 'Deceased' ? 'died in office' : esc(h.status.toLowerCase()));
   // every former seat on its own line, most recent first; elections below a dotted rule
   const formers = terms.filter(x => x.to).map(x => ({r: 'Chairman', from: x.from, to: x.to})).concat(pastOther)
     .sort((a, b) => ((b.to ?? b.from ?? 0) - (a.to ?? a.from ?? 0)));
-  formers.forEach(x => lines.push('\u0003' + esc(`Former ${x.r === 'Chairman' || x.r === 'Vice-Chairman' ? x.r : x.r + ' of the Zodiac'} (${yrs(x)})`) + succHtml(x.r, x.from, h.license, false)));
+  formers.forEach(x => lines.push('\u0003' + esc(`Former ${x.r === 'Chairman' || x.r === 'Vice-Chairman' ? x.r : x.r + ' of the Zodiac'} (${yrs(x)})${typeof zodAs === 'function' ? zodAs(h, x.r) : ''}`) + succHtml(x.r, x.from, h.license, false)));
   if(votes.length) lines.push('\u0001Elections: ' + votes.slice(-3).map(v => `${ordinal(v.ed)} — ${v.won ? 'won' : `best round ${(v.m * 100).toFixed(1)}%`}`).join(' · '));
   const ln = (l, mu) => l.startsWith('\u0003') ? `<div class="rb-l${mu ? ' muted' : ''}">${l.slice(1)}</div>` : l.startsWith('\u0001') ? `<div class="rb-l rb-el${mu ? ' muted' : ''}">${esc(l.slice(1))}</div>` : `<div class="rb-l${mu ? ' muted' : ''}">${esc(l)}</div>`;
   if(!cur) return `<div class="rolebanner past"><small>Association politics</small>${lines.map(l => ln(l)).join('')}</div>`;
@@ -817,7 +827,7 @@ function zodiacFold(assoc, row){
 }
 // the Herald's election special: who won, by how much, how long it took, and the council that came out of it
 function electionHtml(E){
-  const H = l => hLic(l), A = h => h ? `<a data-hunter="${esc(h.license)}">${esc(h.name)}</a>` : '—', last = h => h ? esc(h.name.split(' ').slice(-1)[0]) : '?';
+  const H = l => hLic(l), A = h => h ? `<a data-hunter="${esc(h.license)}">${esc(h.name)}</a>` : '—', last = h => h ? esc(h.last || h.name.split(' ').slice(-1)[0]) : '?';
   const W = H(E.winner), V = E.vice && H(E.vice), P = E.prev && H(E.prev), again = E.prev === E.winner;
   const ok = (E.rounds || []).filter(r => !r.void && r.top && r.valid), fin = ok[ok.length - 1], voids = (E.rounds || []).length - ok.length;
   const row = (x, win) => { const h = H(x.l), pc = Math.round(x.v / fin.valid * 100); return `<div class="elx-row${win ? ' win' : ''}"><span class="elx-n">${A(h)}</span><span class="elx-bar"><i style="width:${pc}%"></i></span><b>${pc}%</b><small>${fmt(x.v)} votes</small></div>`; };

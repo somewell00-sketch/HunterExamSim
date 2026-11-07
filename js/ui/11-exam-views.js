@@ -108,9 +108,9 @@ function legendParents(S){
     const born = S.edition - c.age, L = HUNTERS.filter(h => hStars(h) >= 3 && h.edition >= born - 25 && h.edition <= born + 8 && !taken.has(h.license));   // licensed in the years around the child's birth
     if(!L.length) return; const H = L[nhash(c.id + 'hp') % L.length];
     c.hParent = H.license; c.hParentName = H.name; c.hParentGone = H.status === 'Deceased';
-    const last = H.name.split(' ').slice(1).join(' ');
+    const last = H.cul ? ncFem(H.cul, surOf(H), c.gender) : H.name.split(' ').slice(1).join(' ');
     if(last && !c.fam && nhash(c.id + 'sn') % 2 === 0 && !(S.log || []).some(e => e.p > 0)){   // takes the name only before the exam has said anything about them
-      const old = c.name, nw = (c.first || old.split(' ')[0]) + ' ' + last; c.name = nw; c.last = last; c.hName = true;
+      const old = c.name, nw = (c.first || old.split(' ')[0]) + ' ' + last; c.name = nw; c.last = last; c.surK = surOf(H); c.cul = H.cul || c.cul; c.hName = true;
       (S.log || []).forEach(e => { if(e.text && e.text.includes(old)) e.text = e.text.split(old).join(nw); });
     }
   });

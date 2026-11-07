@@ -13,7 +13,9 @@ function rankLists(){
 }
 // kept as short strings of licences: some 300 bytes a year
 // the year each star came, kept from the first year this runs (Hunters licensed before then are left out of the count)
-function starYears(ed){ if(WORLD.seFrom == null) WORLD.seFrom = ed + 1;
+function starYears(ed){ const first = WORLD.seFrom == null; if(first) WORLD.seFrom = ed + 1;
+  // a third star can bring a new name; those who had it before this ran keep theirs
+  HUNTERS.forEach(h => { if(h.legacy || h.epi3 || !hActive(h) || hStars(h) < 3) return; h.epi3 = ed; if(!first && typeof starEpithet === 'function') starEpithet(h, ed); });
   HUNTERS.forEach(h => { if(h.legacy || h.pro || !hActive(h) || h.edition < WORLD.seFrom) return; const s = hStars(h); if(!s) return; h.se = h.se || []; for(let k = 0; k < s && k < 3; k++) if(h.se[k] == null) h.se[k] = ed; }); }
 function yrRank(ed){ try { starYears(ed); } catch(e){ console.error(e); } try { const {top, rise} = rankLists(); WORLD.yrs = WORLD.yrs || {}; WORLD.yrs[ed] = Object.assign(WORLD.yrs[ed] || {}, {t: top.map(h => h.license).join(' '), r: rise.map(h => h.license).join(' ')}); } catch(e){ console.error(e); } }
 function yrCouncil(ed){ try { WORLD.yrs = WORLD.yrs || {}; const Z = WORLD.zodiac || {};
@@ -186,7 +188,7 @@ function openTree(lic){
   const {G, ids} = F, P = id => G.N.get(id), parentsOf = id => (G.par.get(id) || []).filter(p => ids.has(p));
   const spouseOf = id => { const s = P(id).spouse; if(s && ids.has(s)) return s; for(const x of ids) if(P(x).spouse === id) return x; return null; };
   const L = layoutTree([...ids].map(id => ({id, born: P(id).born, par: parentsOf(id), spouse: spouseOf(id)}))), maxG = L.R, OFF = innerWidth < 700 ? 34 : 92;
-  const sur = (P(lic).name || '').split(' ').slice(-1)[0], fn = id => { const p = P(id); return p.ghost ? 'someone never named' : esc(p.name.split(' ')[0]); };
+  const sur = P(lic).h ? surOf(P(lic).h) : (P(lic).name || '').split(' ').slice(-1)[0], fn = id => { const p = P(id); return p.ghost ? 'someone never named' : esc(p.name.split(' ')[0]); };
   const card = id => { const p = P(id), h = p.h, ps = parentsOf(id), of = ps.length ? `<em>child of ${ps.map(fn).join(' &amp; ')}</em>` : '';
     if(p.ghost) return `<b>?</b><span>${esc(p.name)}</span>`;
     const life = `${p.born != null ? 'born ' + p.born : ''}${p.died != null ? ` · died ${p.died}` : h && h.status === 'Missing' ? ' · missing' : ''}`;
@@ -253,7 +255,7 @@ const famTreeBtn = h => famSize(h.license) >= 2 ? `<button type="button" class="
 // a surname from the Statistics: the largest family of that name
 function treeBySurname(s){
   const G = famGraph(), done = new Set(); let best = null;
-  HUNTERS.filter(h => h.name.split(' ').slice(-1)[0] === s).forEach(h => { if(done.has(h.license)) return; const F = famOf(h.license, G); F.blood.forEach(id => done.add(id));
+  HUNTERS.filter(h => surOf(h) === s).forEach(h => { if(done.has(h.license)) return; const F = famOf(h.license, G); F.blood.forEach(id => done.add(id));
     if(!best || F.blood.size > best.n || (F.blood.size === best.n && hStars(h) > hStars(best.h))) best = {h, n: F.blood.size}; });
   if(best) openTree(best.h.license);
 }

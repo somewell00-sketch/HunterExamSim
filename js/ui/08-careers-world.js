@@ -5,8 +5,18 @@ const worldFix = w => { ((w || {}).newPlaces || []).forEach(p => { if(typeof PLA
 const worldFix0 = w => Object.assign({cases: [], schools: [], wanted: [], hunts: [], exped: null, crisis: null, avengers: [], seq: 0, chair: null, vice: null, zodiac: {}, elections: []}, w || {});
 let WORLD = worldFix();
 // nicknames outside the exam: veterans and regional Hunters arrive with one now and then, and a big deed can earn one later
-const CAREER_NICK = {Blacklist: ['the Bounty', 'Warrant', 'Manhunter'], Treasure: ['Old Maps', 'Gold Tooth', 'X-Marks'], Beast: ['Beastfriend', 'the Keeper', 'Muzzle'], Gourmet: ['Spoon', 'the Palate', 'Second Helping'], Ruins: ['Dusty', 'Old Stones', 'the Digger'],
-  Sea: ['Saltwater', 'Barnacle', 'the Tide'], Virus: ['Doc', 'Quarantine', 'the Needle'], Lost: ['Finder', 'Breadcrumbs', 'Lantern'], Crime: ['the Detective', 'Fingerprint', 'Alibi'], Jackpot: ['Lucky Seven', 'Dice', 'High Roller'], Music: ['Tuning Fork', 'Encore', 'Hum'], Head: ['the Recruiter', 'Talent Scout', 'the Eye']};
+const CAREER_NICK = {Blacklist: ['the Bounty', 'Warrant', 'Manhunter', 'Wanted Poster', 'the Tracker', 'Handcuffs', 'Last Call', 'the Reward'],
+  Treasure: ['Old Maps', 'Gold Tooth', 'X-Marks', 'Shovel', 'the Magpie', 'Doubloon', 'Lockpick', 'Finders-Keepers'],
+  Beast: ['Beastfriend', 'the Keeper', 'Muzzle', 'Fang', 'the Whistler', 'Saddle', 'Feathers', 'Zookeeper'],
+  Gourmet: ['Spoon', 'the Palate', 'Second Helping', 'Saffron', 'the Ladle', 'Truffle', 'Chopsticks', 'Five Spice'],
+  Ruins: ['Dusty', 'Old Stones', 'the Digger', 'Torchlight', 'Chisel', 'the Glyph', 'Rubble', 'Lantern Jaw'],
+  Sea: ['Saltwater', 'Barnacle', 'the Tide', 'Anchor', 'Gull', 'the Current', 'Seafoam', 'Bosun'],
+  Virus: ['Doc', 'Quarantine', 'the Needle', 'Petri', 'the Mask', 'Fever', 'Sterile', 'Booster'],
+  Lost: ['Finder', 'Breadcrumbs', 'Lantern', 'the Compass', 'Search Light', 'Homeward', 'the Map', 'Footprints'],
+  Crime: ['the Detective', 'Fingerprint', 'Alibi', 'Magnifier', 'the Hunch', 'Case Closed', 'Motive', 'the Witness'],
+  Jackpot: ['Lucky Seven', 'Dice', 'High Roller', 'Snake Eyes', 'All-In', 'the Ace', 'Double Down', 'Coin Flip'],
+  Music: ['Tuning Fork', 'Encore', 'Hum', 'Treble', 'the Metronome', 'Crescendo', 'Fiddle', 'Lullaby'],
+  Head: ['the Recruiter', 'Talent Scout', 'the Eye', 'Shortlist', 'the Handshake', 'Headhunter', 'the Ledger', 'Open Door']};
 const nickTaken = () => new Set(HUNTERS.filter(x => x.nick && hActive(x)).map(x => x.nick));
 function vetNick(h){
   if(h.nick || h.nickChecked || !(h.pro || h.regional)) return; h.nickChecked = 1; if(nhash(h.license + ':vnk') % 100 >= 30) return;
@@ -67,8 +77,7 @@ function makePros(ed, n){
   const out = [], used = new Set(HUNTERS.map(h => h.name)), usedNen = new Set();
   const careers = CAREERS.map(c => c[0]);
   for(let i = 0; i < n; i++){
-    const gr = Math.random(), g = gr < 0.46 ? 'Male' : gr < 0.92 ? 'Female' : 'Non-binary', pool = g === 'Male' ? FIRST_M : g === 'Female' ? FIRST_F : FIRST_N;
-    let name; do { name = pool[Math.floor(Math.random() * pool.length)] + ' ' + LAST[Math.floor(Math.random() * LAST.length)]; } while(used.has(name)); used.add(name);
+    const gr = Math.random(), g = gr < 0.46 ? 'Male' : gr < 0.92 ? 'Female' : 'Non-binary', NM = mkName(null, g, {used}), name = NM.name;
     const A = proAge();
     if(A.age > 95 && Math.random() < 0.7){ const cut = A.age - (80 + Math.floor(Math.random() * 15)); A.age -= cut; A.years = Math.max(0, A.years - cut); }   // the very old are rare
     let longlived = A.age > 95 || Math.random() < 0.002;
@@ -81,7 +90,7 @@ function makePros(ed, n){
     const licAge = A.licAge, years = A.years;
     const cid = 'PRO-' + ed + '-' + (i + 1) + '-' + Math.floor(Math.random() * 1e6).toString(36);
     const nen = generateNen({seed: (Math.random() * 2 ** 31) >>> 0}, {id: cid, a: attrs}, usedNen);
-    const h = {license: proLicense(), cid, name, gender: g, age: A.age, edition: ed, years, attempts: null, history: [], attrs,
+    const h = {license: proLicense(), cid, name, first: NM.first, last: NM.last, surK: NM.surK, cul: NM.cul, gender: g, age: A.age, edition: ed, years, attempts: null, history: [], attrs,
       reason: `Licensed at ${licAge}, before the exam records began`, nen, career: career + ' Hunter', examined: [], registered: null, status: 'Active Hunter', pro: true, pv: 3, rp, log: [], longlived: longlived || undefined};
     out.push(h); HUNTERS.push(h); vetNick(h);
   }
@@ -124,15 +133,14 @@ const REGION_TARGET = 575;
 function makeRegional(ed, n, reg){
   const out = [], used = new Set(HUNTERS.map(h => h.name)), taken = new Set(HUNTERS.map(h => h.license)), usedNen = new Set();
   for(let i = 0; i < n; i++){
-    const gr = Math.random(), g = gr < 0.46 ? 'Male' : gr < 0.92 ? 'Female' : 'Non-binary', pool = g === 'Male' ? FIRST_M : g === 'Female' ? FIRST_F : FIRST_N;
-    let name; do { name = pool[Math.floor(Math.random() * pool.length)] + ' ' + LAST[Math.floor(Math.random() * LAST.length)]; } while(used.has(name)); used.add(name);
+    const gr = Math.random(), g = gr < 0.46 ? 'Male' : gr < 0.92 ? 'Female' : 'Non-binary', NM = mkName(null, g, {used}), name = NM.name;
     let lic; do { lic = reg[1] + String(Math.floor(Math.random() * 10000)).padStart(4, '0'); } while(taken.has(lic)); taken.add(lic);
     const age = 15 + Math.floor(Math.random() * 14) + (Math.random() < 0.15 ? Math.floor(Math.random() * 15) : 0);
     const row = CAREERS[Math.floor(Math.random() * CAREERS.length)], attrs = {};
     ATTRS.forEach(([k]) => { attrs[k] = Math.round(clamp(58 + rnorm() * 8 + (row[1][k] ? row[1][k] * 10 : 0), 35, 92)); });
     const cid = 'REG-' + ed + '-' + reg[1] + '-' + Math.floor(Math.random() * 1e6).toString(36);
     const nen = generateNen({seed: (Math.random() * 2 ** 31) >>> 0}, {id: cid, a: attrs}, usedNen);
-    const h = {license: lic, cid, name, gender: g, age, edition: ed, years: 0, attempts: null, history: [], attrs, regional: reg[0],
+    const h = {license: lic, cid, name, first: NM.first, last: NM.last, surK: NM.surK, cul: NM.cul, gender: g, age, edition: ed, years: 0, attempts: null, history: [], attrs, regional: reg[0],
       longlived: Math.random() < 0.003 || undefined, prodigy: isProdigy(age, attrs) || undefined,
       reason: `Licensed by the regional office in ${reg[0]}`, nen, career: row[0] + ' Hunter', examined: [], registered: null, status: 'Active Hunter', pv: 3, rp: 0, st: 0,
       log: [{ed, text: `${name} is licensed by the regional office in ${reg[0]}, at ${age}.`}]};
@@ -377,7 +385,35 @@ function mournFor(h, ed, add, skip){
 }
 // ---- ties between Hunters: marriages, reunions, lost licenses and memorials
 function tieUp(a, b){ if(!a || !b || a === b || !a.license || !b.license) return; (a.ties = a.ties || {})[b.license] = (a.ties[b.license] || 0) + 1; (b.ties = b.ties || {})[a.license] = (b.ties[a.license] || 0) + 1; }
-const surname = h => (h.name || '').split(' ').slice(-1)[0];
+const surname = h => surOf(h);   // the family a Hunter belongs to
+// the family a child is born into: grandparents, great-grandparents, aunts and uncles, with how they are related
+function famKin(parents){
+  const H = WORLD.heirs || [], byCid = new Map(H.filter(k => k.cid).map(k => [k.cid, k]));
+  const up = x => { const h = typeof x === 'string' ? hLic(x) : x; if(!h) return []; const k = byCid.get(h.cid); return ((k && (k.parents && k.parents.length ? k.parents : k.grand)) || h.heirOf || (h.hParent ? [h.hParent] : [])).map(hLic).filter(Boolean); };
+  const out = [], seen = new Set(parents.map(p => p.license));
+  const put = (p, rel) => { const k = p.license || p.id; if(!p || seen.has(k)) return; seen.add(k); out.push({first: p.first || String(p.name).split(' ')[0], gender: p.gender, rel, name: p.name}); };
+  parents.forEach(pa => { const GP = up(pa); GP.forEach(g => { put(g, 'gp'); up(g).forEach(gg => put(gg, 'ggp'));
+    H.filter(k => (k.parents || []).includes(g.license) && k.name !== pa.name).forEach(k => put(k, 'au')); }); });
+  return out;
+}
+const KIN_REL = {gp: ['grandfather', 'grandmother', 'grandparent'], ggp: ['great-grandfather', 'great-grandmother', 'great-grandparent'], au: ['uncle', 'aunt', "parent's sibling"]};
+// now and then (one child in ten) a child is named after someone in the family
+// a name that echoes a parent's, one vowel apart (Gin and Gon)
+// or one consonant (Gin and Gil): a soft letter for a soft letter, never the first
+const ECHO_C = [['n', 'l', 'm', 'r'], ['s', 'z'], ['t', 'd'], ['b', 'p'], ['v', 'f'], ['g', 'k']];
+function echoCons(n){ const at = [...n].map((ch, i) => i && ECHO_C.some(G => G.includes(ch)) ? i : -1).filter(i => i >= 0); if(!at.length) return null;
+  const i = at.includes(n.length - 1) && Math.random() < 0.6 ? n.length - 1 : pickR(at), G = ECHO_C.find(G => G.includes(n[i])); const ok = G.filter(c => c !== n[i] && c !== (n[i - 1] || '').toLowerCase() && c !== n[i + 1]); return ok.length ? n.slice(0, i) + pickR(ok) + n.slice(i + 1) : null; }
+function echoName(n){ if(Math.random() < 0.5){ const c = echoCons(n); if(c) return c; } const V = 'aeiou', at = [...n].map((ch, i) => V.includes(ch.toLowerCase()) ? i : -1).filter(i => i >= 0); if(!at.length || n.length < 3) return null;
+  const i = pickR(at), lo = n[i].toLowerCase(), nv = pickR([...V].filter(v => v !== lo)), ch = n[i] === lo ? nv : nv.toUpperCase(); return n.slice(0, i) + ch + n.slice(i + 1); }
+function namesake(CN, parents, g){
+  const r = Math.random();
+  if(r < 0.06){ const p = pickR(parents), pf = p.first || p.name.split(' ')[0], e = echoName(pf);   // one child in sixteen: a parent's name with one vowel changed
+    if(e && e !== pf && !parents.some(q => (q.first || q.name.split(' ')[0]) === e)){ CN.first = e; CN.name = e + ' ' + CN.last; return {echo: true, name: p.name, rel: p.gender === 'Male' ? 'father' : p.gender === 'Female' ? 'mother' : 'parent'}; } }
+  if(r >= 0.16) return null;
+  const L = famKin(parents).filter(x => x.gender === g && x.first && !parents.some(p => (p.first || p.name.split(' ')[0]) === x.first)); if(!L.length) return null;
+  const x = pickR(L); CN.first = x.first; CN.name = x.first + ' ' + CN.last;
+  const rel = KIN_REL[x.rel][x.gender === 'Male' ? 0 : x.gender === 'Female' ? 1 : 2]; return {name: x.name, rel};
+}
 function worldTies(ed, add, items){
   const act = HUNTERS.filter(h => hActive(h) && !h.legacy && h.edition < ed), byCid = {}, byLic = {};
   HUNTERS.forEach(h => { if(h.cid) byCid[h.cid] = h; byLic[h.license] = h; });
@@ -410,10 +446,11 @@ function worldTies(ed, add, items){
     const ages = [hunterAge(h), hunterAge(o)], kids = WORLD.heirs.filter(k => k.parents.includes(h.license)).length;
     const line = WORLD.heirs.some(k => k.cid && (k.cid === h.cid || k.cid === o.cid));
     if(Math.min(...ages) < 20 || Math.max(...ages) > 46 || kids >= (line ? 4 : 3) || Math.random() >= (kids ? 0.05 : 0.09) * (line ? 2.5 : 1) * relKids(h, o)) return;   // a Hunter family pushes for the next generation
-    const g = Math.random() < 0.47 ? 'Male' : Math.random() < 0.9 ? 'Female' : 'Non-binary', pool = g === 'Male' ? FIRST_M : g === 'Female' ? FIRST_F : FIRST_N;
-    const first = pickR(pool), last = surname(Math.random() < 0.5 ? h : o), kid = {id: 'K' + (++WORLD.seq), first, name: `${first} ${last}`, gender: g, born: ed, parents: [h.license, o.license]};
+    const g = Math.random() < 0.47 ? 'Male' : Math.random() < 0.9 ? 'Female' : 'Non-binary', ln = Math.random() < 0.5 ? [h, o] : [o, h], CN = childName(ln[0], ln[1], g), NS = namesake(CN, [h, o], g);
+    const first = CN.first, kid = {id: 'K' + (++WORLD.seq), first, last: CN.last, surK: CN.surK, cul: CN.cul, name: CN.name, gender: g, born: ed, parents: [h.license, o.license]};
     WORLD.heirs.push(kid);
-    add(h, 'wed', `${h.name} and ${o.name} welcome a ${g === 'Male' ? 'son' : g === 'Female' ? 'daughter' : 'child'}, ${first}.`, 4, o);
+    if(NS) kid.namesake = NS;
+    add(h, 'wed', `${h.name} and ${o.name} welcome a ${g === 'Male' ? 'son' : g === 'Female' ? 'daughter' : 'child'}, ${first}${NS ? (NS.echo ? `, a name one letter away from ${g === 'Male' ? 'his' : g === 'Female' ? 'her' : 'their'} ${NS.rel}'s` : `, named after ${g === 'Male' ? 'his' : g === 'Female' ? 'her' : 'their'} ${NS.rel}, ${NS.name}`) : ''}.`, 4, o);
   });
   // 🧬 a Hunter does not need another Hunter to start a family; a family name pushes the next one in
   const lineDepth = h => { let d = 1, cur = h, guard = 0; while(cur && guard++ < 12){ const k = (WORLD.heirs || []).find(x => x.cid && x.cid === cur.cid); if(!k) break; d += k.grand ? 2 : 1; cur = (k.grand || k.parents).map(l => byLic[l]).find(Boolean); } return d; };
@@ -421,19 +458,19 @@ function worldTies(ed, add, items){
   act.forEach(h => { if(h.spouse || h.status !== 'Active Hunter') return; const a = hunterAge(h); if(a < 22 || a > 45) return;
     const kids = WORLD.heirs.filter(k => k.parents.includes(h.license)).length, depth = lineDepth(h); if(kids >= (depth >= 2 ? 3 : 2)) return;
     if(Math.random() >= 0.003 * (depth >= 2 ? 4 : 1) * (kids ? 0.5 : 1)) return;
-    const g = Math.random() < 0.47 ? 'Male' : Math.random() < 0.9 ? 'Female' : 'Non-binary', pool = g === 'Male' ? FIRST_M : g === 'Female' ? FIRST_F : FIRST_N;
-    const first = pickR(pool), kid = {id: 'K' + (++WORLD.seq), first, name: `${first} ${surname(h)}`, gender: g, born: ed, parents: [h.license], civ: pickR(CIV), line: depth};
+    const g = Math.random() < 0.47 ? 'Male' : Math.random() < 0.9 ? 'Female' : 'Non-binary', CN = childName(h, null, g), NS = namesake(CN, [h], g);
+    const first = CN.first, kid = {id: 'K' + (++WORLD.seq), first, last: CN.last, surK: CN.surK, cul: CN.cul, name: CN.name, gender: g, born: ed, parents: [h.license], civ: pickR(CIV), line: depth};
     WORLD.heirs.push(kid);
-    add(h, 'life', `${h.name} has a ${g === 'Male' ? 'son' : g === 'Female' ? 'daughter' : 'child'}, ${first}, with ${kid.civ} from ${pickR(PLACES)}.${depth >= 2 ? ` The ${surname(h)} line goes on.` : ''}`, depth >= 2 ? 6 : 4);
+    if(NS) kid.namesake = NS;
+    add(h, 'life', `${h.name} has a ${g === 'Male' ? 'son' : g === 'Female' ? 'daughter' : 'child'}, ${first}, with ${kid.civ} from ${pickR(PLACES)}${NS ? (NS.echo ? `, a name one letter away from ${g === 'Male' ? 'his' : g === 'Female' ? 'her' : 'their'} ${NS.rel}'s` : `, named after ${g === 'Male' ? 'his' : g === 'Female' ? 'her' : 'their'} ${NS.rel}, ${NS.name}`) : ''}.${depth >= 2 ? ` The ${surname(h)} line goes on.` : ''}`, depth >= 2 ? 6 : 4);
   });
   // 🧬 B: a line can skip a generation. A Hunter's child who never became a Hunter still has a life, and children of their own;
   // years later a grandchild registers for the exam with the old name. One skip only: the grandchild's own children are not followed.
   { const hc = new Set(HUNTERS.map(x => x.cid).filter(Boolean));
     WORLD.heirs.filter(k => !k.grand && !(k.cid && hc.has(k.cid)) && (k.never || (k.entered && ed - k.entered >= 3)) && ed - k.born >= 22 && ed - k.born <= 42).forEach(k => {
       const gk = WORLD.heirs.filter(x => x.via === k.id).length; if(gk >= 2 || Math.random() >= (gk ? 0.03 : 0.06)) return;
-      const g = Math.random() < 0.47 ? 'Male' : Math.random() < 0.9 ? 'Female' : 'Non-binary', pool = g === 'Male' ? FIRST_M : g === 'Female' ? FIRST_F : FIRST_N;
-      const first = pickR(pool), last = k.name.split(' ').slice(-1)[0];
-      WORLD.heirs.push({id: 'K' + (++WORLD.seq), first, name: `${first} ${last}`, gender: g, born: ed, parents: [], grand: k.parents.slice(), via: k.id, viaName: k.name});
+      const g = Math.random() < 0.47 ? 'Male' : Math.random() < 0.9 ? 'Female' : 'Non-binary', CN = childName(k, null, g), first = CN.first;
+      WORLD.heirs.push({id: 'K' + (++WORLD.seq), first, last: CN.last, surK: CN.surK, cul: CN.cul, name: CN.name, gender: g, born: ed, parents: [], grand: k.parents.slice(), via: k.id, viaName: k.name});
       const gp = k.parents.map(l => byLic[l]).find(x => x && hActive(x)); if(gp) add(gp, 'life', `${gp.name} becomes a grandparent: ${k.first} has a ${g === 'Male' ? 'son' : g === 'Female' ? 'daughter' : 'child'}, ${first}.`, 3);
     }); }
   // 🤝 reunions: who pulled whom through the exam, years later
@@ -746,8 +783,6 @@ const CRISES = {
   famine:{name:'the Long Famine', areas:['Gourmet','Head'], theme:'friendship', start:['Crops fail across {pl}. The Gourmet Hunters are asked to find food where there is none.'], hero:['{n} finds an edible root that feeds all of {pl} through the winter.','{n} organises a food line in {pl} that runs for months.'], after:'After the famine, the candidates are thinner, and kinder to each other.'},
   syndicate:{name:'the Syndicate Wars', areas:['Crime','Blacklist','Jackpot'], theme:'shadows', start:['The crime syndicates of {pl} go to war with each other. The streets empty at night.'], hero:['{n} brings down a syndicate boss in {pl}.','{n} goes undercover in {pl} and comes out with names.'], after:'Rumour says syndicate spies have registered for this exam. Everyone looks at everyone else.'}
 };
-const OUTLAW_FIRST = ['Varko','Mirela','Dax','Sefa','Ludo','Kesh','Ruta','Brann','Ivet','Corvo','Nell','Tasso','Zhen','Orla','Malik','Pell'];
-const OUTLAW_TITLE = ['the Butcher of {pl}','the Smiling Knife','the Ash Widow','the Bone Collector','the Toll Man','the Lantern Killer','Nine Fingers','the Quiet Fire','the Debt Collector','the Sandman of {pl}'];
 const kindName = c => c.status === 'Disqualified' && /sabotag/.test(c.reason || '') ? 'sabotage' : c.status === 'Disqualified' && /spy/.test(c.reason || '') ? 'spy' : c.kills ? 'killer' : c.nickKind === 'viper' ? 'traitor' : 'killer';
 const FALL = {
   sabotage: '{x}, thrown out of the {e} Hunter Exam for sabotaging rookies, has turned to crime. A bounty is posted.',
@@ -841,7 +876,7 @@ function maybeDiscover(h, ed, add, job){
   // rare: a few times a century, never two in a row
   if(!/found|discovered|uncovered|mapped|dug up|opened/.test(job) || (WORLD.lastDisc && ed - WORLD.lastDisc < 8) || Math.random() > 0.004 * relDisc(h)) return;
   WORLD.lastDisc = ed;
-  const last = h.name.split(' ').slice(-1)[0], kind = pickR(['Ruins', 'Rift', 'Caverns', 'Falls', 'Pass', 'Reef', 'Grotto', 'Basin', 'Spire', 'Hollow']);
+  const last = h.last || h.name.split(' ').slice(-1)[0], kind = pickR(['Ruins', 'Rift', 'Caverns', 'Falls', 'Pass', 'Reef', 'Grotto', 'Basin', 'Spire', 'Hollow']);
   const name = pickR([`the ${last} ${kind}`, `${last}'s ${kind}`]);
   if(PLACES.includes(name)) return;
   PLACES.push(name); (WORLD.newPlaces = WORLD.newPlaces || []).push(name);
@@ -863,7 +898,9 @@ function worldStart(prev, ed, add, busy, items){
   });
   // the Blacklist is never empty
   while(WORLD.wanted.filter(w => w.status === 'wanted' && !w.gang).length < 3){   // lone outlaws: a group's members do not count
-    const pl = pickR(PLACES), w = {id: 'W' + (++WORLD.seq), name: `${pickR(OUTLAW_FIRST)} ${pickR(LAST)}`, gender: Math.random() < 0.5 ? 'Male' : 'Female', nick: pickR(OUTLAW_TITLE).replace('{pl}', pl), danger: 1 + Math.floor(Math.random() * 3), from: ed, status: 'wanted'};
+    const pl = pickR(PLACES), gd = Math.random() < 0.5 ? 'Male' : 'Female', NM = mkName(null, gd), al = outlawAlias(pl), anon = Math.random() < 0.55;
+    // more than half are known only by an alias: the Blacklist has a description, a body count and a name the papers made up
+    const w = {id: 'W' + (++WORLD.seq), name: anon ? aliasName(al) : NM.name, real: NM.name, alias: anon ? aliasName(al) : null, anon: anon || undefined, gender: gd, nick: anon ? null : al, danger: 1 + Math.floor(Math.random() * 3), from: ed, status: 'wanted', home: pl};
     WORLD.wanted.push(w);
   }
   // a crisis: rare, one at a time
@@ -910,7 +947,7 @@ function worldStart(prev, ed, add, busy, items){
     const sk = careerSkill(h) / 100 + hStars(h) * 0.08 + relCap(h) / 0.35, pl = pickR(PLACES), r = Math.random();
     const capP = Math.min(0.75, 0.15 + sk * 0.35 + x.year * 0.08 - w.danger * 0.05 - (w.gang && typeof gangOf === 'function' && gangOf(w.gang) && gangOf(w.gang).lead === w.id ? 0.12 : 0) + (w.tip && ed - w.tip <= 3 ? 0.2 : 0)), dieP = 0.02 + w.danger * 0.025;
     if(r < dieP * relHuntDie(h) && !relicSaves(h, ed, add, 'hunt')){ x.done = true; h.status = 'Deceased'; h.diedEd = ed; h.killedBy = w.name; add(h, 'death', `${h.name} is found dead in ${pl}. ${w.name} was last seen there. The hunt is over, for now.`, 9); w.kills = (w.kills || 0) + 1; if(typeof uwContact === 'function') uwContact(w, ed, `Killed ${h.name}, who was hunting ${w.gender === 'Male' ? 'him' : w.gender === 'Female' ? 'her' : 'them'}, in ${pl}.`); if(w.gang && typeof gangOf === 'function' && gangOf(w.gang)) gangOf(w.gang).kills++; }
-    else if(r < dieP + capP){ x.done = true; w.status = 'captured'; w.by = h.name; w.byLic = h.license; w.endEd = ed; if(typeof uwContact === 'function') uwContact(w, ed, `Captured by ${h.name} after ${x.year + 1} year${x.year ? 's' : ''} on ${w.gender === 'Male' ? 'his' : w.gender === 'Female' ? 'her' : 'their'} trail.`); h.rp = (h.rp || 0) + 60 + w.danger * 30; add(h, 'hunt', pickR([`After ${x.year + 1} year${x.year ? 's' : ''}, ${h.name} brings ${w.name} in alive. The Blacklist is one name shorter.`, `${h.name} corners ${w.name} in ${pl}. It ends without a fight, which surprises everyone.`, `${w.name} is in Association custody. ${h.name} looks older than a year ago.`]) + (h.avenge && h.avenge.killer === w.name ? ` ${h.avenge.hunter} can rest now.` : '') + deedNick(h, ['the Hound', 'Handcuffs', 'Bring-Em-Back', 'the Warden', 'Last Call', `${w.name.split(' ')[0]}'s Bane`], `for bringing in ${w.name}`), 8); }
+    else if(r < dieP + capP){ x.done = true; w.status = 'captured'; w.by = h.name; w.byLic = h.license; w.endEd = ed; { const rv = outlawReveal(w, ed, 'captured'); if(rv) add(h, 'hunt', rv, 6); } if(typeof uwContact === 'function') uwContact(w, ed, `Captured by ${h.name} after ${x.year + 1} year${x.year ? 's' : ''} on ${w.gender === 'Male' ? 'his' : w.gender === 'Female' ? 'her' : 'their'} trail.`); h.rp = (h.rp || 0) + 60 + w.danger * 30; add(h, 'hunt', pickR([`After ${x.year + 1} year${x.year ? 's' : ''}, ${h.name} brings ${w.name} in alive. The Blacklist is one name shorter.`, `${h.name} corners ${w.name} in ${pl}. It ends without a fight, which surprises everyone.`, `${w.name} is in Association custody. ${h.name} looks older than a year ago.`]) + (h.avenge && h.avenge.killer === w.name ? ` ${h.avenge.hunter} can rest now.` : '') + deedNick(h, ['the Hound', 'Handcuffs', 'Bring-Em-Back', 'the Warden', 'Last Call', `${w.name.split(' ')[0]}'s Bane`], `for bringing in ${w.name}`), 8); }
     else if(r < dieP + capP + 0.12 && x.year >= 2){ x.done = true; add(h, 'hunt', `${w.name} slips away from ${h.name} in ${pl} and vanishes. ${h.name} gives up the contract.`, 4); w.slips = (w.slips || 0) + 1; if(typeof uwContact === 'function') uwContact(w, ed, `Slipped away from ${h.name} in ${pl}.`); if(Math.random() < 0.15 + 0.1 * (w.slips - 1)) openCase(h, 'collusion', ed, add, {w: w.name}); }
     else add(h, 'hunt', pickR([`${h.name} picks up ${w.name}'s trail in ${pl}.`, `${h.name} walks into an ambush set by ${w.name} in ${pl}, and walks out of it.`, `${h.name} misses ${w.name} by a day in ${pl}.`, `A tip sends ${h.name} to ${pl}. ${w.name} was there, and left a message.`]), 4); if(typeof uwContact === 'function' && !x.done && w.status === 'wanted' && Math.random() < 0.5) uwContact(w, ed, `Hunted by ${h.name}; ${pickR(['seen', 'nearly caught', 'tracked'])} in ${pl}.`);
   });
@@ -1051,7 +1088,7 @@ function worldEnd(prev, ed, add, items, W){
   }));
   if(ed % 10 === 0){ const live = new Set(); act.forEach(h => (h.rivals || []).forEach(cid => live.add([h.cid, cid].sort().join()))); Object.keys(RIV).forEach(k => { if(!live.has(k)) delete RIV[k]; }); }   // forget the arcs of rivalries that ended some other way
   // someone always wants to avenge the dead
-  dead.forEach(d => { if(Math.random() < 0.45) WORLD.avengers.push({hunter: d.name, lic: d.license, last: d.name.split(' ').slice(-1)[0], killer: d.killedBy || null, ed}); });
+  dead.forEach(d => { if(Math.random() < 0.45) WORLD.avengers.push({hunter: d.name, lic: d.license, last: surOf(d), cul: d.cul || null, killer: d.killedBy || null, ed}); });
   WORLD.avengers = WORLD.avengers.filter(a => a.ed >= ed - 2).slice(-4);
 }
 // a fallen Hunter's relative or friend registers for the next exam
@@ -1061,7 +1098,7 @@ function applyAvengers(N){
     if(!pool.length) return;
     const c = pool.splice(Math.floor(Math.random() * pool.length), 1)[0];
     const kin = Math.random() < 0.6;
-    if(kin && !N.candidates.some(o => o.name === c.first + ' ' + a.last)){ c.last = a.last; c.name = c.first + ' ' + a.last; }
+    if(kin){ const L = a.cul ? ncFem(a.cul, a.last, c.gender) : a.last, F = a.cul ? ncFirstOf(a.cul, c.gender) : c.first; if(!N.candidates.some(o => o.name === F + ' ' + L)){ c.first = F; c.last = L; c.surK = a.last; c.cul = a.cul || c.cul; c.name = F + ' ' + L; } }
     const H = HUNTERS.find(x => x.license === a.lic) || {}, g = (o, m, f, x) => o.gender === 'Male' ? m : o.gender === 'Female' ? f : x;
     const k = kin ? pickR(['sib', 'child', 'niece']) : pickR(['apprentice', 'friend', 'partner']);
     // rel: who the candidate is to the Hunter; relH: who the Hunter was to the candidate

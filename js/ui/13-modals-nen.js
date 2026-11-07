@@ -83,7 +83,7 @@ function lineage(lic, cid){
   // step ties run through a marriage that lasted: to the end, or still going; a divorce or a new marriage ends them on both sides, so the tree does not fill up over the centuries
   const wed = (a, b) => a && b && ((a.spouse === b.license && (b.spouse === a.license || (!b.spouse && b.widowOf === a.license))) || (b.spouse === a.license && !a.spouse && a.widowOf === b.license));
   const spouses = l => { const h = l && hLic(l); if(!h) return []; return [h.spouse, !h.spouse && h.widowOf].filter(x => x && wed(h, hLic(x))).map(ofLic).filter(Boolean); };
-  const P = parents(me), PL = P.map(p => p.lic);
+  const P = parents(me), PL = P.map(p => p.lic).filter(Boolean);   // a parent who never became a Hunter has no licence: it must not rule out every relative without one
   P.forEach(p => add(p, x => g(x, 'father', 'mother', 'parent')));
   const GP = uniq(P.flatMap(parents).concat(grandOf(me))); GP.forEach(p => add(p, x => g(x, 'grandfather', 'grandmother', 'grandparent')));
   const AU = uniq(GP.flatMap(p => children(p))).filter(p => !PL.includes(p.lic) && !P.some(q => q.kid && p.kid && q.kid.id === p.kid.id)).filter(p => add(p, x => g(x, 'uncle', 'aunt', "parent's sibling")));

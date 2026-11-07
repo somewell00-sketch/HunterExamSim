@@ -8,7 +8,7 @@ const saName = h => h ? `<a data-hunter="${esc(h.license)}">${esc(h.name)}</a>` 
 const SA_DEF = {
   families: () => { const by = {};
     const PAR = new Set((WORLD.heirs || []).flatMap(k => (k.parents || []).concat(k.grand || [])));
-    HUNTERS.filter(h => !h.legacy && (h.heirOf || h.hParent || h.grandOf || PAR.has(h.license))).forEach(h => { const s = h.name.split(' ').slice(-1)[0]; (by[s] = by[s] || []).push(h); });
+    HUNTERS.filter(h => !h.legacy && (h.heirOf || h.hParent || h.grandOf || PAR.has(h.license))).forEach(h => { const s = surOf(h); (by[s] = by[s] || []).push(h); });
     return {title: 'Hunter families', cols: [['Family'], ['Hunters', 1], ['Active', 1], ['First licensed', 1], ['Best known']],
       rows: Object.entries(by).map(([s, L]) => { const best = L.slice().sort((a, b) => (b.rp || 0) - (a.rp || 0))[0], a = L.filter(hActive).length, f = Math.min(...L.map(h => h.edition));
         return {c: [`<a data-famq="${esc(s)}">${esc(s)}</a>`, L.length, a, ordinal(f), saName(best)], v: [s, L.length, a, f, best.name], t: s + ' ' + L.map(h => h.name).join(' ')}; })}; },

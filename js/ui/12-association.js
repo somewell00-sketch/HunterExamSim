@@ -16,7 +16,7 @@ function registerHunters(){
   WORLD.heirs = WORLD.heirs || [];
   S.candidates.filter(c => c.status !== 'Approved' && c.status !== 'Active' && c.status !== 'Finalist').forEach(c => {
     let k = WORLD.heirs.find(x => x.cid === c.id);
-    if(!k && c.hParent && legendKnown(c) && hLic(c.hParent)) WORLD.heirs.push(k = {id: 'K' + (++WORLD.seq), first: c.first, name: c.name, gender: c.gender, born: S.edition - c.age, parents: [c.hParent], entered: S.edition, cid: c.id, legend: true});
+    if(!k && c.hParent && legendKnown(c) && hLic(c.hParent)) WORLD.heirs.push(k = {id: 'K' + (++WORLD.seq), first: c.first, last: c.last || null, surK: c.surK || null, cul: c.cul || null, name: c.name, gender: c.gender, born: S.edition - c.age, parents: [c.hParent], entered: S.edition, cid: c.id, legend: true});
     if(k && !k.fate) k.fate = {st: c.status, ed: S.edition, at: c.out != null && PHASES[c.out] ? PHASES[c.out].name : null};
   });
   const have = new Set(HUNTERS.map(h => h.cid));
@@ -24,7 +24,7 @@ function registerHunters(){
   S.candidates.filter(c => c.status === 'Approved' && !have.has(c.id)).sort((a,b) => a.reg - b.reg).forEach(c => {
     HA_SEQ += 1;
     HUNTERS.push({
-      license: licenseId(S.edition, c.reg), cid: c.id, name: c.name, gender: c.gender, age: c.age,
+      license: licenseId(S.edition, c.reg), cid: c.id, name: c.name, first: c.first || undefined, last: c.last || undefined, surK: c.surK || undefined, cul: c.cul || undefined, gender: c.gender, age: c.age,
       edition: S.edition, attempts: (c.attempts || []).length || 1, special: S.special || undefined, catTag: c.catHero && S.cat ? S.cat.tag : undefined, catName: c.catHero && S.cat ? S.cat.name : undefined, starCup: c.starCup || undefined, longlived: Math.random() < 0.003 || undefined,
       ...(c.starCup === 'champion' ? {st: 1, rp: RANK_AT[1]} : {}),
       history: JSON.parse(JSON.stringify(c.attempts || [])), attrs: {...c.a}, reason: c.reason,
@@ -102,7 +102,7 @@ function renderAssociation(){
   const masOk = (h, f) => f === 'master' ? pupilsOf.has(h.license) : f === 'pupil' ? !!h.master : f === 'head' ? HEADS.has(h.license) : true;
   const famOk = (h, f) => { const t = fam(h); return f === 'any' ? t.wed || t.par || t.kid || t.kin : t[f]; };
   const passF = (h, skip) => (skip === 'fam' || !haFam || famOk(h, haFam)) && (skip === 'st' || !haSt || stOf(h) === haSt) && (skip === 'star' || !haStar || hStars(h) >= +haStar) && (skip === 'car' || !haCar || h.career === haCar) && (skip === 'nen' || !haNen || (h.nen && h.nen.category === haNen)) && (skip === 'ed' || edOk(h)) && (skip === 'off' || !haFormer || wasR(h, haFormer)) && (skip === 'sch' || !haSch || (haSch === 'any' ? !!h.school : h.school === haSch)) && (skip === 'rel' || !haRel || relOk2(h, haRel)) && (skip === 'case' || !haCase || caseOk(h, haCase)) && (skip === 'mas' || !haMas || masOk(h, haMas));
-  const base = H.filter(h => inView(h) && (!q || h.name.toLowerCase().includes(q) || h.license.toLowerCase().includes(q) || h.cid.toLowerCase().includes(q)));
+  const base = H.filter(h => inView(h) && (!q || h.name.toLowerCase().includes(q) || h.license.toLowerCase().includes(q) || h.cid.toLowerCase().includes(q) || (h.surK && h.surK.toLowerCase() === q)));
   let rows = base.filter(h => passF(h));
   // option counts follow the other active filters, so an option never leads to an empty table
   const BS = {}, cnt = (skip, f) => (BS[skip] = BS[skip] || base.filter(h => passF(h, skip))).reduce((n, h) => n + (f(h) ? 1 : 0), 0);   // the rows that pass the other filters, once per menu
@@ -231,7 +231,7 @@ function openHunter(license){
     ['exam', h.pro || h.regional ? 'License' : 'Exam', `${exCard}${h.pro ? '' : keepExamHtml(h) + (hist ? `<div class="ehs">${hist}</div>` : '')}${h.cid && !h.pro ? `<div class="pf-id">Candidate ID ${esc(h.cid)}</div>` : ''}`]].filter(t => t[2]);
   const on = T.some(t => t[0] === HP_TAB) ? HP_TAB : 'chron';
   showModal(`<div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(h.name)}">
-    <div class="sheet-head ph"><div><div class="meta">Hunter Association · ${h.license}</div><div class="sh-t"><h2>${esc(h.name)}</h2>${hStatus(h)}</div>${h.nick ? `<div class="meta knownas">Known as <b>“${esc(h.nick)}”</b>${(h.nickWhy || (h.keep && h.keep.nick && h.keep.nick.why)) ? ` — ${esc(h.nickWhy || h.keep.nick.why)}` : ''}${h.nickEd && h.nickEd !== h.edition ? ` (since the ${ordinal(h.nickEd)})` : h.keep && h.keep.ed ? ` (${ordinal(h.keep.ed)} exam)` : ''}</div>` : ''}
+    <div class="sheet-head ph"><div><div class="meta">Hunter Association · ${h.license}</div><div class="sh-t"><h2>${esc(h.name)}</h2>${hStatus(h)}</div>${h.nick ? `<div class="meta knownas">Known as <b>“${esc(h.nick)}”</b>${(h.nicks || []).length ? ` <span class="muted">(formerly ${h.nicks.map(x => `“${esc(x.n)}”`).join(', ')})</span>` : ''}${(h.nickWhy || (h.keep && h.keep.nick && h.keep.nick.why)) ? ` — ${esc(h.nickWhy || h.keep.nick.why)}` : ''}${h.nickEd && h.nickEd !== h.edition ? ` (since the ${ordinal(h.nickEd)})` : h.keep && h.keep.ed ? ` (${ordinal(h.keep.ed)} exam)` : ''}</div>` : ''}
       <div class="ph-facts">${facts}</div>
       ${pastTags(h).length || specialTags(h).length ? `<div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">${specialTags(h).map(x => `<span class="xtag sp">${esc(x)}</span>`).join('')}${pastTags(h).map(x => `<span class="xtag" title="${esc((h.pastRoles || []).filter(y => y.r === x.r).map(yrs).join(', '))}">${esc(x.label)}</span>`).join('')}</div>` : ''}</div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">${favBtn(h.cid)}<button class="btn" id="mClose">Close</button></div></div>
