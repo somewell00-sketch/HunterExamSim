@@ -6,12 +6,10 @@ const SA = {kind: null, q: '', f: '', sort: null, dir: -1};
 const saName = h => h ? `<a data-hunter="${esc(h.license)}">${esc(h.name)}</a>` : '<span class="muted">—</span>';
 // each list: its title, its columns ([label, numeric?]), and its rows ({c: cells, v: sort values, t: search text, f: filter value})
 const SA_DEF = {
-  families: () => { const by = {};
-    const PAR = new Set((WORLD.heirs || []).flatMap(k => (k.parents || []).concat(k.grand || [])));
-    HUNTERS.filter(h => !h.legacy && (h.heirOf || h.hParent || h.grandOf || PAR.has(h.license))).forEach(h => { const s = surOf(h); (by[s] = by[s] || []).push(h); });
-    return {title: 'Hunter families', cols: [['Family'], ['Hunters', 1], ['Active', 1], ['First licensed', 1], ['Youngest active']], filter: ['Status', [['alive', 'Still active'], ['gone', 'No one active']]],
-      rows: Object.entries(by).map(([s, L]) => { const A = L.filter(hActive), y = A.slice().sort((a, b) => hunterAge(a) - hunterAge(b))[0], f = Math.min(...L.map(h => h.edition));
-        return {c: [`<a data-famq="${esc(s)}">${esc(s)}</a>`, L.length, A.length, ordinal(f), y ? saName(y) : '—'], v: [s, L.length, A.length, f, y ? y.name : ''], t: s + ' ' + L.map(h => h.name).join(' '), f: A.length ? 'alive' : 'gone'}; })}; },
+  families: () => ({title: 'Hunter families', cols: [['Family'], ['Hunters', 1], ['Active', 1], ['First licensed', 1], ['Latest'], ['']], filter: ['Status', [['alive', 'Still active'], ['gone', 'No one active']]],
+    rows: famTrees().map(f => ({c: [saName(f.first) + ` <span class="muted">· the ${esc(f.name)}s</span>`, f.H.length, f.A.length, ordinal(f.first.edition), saName(f.last), `<a data-tree="${esc(f.last.license)}">tree ›</a>`], v: [f.name, f.H.length, f.A.length, f.first.edition, f.last.name, 0], t: f.H.map(h => h.name).join(' '), f: f.A.length ? 'alive' : 'gone'}))}),
+  surnames: () => ({title: 'Surnames', cols: [['Surname'], ['Hunters', 1], ['Active', 1]], filter: ['Status', [['alive', 'Still active'], ['gone', 'No one active']]],
+    rows: surCounts(HUNTERS).map(([s, n, a]) => ({c: [`<a data-famreg="${esc(s)}">${esc(s)}</a>`, n, a], v: [s, n, a], t: s, f: a ? 'alive' : 'gone'}))}),
   lines: () => ({title: 'Longest lines', cols: [['Founder'], ['Generations', 1], ['Licensed', 1], ['Latest Hunter'], ['']], filter: ['Status', [['alive', 'Still active'], ['gone', 'No one active']]],
     rows: famLines(HUNTERS).map(x => { const s = surOf(x.root), on = HUNTERS.some(h => !h.legacy && surOf(h) === s && hActive(h));
       return {c: [saName(x.root), x.d, ordinal(x.root.edition), saName(x.h), `<a data-tree="${esc(x.h.license)}">tree ›</a>`], v: [x.root.name, x.d, x.root.edition, x.h.name, 0], t: x.root.name + ' ' + x.h.name + ' ' + s, f: on ? 'alive' : 'gone'}; })}),

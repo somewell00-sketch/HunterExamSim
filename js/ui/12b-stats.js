@@ -68,7 +68,6 @@ function statsHtml0(){
   // families: generations through the heirs, and surnames with the most Hunters
   const byCid = new Map(H.map(h => [h.cid, h]));
   const dyn = famLines(H).slice(0, 5);
-  const PARS = new Set((WORLD.heirs || []).flatMap(k => k.parents || [])), fam = {}; H.filter(h => h.heirOf || h.hParent || h.grandOf || PARS.has(h.license)).forEach(h => { const s = surOf(h); fam[s] = (fam[s] || 0) + 1; });
   // schools, cases, outlaws, relics, chairs
   const Sc = (WORLD.schools || []).map(s => ({s, all: H.filter(h => h.school === s.id).length})).sort((a, b) => b.all - a.all).slice(0, 5);
   const C = WORLD.cases || [], V = WORLD.caseV || {};
@@ -86,10 +85,8 @@ function statsHtml0(){
     <div class="st-three">${stBars('Specialties, active', Object.entries(car).sort((a, b) => b[1] - a[1]).slice(0, 8), pct)}${stBars('Crises by kind', crisisN)}${stBars('Cases', [['Guilty', V.guilty || 0], ['Cleared', V.cleared || 0], ['Reopened', C.filter(c => c.re).length], ['Licenses revoked', H.filter(h => h.revoked).length]])}</div>
     <div class="marks">
       ${stList('Longest lines', dyn.map(x => [hl(x.root), `${x.d} generations · latest: ${hl(x.h)}${(WORLD.heirs || []).some(k => k.grand && k.cid === x.h.cid) ? ' · skips a generation' : ''} · <a data-tree="${esc(x.h.license)}">tree</a>`]), 'lines')}
-      ${stList('Largest families still active', Object.entries(fam).map(([s, n]) => { const A = H.filter(h => surOf(h) === s && hActive(h)); return {s, n, A}; }).filter(x => x.A.length).sort((a, b) => b.n - a.n || b.A.length - a.A.length).slice(0, 5).map(({s, n, A}) => {
-        // one row a family: its youngest Hunter still active stands for it
-        const y = A.slice().sort((a, b) => hunterAge(a) - hunterAge(b))[0];
-        return [`<a data-famq="${esc(s)}" title="The family tree of the ${esc(s)}s">${esc(s)}</a>`, `${n} Hunters, ${A.length} active · youngest: ${hl(y)}`]; }), 'families')}
+      ${stList('Largest families', famTrees().filter(f => f.A.length).slice(0, 5).map(f => [famLink(f), `${f.H.length} Hunters, ${f.A.length} active · latest: ${hl(f.last)}`]), 'families')}
+      ${stList('Most common surnames', surCounts(H).slice(0, 5).map(([s, n, a]) => [`<a data-famreg="${esc(s)}" title="Every ${esc(s)} in the register">${esc(s)}</a>`, `${n} Hunters${a ? `, ${a} active` : ''}`]), 'surnames')}
       ${stList('Largest schools', Sc.map(({s, all}) => [`<a data-school="${s.id}">${esc(capS(s.name))}</a>`, `${all} students · ${s.heads.length} master${s.heads.length === 1 ? '' : 's'} · ${s.st}`]), 'schools')}
       ${stList('Deadliest outlaws', dead.map(w => [`<a data-outlaw="${esc(w.id)}">${esc(w.name)}</a>` + (w.nick ? ` “${esc(w.nick)}”` : ''), `${w.kills} Hunter${w.kills === 1 ? '' : 's'} killed · ${w.status}`]), 'outlaws')}
       ${stList('Relics', most.map(r => [`<a data-relic="${r.id}">${esc(capS(RDEF[r.id].name))}</a>`, `${r.n || 0} owners`]).concat(longHold ? [[hl(hLic(longHold.o.lic)) || esc(longHold.o.name), `held ${esc(RDEF[longHold.r.id].name)} for ${longHold.y} years`]] : []), 'relics')}
@@ -104,9 +101,24 @@ function famLines(H){
   const gen = h => { let d = 1, cur = h, g = 0; while(cur && g++ < 12){ const k = kidC.get(cur.cid); const p = k && (k.grand || k.parents).map(l => hLic(l)).find(Boolean); if(!p) break; d += k.grand ? 2 : 1; cur = p; } return [d, cur]; };
   const by = new Map(); H.filter(h => !h.legacy && (h.heirOf || h.hParent || h.grandOf)).forEach(h => { const [d, root] = gen(h), k = surOf(root) + '|' + root.license; const o = by.get(k); if(!o || d > o.d || (d === o.d && h.edition > o.h.edition)) by.set(k, {d, root, h}); });
   // a family with two founders keeps its longest line only
-  const fam = new Map(); [...by.values()].forEach(x => { const k = surOf(x.root), o = fam.get(k); if(!o || x.d > o.d) fam.set(k, x); });
+  // one line a family tree
+  const tree = new Map(); famTrees().forEach((f, j) => f.H.forEach(h => tree.set(h.license, j)));
+  const fam = new Map(); [...by.values()].forEach(x => { const k = tree.has(x.h.license) ? 't' + tree.get(x.h.license) : surOf(x.root), o = fam.get(k); if(!o || x.d > o.d) fam.set(k, x); });
   return [...fam.values()].filter(x => x.d >= 2).sort((a, b) => b.d - a.d || a.root.edition - b.root.edition);
 }
+// a family is one family tree: everyone joined by blood (and those who married in), as the tree draws it, whatever their surnames
+function famTrees(){ return typeof haKept === 'function' ? haKept('famTrees', famTrees0) : famTrees0(); }
+function famTrees0(){
+  const G = famGraph(), done = new Set(), out = [];
+  HUNTERS.filter(h => !h.legacy && G.N.has(h.license)).forEach(h => { if(done.has(h.license)) return; const F = famOf(h.license, G); F.blood.forEach(id => done.add(id));
+    const H = [...F.ids].map(id => G.N.get(id).h).filter(x => x && !x.legacy); if(H.length < 2) return;
+    const first = H.slice().sort((a, b) => a.edition - b.edition)[0], A = H.filter(hActive), last = (A.length ? A : H).slice().sort((a, b) => b.edition - a.edition)[0];
+    out.push({H, A, first, last, name: surOf(first)}); });
+  return out.sort((a, b) => b.H.length - a.H.length || b.A.length - a.A.length);
+}
+const famLink = f => `<a data-tree="${esc(f.last.license)}" title="The family tree">The ${esc(f.name)} family</a>`;
+// surnames on their own: every Hunter who carries one, family tree or not
+function surCounts(H){ const by = {}; H.filter(h => !h.legacy).forEach(h => { const s = surOf(h), x = by[s] = by[s] || [s, 0, 0]; x[1]++; if(hActive(h)) x[2]++; }); return Object.values(by).filter(x => x[1] >= 2).sort((a, b) => b[1] - a[1] || b[2] - a[2]); }
 function expLine(T){ const X = WORLD.expHist || []; if(X.length) return [`${X.filter(x => x.home.length).length} of ${X.length}`, 'expeditions on record came home']; return T.exp ? [`${Math.min(T.expBack || 0, T.exp)} of ${T.exp}`, 'expeditions came home'] : null; }
 function statsMoreHtml(H){
   const NOW = S.edition, hl = h => h ? `<a data-hunter="${esc(h.license)}">${esc(h.name)}</a>` : '—', P = v => Math.round(v * 100) + '%', med = A => { const s = A.slice().sort((a, b) => a - b), m = s.length >> 1; return s.length ? Math.round(s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2) : null; };

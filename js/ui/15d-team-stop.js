@@ -52,10 +52,16 @@ const TR_RULE = {Combat: ['first to touch the ground loses', 'inside a chalk cir
 const trSk = R => TR_SK[R.k] || TR_SK.tower;
 const trStop = i => { const R = trRun(i); return R && R.merged ? R : null; };
 // the page for either half of a merged pair, once both have run: the first half's index
-function trPairA(i){ if(i == null || !S.teamRun) return null; const R = S.teamRun[i], Rp = S.teamRun[i - 1];
+// the Cooking Trial and the Egg Retrieval after it are one step too: the egg is the second chance at the same dish
+const kxPair = i => !!(PHASES[i] && PHASES[i].id === 'cooking' && PHASES[i + 1] && PHASES[i + 1].id === 'egg');
+// the second half of a pair that starts at i, or null
+const pairB = i => (S.teamRun && S.teamRun[i] && S.teamRun[i].merged) || (kxPair(i) ? i + 1 : null);
+function trPairA(i){ if(i == null) return null; const done = j => S.stats.some(s => s.p === j);
+  if(kxPair(i) && done(i + 1)) return i; if(kxPair(i - 1) && done(i)) return i - 1;
+  if(!S.teamRun) return null; const R = S.teamRun[i], Rp = S.teamRun[i - 1];
   if(R && R.merged === i + 1 && R.done != null) return i; if(Rp && Rp.merged === i && Rp.done != null) return i - 1; return null; }
-const trHiddenStep = i => !!(S.teamRun && S.teamRun[i - 1] && S.teamRun[i - 1].merged === i);
-const trPairPending = () => { const a = lastDone(); return a != null && !S.finished && S.teamRun && S.teamRun[a] && S.teamRun[a].merged === S.phase && S.teamRun[a].done == null; };
+const trHiddenStep = i => !!(S.teamRun && S.teamRun[i - 1] && S.teamRun[i - 1].merged === i) || kxPair(i - 1);
+const trPairPending = () => { const a = lastDone(); if(a == null || S.finished) return false; if(kxPair(a) && S.phase === a + 1) return true; return !!(S.teamRun && S.teamRun[a] && S.teamRun[a].merged === S.phase && S.teamRun[a].done == null); };
 // eight levels: the stop sits between the second and third
 const trLv8 = f => f < 3 ? f : f + 1;
 const trAt8 = (t, h) => { let f = 0; (t.hp || t.path.map(([x, y]) => [x, trLv8(y)])).forEach(([ph, pf]) => { if(ph <= h) f = pf; }); return f; };

@@ -9,7 +9,15 @@ const assert = require('assert'), {openGame} = require('./lib');
       for(const sel of egg ? [i, i + 1] : [i]){ selPhase = sel; render(); showTab('phase'); const box = document.querySelector('[data-ps]'); if(!box){ bad.push(k + ': no pass on ' + sel); continue; } { const r0 = box.querySelector('input[type=range]'); if(+r0.value !== 0) bad.push('a drawing does not open at the start'); r0.value = r0.max; } passDraw(box);
         const X = passRun(i), take = box.querySelector('[data-pstake]').textContent, after = S.stats.find(s => s.p === i + (egg ? 1 : 0)).after;
         if(!take.startsWith(String(after).replace(/\B(?=(\d{3})+(?!\d))/g, ','))) bad.push(k + ': ' + take + ' vs ' + after); }
+      if(egg){ // one step: the Egg Retrieval has no card of its own, the Cooking card counts both, one page and one pass
+        const st = [...document.querySelectorAll('#stepper .step .n')].map(x => x.textContent); if(st.includes(PHASES[i + 1].name)) bad.push('egg has its own step');
+        const card = document.querySelector(`#stepper .step[data-step="${i + 1}"]`); if(!card || !/Cooking/.test(card.textContent)) bad.push('cooking card does not stand for both');
+        selPhase = i + 1; render(); if(document.querySelectorAll('[data-ps]').length !== 1) bad.push('the pass twice'); }
       seen.push(k); }
+    // the Next button runs the Cooking Trial and the egg together
+    for(let e = 401; e < 700; e++){ S = fresh(e); useLineup(S); const i = PHASES.findIndex(p => p.id === 'cooking'); if(i < 0 || !(PHASES[i + 1] && PHASES[i + 1].id === 'egg')) continue;
+      let g = 0; while(S.phase < i && !S.finished && g++ < 40) runPhase(S); if(S.finished || S.phase !== i) continue;
+      MENTOR.off = true; document.getElementById('bStep').onclick(); if(!S.finished && S.phase === i + 1) bad.push('the egg waited for a second click'); seen.push('one click'); break; }
     return {seen, bad}; });
   await browser.close();
   assert.deepStrictEqual(errors, []); assert.deepStrictEqual(r.bad, []); assert.ok(r.seen.includes('cooking'));

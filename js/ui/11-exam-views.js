@@ -171,7 +171,7 @@ function renderStepper(){
   // phases sit under one label per group; a thin bar shows how many are still standing
   const N0 = S.config.applicants || 1, groups = [];
   PHASES.forEach((ph, i) => { const g = groups[groups.length - 1]; if(g && g.name === ph.group) g.ix.push(i); else groups.push({name: ph.group, ix: [i]}); });
-  const step = i => { const ph = PHASES[i], jB = S.teamRun && S.teamRun[i] && S.teamRun[i].merged && S.stats.find(s => s.p === S.teamRun[i].merged) ? S.teamRun[i].merged : i, st = S.stats.find(s => s.p === jB), isNext = !S.finished && (i === S.phase || (jB !== i && jB === S.phase));
+  const step = i => { const ph = PHASES[i], pB = typeof pairB === 'function' ? pairB(i) : null, jB = pB != null && S.stats.find(s => s.p === pB) ? pB : i, st = S.stats.find(s => s.p === jB), isNext = !S.finished && (i === S.phase || (pB != null && pB === S.phase));
     const cls = st ? 'done' : isNext ? 'next' : 'todo';
     // never break a word: each card is at least as wide as the longest word in its name
     const mw = Math.max(84, Math.ceil(Math.max(...ph.name.split(' ').map(w => w.length)) * 7.6 + 20));
@@ -508,11 +508,11 @@ function renderZevil(st){
     </div>${typeof zwHtml === 'function' ? zwHtml(PHASES.findIndex(x => x.zevil)) : ''}`;
 }
 
-function exChip(ex){
+function exChip(ex, lab){
   const st = EX_STYLES[ex.style] || {};
   // the style badge already names the style, so the description drops its leading word and the dashes
   const d = (st.desc || '').replace(new RegExp('^' + ex.style + '\\s*—\\s*', 'i'), ''), desc = d ? d.charAt(0).toUpperCase() + d.slice(1) + '.' : '';
-  return `<span class="exs ${ex.style}" title="${esc(ex.style)} examiner">Examiner</span> ${ex.license ? `<a data-hunter="${esc(ex.license)}">${esc(ex.name)}</a> <span class="muted">${esc(ex.career || 'Hunter')}, ${ex.from ? `licensed in the ${ordinal(ex.from)}` : 'a veteran'}. ${esc(desc)}</span>` : `<b>${esc(ex.name)}</b> <span class="muted">${esc(desc)}</span>`}`;
+  return `<span class="exs ${ex.style}" title="${esc(ex.style)} examiner">${esc(lab || 'Examiner')}</span> ${ex.license ? `<a data-hunter="${esc(ex.license)}">${esc(ex.name)}</a> <span class="muted">${esc(ex.career || 'Hunter')}, ${ex.from ? `licensed in the ${ordinal(ex.from)}` : 'a veteran'}. ${esc(desc)}</span>` : `<b>${esc(ex.name)}</b> <span class="muted">${esc(desc)}</span>`}`;
 }
 // not betting, not mentoring yet: one quiet line instead of two banners
 function renderPhase(){ renderPhase0(); const sh = scoutHtml(), mh = mentorHtml(); let x = mh + sh + scDoubleHtml();
@@ -712,7 +712,7 @@ function renderPhase0(){
     `<details class="cause"><summary><span>${esc(k.charAt(0).toUpperCase() + k.slice(1))}</span><b>${arr.length}</b></summary><div class="who">${nameLinks(arr)}</div></details>`).join('');
   const rescued = S.candidates.filter(c => c.notes.some(n => PSET.includes(n.p) && /rescued by/.test(n.text))).length;
 
-  el.innerHTML = `<div class="rep-head"><div><h2>${esc(ph.name)}</h2><p class="pdesc">${esc(PREVIEW[ph.id] || '')}</p>${phTests(ph)}${ph.ex || (phB && phB.ex) ? `<div class="exline">${ph.ex ? exChip(ph.ex) : ''}${phB && phB.ex ? exChip(phB.ex) : ''}</div>` : ''}</div>
+  el.innerHTML = `<div class="rep-head"><div><h2>${esc(ph.name)}</h2><p class="pdesc">${esc(PREVIEW[ph.id] || '')}</p>${phTests(ph)}${ph.ex || (phB && phB.ex) ? (phB && phB.ex && !(ph.ex && ph.ex.name === phB.ex.name) ? `<div class="exline">${ph.ex ? `<div>${exChip(ph.ex, ph.name)}</div>` : ''}<div>${exChip(phB.ex, phB.name)}</div></div>` : `<div class="exline">${exChip(ph.ex || phB.ex)}</div>`) : ''}</div>
       ${(() => { const cut = st.before - st.after, dead = outs.filter(c => c.status === 'Deceased').length, pct = st.before ? st.after / st.before * 100 : 0;
         // one headline (who fell), the rest as context under a thin bar
         return `<div class="rn2"><div class="rn-h"><b>${fmt(st.after)}</b> of ${fmt(st.before)} go on</div><div class="rn-bar" role="img" aria-label="${Math.round(pct)}% go on"><i style="width:${pct}%"></i></div><div class="rn-s">${cut ? `${fmt(cut)} out` : 'nobody out'}${rescued ? ` · ${rescued} rescued` : ''}${dead ? ` <span class="rn-d" title="${dead} died">✝ ${dead}</span>` : ''}</div></div>`; })()}</div>
@@ -882,7 +882,7 @@ function renderResults(){
   if(hl.length) h += '<div class="section-h">Highlights</div><div class="hl">' + hl.map(x => `<div data-id="${x.id}"><small>${esc(x.label)}</small><b>${esc(x.name)}</b> <span class="regn">#${x.reg}</span><span>${esc(clean(x.detail).replace(/\s*\(\d+\)$/, '').replace(/^Lowest attribute total among Hunters$/, 'Least gifted on paper, still made it').replace(/^Total \d+, out at /, 'Highly gifted, out at ').replace(/^Score \d+$/, 'Led the field through the tunnels'))}</span></div>`).join('') + '</div>';
   h += paperHtml(S.paper, true) + `<details class="res-more chron"><summary>Read the chronicle of the ${ordinal(S.edition)} Hunter Exam</summary>${chron.map(p => `<p>${autoLink(esc(p))}</p>`).join('')}</details>`;
   h += '<details class="res-more"><summary>Phase by phase · the numbers</summary><div class="tablebox"><table><thead><tr><th>Phase</th><th>Entered</th><th>Advanced</th><th>Eliminated</th></tr></thead><tbody>' +
-    S.stats.filter(s => !(typeof trHiddenStep === 'function' && trHiddenStep(s.p))).map(s => { const b = S.teamRun && S.teamRun[s.p] && S.teamRun[s.p].merged && S.stats.find(x => x.p === S.teamRun[s.p].merged); return b ? {p: b.p, name: PHASES[s.p].name, before: s.before, after: b.after} : {...s, name: PHASES[s.p].name}; }).map(s => `<tr data-step="${s.p}" style="cursor:pointer"><td>${esc(s.name)}</td><td class="num">${s.before}</td><td class="num">${s.after}</td><td class="num">${s.before - s.after}</td></tr>`).join('') + '</tbody></table></div></details>';
+    S.stats.filter(s => !(typeof trHiddenStep === 'function' && trHiddenStep(s.p))).map(s => { const pB = typeof pairB === 'function' ? pairB(s.p) : null, b = pB != null && S.stats.find(x => x.p === pB); return b ? {p: b.p, name: PHASES[s.p].name, before: s.before, after: b.after} : {...s, name: PHASES[s.p].name}; }).map(s => `<tr data-step="${s.p}" style="cursor:pointer"><td>${esc(s.name)}</td><td class="num">${s.before}</td><td class="num">${s.after}</td><td class="num">${s.before - s.after}</td></tr>`).join('') + '</tbody></table></div></details>';
   el.innerHTML = h + rulesHtml();
 }
 function rulesHtml(){

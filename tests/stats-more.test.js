@@ -7,7 +7,10 @@ const assert = require('assert'), {openGame, runExams} = require('./lib');
     const st = statsHtml(); ['Still active 30 years on', 'In the chair, by specialty', 'Longest in the chair', 'Hunter families'].forEach(t => { if(!st.includes(t)) bad.push('stats: no ' + t); });
     if(HUNTERS.some(h => h.se && h.se.some((e, k) => e != null && (e < h.edition || (k && h.se[k - 1] != null && e < h.se[k - 1]))))) bad.push('a star before the license or before the one below it');
     // one row a family in the family blocks; the largest families all still have someone active; no record counts past its total
-    const fl = famLines(HUNTERS); if(new Set(fl.map(x => surOf(x.root))).size !== fl.length) bad.push('a family twice in Longest lines');
+    const fl = famLines(HUNTERS); if(new Set(fl.map(x => x.root.license)).size !== fl.length) bad.push('a family twice in Longest lines');
+    // the count a family shows is the count its tree draws
+    famTrees().slice(0, 3).forEach(f => { openTree(f.last.license); const F = famOf(f.last.license); const n = [...F.ids].filter(id => { const x = F.G.N.get(id).h; return x && !x.legacy; }).length; if(n !== f.H.length) bad.push('family ' + f.name + ': ' + f.H.length + ' vs tree ' + n); closeModal(); });
+    if(!/Most common surnames/.test(st)) bad.push('no surnames');
     const m = st.match(/(\d+) of (\d+)<\/b>[^<]*<span[^>]*>expeditions/) || st.match(/(\d+) of (\d+)/); if(/expeditions/.test(st) && m && +m[1] > +m[2]) bad.push('more came home than went');
     if(/Chairman for \d+ years/.test(st)) bad.push('chair record twice');
     Object.keys(SA_DEF).forEach(k => { openStAll(k); const sh = document.querySelector('.sheet'); if(!sh || !sh.querySelector('table')) bad.push('list ' + k); });
