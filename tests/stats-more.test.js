@@ -6,6 +6,10 @@ const assert = require('assert'), {openGame, runExams} = require('./lib');
   const r = await page.evaluate(() => { const bad = [];
     const st = statsHtml(); ['Still active 30 years on', 'In the chair, by specialty', 'Longest in the chair', 'Hunter families'].forEach(t => { if(!st.includes(t)) bad.push('stats: no ' + t); });
     if(HUNTERS.some(h => h.se && h.se.some((e, k) => e != null && (e < h.edition || (k && h.se[k - 1] != null && e < h.se[k - 1]))))) bad.push('a star before the license or before the one below it');
+    // one row a family in the family blocks; the largest families all still have someone active; no record counts past its total
+    const fl = famLines(HUNTERS); if(new Set(fl.map(x => surOf(x.root))).size !== fl.length) bad.push('a family twice in Longest lines');
+    const m = st.match(/(\d+) of (\d+)<\/b>[^<]*<span[^>]*>expeditions/) || st.match(/(\d+) of (\d+)/); if(/expeditions/.test(st) && m && +m[1] > +m[2]) bad.push('more came home than went');
+    if(/Chairman for \d+ years/.test(st)) bad.push('chair record twice');
     Object.keys(SA_DEF).forEach(k => { openStAll(k); const sh = document.querySelector('.sheet'); if(!sh || !sh.querySelector('table')) bad.push('list ' + k); });
     // every expedition that came back is on record, its members split between home and lost
     const X = WORLD.expHist || []; X.forEach(x => { if(x.home.length + x.lost.length > x.members.length + 1) bad.push(x.id + ': counts'); if(x.back < x.ed) bad.push(x.id + ': dates'); });

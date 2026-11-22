@@ -9,13 +9,12 @@ const SA_DEF = {
   families: () => { const by = {};
     const PAR = new Set((WORLD.heirs || []).flatMap(k => (k.parents || []).concat(k.grand || [])));
     HUNTERS.filter(h => !h.legacy && (h.heirOf || h.hParent || h.grandOf || PAR.has(h.license))).forEach(h => { const s = surOf(h); (by[s] = by[s] || []).push(h); });
-    return {title: 'Hunter families', cols: [['Family'], ['Hunters', 1], ['Active', 1], ['First licensed', 1], ['Best known']],
-      rows: Object.entries(by).map(([s, L]) => { const best = L.slice().sort((a, b) => (b.rp || 0) - (a.rp || 0))[0], a = L.filter(hActive).length, f = Math.min(...L.map(h => h.edition));
-        return {c: [`<a data-famq="${esc(s)}">${esc(s)}</a>`, L.length, a, ordinal(f), saName(best)], v: [s, L.length, a, f, best.name], t: s + ' ' + L.map(h => h.name).join(' ')}; })}; },
-  lines: () => { const G = famGraph(), memo = new Map(), up = id => { if(memo.has(id)) return memo.get(id); memo.set(id, 1); const ps = G.par.get(id) || []; const d = ps.length ? 1 + Math.max(...ps.map(up)) : 1; memo.set(id, d); return d; };
-    return {title: 'Longest lines', cols: [['Hunter'], ['Generations', 1], ['Licensed', 1], ['Status'], ['']],
-      rows: HUNTERS.filter(h => !h.legacy && (h.heirOf || h.hParent || h.grandOf)).map(h => { const g = up(h.license);
-        return {c: [saName(h), g, ordinal(h.edition), esc(hActive(h) ? 'Active' : h.status), `<a data-tree="${esc(h.license)}">tree ›</a>`], v: [h.name, g, h.edition, h.status, 0], t: h.name}; }).filter(r => r.v[1] >= 2)}; },
+    return {title: 'Hunter families', cols: [['Family'], ['Hunters', 1], ['Active', 1], ['First licensed', 1], ['Youngest active']], filter: ['Status', [['alive', 'Still active'], ['gone', 'No one active']]],
+      rows: Object.entries(by).map(([s, L]) => { const A = L.filter(hActive), y = A.slice().sort((a, b) => hunterAge(a) - hunterAge(b))[0], f = Math.min(...L.map(h => h.edition));
+        return {c: [`<a data-famq="${esc(s)}">${esc(s)}</a>`, L.length, A.length, ordinal(f), y ? saName(y) : '—'], v: [s, L.length, A.length, f, y ? y.name : ''], t: s + ' ' + L.map(h => h.name).join(' '), f: A.length ? 'alive' : 'gone'}; })}; },
+  lines: () => ({title: 'Longest lines', cols: [['Founder'], ['Generations', 1], ['Licensed', 1], ['Latest Hunter'], ['']], filter: ['Status', [['alive', 'Still active'], ['gone', 'No one active']]],
+    rows: famLines(HUNTERS).map(x => { const s = surOf(x.root), on = HUNTERS.some(h => !h.legacy && surOf(h) === s && hActive(h));
+      return {c: [saName(x.root), x.d, ordinal(x.root.edition), saName(x.h), `<a data-tree="${esc(x.h.license)}">tree ›</a>`], v: [x.root.name, x.d, x.root.edition, x.h.name, 0], t: x.root.name + ' ' + x.h.name + ' ' + s, f: on ? 'alive' : 'gone'}; })}),
   schools: () => ({title: 'Schools of Nen', cols: [['School'], ['Students', 1], ['Masters', 1], ['Founded', 1], ['Status']], filter: ['Status', [['open', 'Open'], ['closed', 'Closed']]],
     rows: (WORLD.schools || []).map(s => { const n = HUNTERS.filter(h => h.school === s.id).length;
       return {c: [`<a data-school="${s.id}">${esc(capS(s.name))}</a>`, n, (s.heads || []).length, s.ed != null ? ordinal(s.ed) : '—', esc(s.st || '')], v: [s.name, n, (s.heads || []).length, s.ed ?? 0, s.st], t: s.name + ' ' + (s.fName || ''), f: s.st === 'open' ? 'open' : 'closed'}; })}),

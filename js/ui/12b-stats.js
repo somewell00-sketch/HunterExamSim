@@ -49,7 +49,9 @@ function stBars(title, list, fmtV){
   return `<div class="st-bars"><div class="st-h">${esc(title)}</div>${L.map(([k, v]) => `<div class="st-b" title="${esc(k)}: ${v} (${Math.round(v / tot * 100)}%)"><span>${esc(k)}</span><i><b style="width:${(v / max * 100).toFixed(1)}%"></b></i><em>${fmtV ? fmtV(v, tot) : v}</em></div>`).join('')}</div>`;
 }
 const stList = (title, rows, all) => rows.length ? `<div class="mk"><div class="section-h">${esc(title)}${all ? `<a class="st-all" data-stall="${all}">See all ›</a>` : ''}</div>${rows.map(([a, b]) => `<div class="mk-r"><i>·</i><span><b>${a}</b><small>${b}</small></span></div>`).join('')}</div>` : '';
-function statsHtml(){
+// the statistics are worked out once for each state of the world, not at every redraw of History
+function statsHtml(){ return typeof haKept === 'function' ? haKept('stats', statsHtml0) : statsHtml0(); }
+function statsHtml0(){
   const Y = WORLD.yearly || [], T = WORLD.tally || {}, H = HUNTERS.filter(h => !h.legacy), act = H.filter(hActive);
   const hl = h => h ? `<a data-hunter="${esc(h.license)}">${esc(h.name)}</a>` : '—', pct = (v, t) => `${v} · ${Math.round(v / t * 100)}%`;
   // the same range as the editions chart above; long ranges are averaged by decade so the line keeps its shape
@@ -64,8 +66,8 @@ function statsHtml(){
   const top3 = NEN_CATS.map(c => { const n = H.filter(h => h.nen && h.nen.category === c), t = n.filter(h => hStars(h) >= 3).length; return [c, n.length ? Math.round(t / n.length * 1000) / 10 : 0]; }).sort((a, b) => b[1] - a[1]);
   const car = {}; act.forEach(h => { const c = (h.career || '—').replace(' Hunter', ''); car[c] = (car[c] || 0) + 1; });
   // families: generations through the heirs, and surnames with the most Hunters
-  const byCid = new Map(H.map(h => [h.cid, h])), kidC = new Map((WORLD.heirs || []).filter(x => x.cid).map(x => [x.cid, x])), gen = h => { let d = 1, cur = h, g = 0; while(cur && g++ < 12){ const k = kidC.get(cur.cid); const p = k && (k.grand || k.parents).map(l => hLic(l)).find(Boolean); if(!p) break; d += k.grand ? 2 : 1; cur = p; } return d; };
-  const dyn = H.filter(h => h.heirOf || h.hParent || h.grandOf).map(h => [h, gen(h)]).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  const byCid = new Map(H.map(h => [h.cid, h]));
+  const dyn = famLines(H).slice(0, 5);
   const PARS = new Set((WORLD.heirs || []).flatMap(k => k.parents || [])), fam = {}; H.filter(h => h.heirOf || h.hParent || h.grandOf || PARS.has(h.license)).forEach(h => { const s = surOf(h); fam[s] = (fam[s] || 0) + 1; });
   // schools, cases, outlaws, relics, chairs
   const Sc = (WORLD.schools || []).map(s => ({s, all: H.filter(h => h.school === s.id).length})).sort((a, b) => b.all - a.all).slice(0, 5);
@@ -73,27 +75,39 @@ function statsHtml(){
   const W = WORLD.wanted || [], dead = W.filter(w => w.kills).sort((a, b) => b.kills - a.kills).slice(0, 3);
   const R = Object.values(WORLD.relics || {}).filter(r => r.st !== 'hidden'), most = R.slice().sort((a, b) => (b.n || 0) - (a.n || 0)).slice(0, 3);
   const longHold = R.flatMap(r => (r.owners || []).map(o => ({r, o, y: (o.to ?? S.edition) - o.from}))).sort((a, b) => b.y - a.y)[0];
-  const terms = {}; (WORLD.chairHist || []).forEach(x => { terms[x.lic] = (terms[x.lic] || 0) + ((x.to || S.edition) - x.from); }); const longChair = Object.entries(terms).sort((a, b) => b[1] - a[1])[0];
   const crisisN = Object.entries(T.crisis || {}).map(([k, v]) => [CRISES[k] ? capS(CRISES[k].name) : k, v]).sort((a, b) => b[1] - a[1]);
   if(!Y.length && !ex.length) return '';
   return `<div class="wstats"><div class="section-h">Statistics</div>
     ${Y.length ? `<p class="muted st-note">Counted from the ${ordinal(Y[0].ed)} exam on.</p>` : ''}
     <div class="hcard"><div><small>Active Hunters</small><b>${act.length}</b></div><div><small>Average age, active</small><b>${act.length ? Math.round(act.reduce((a, h) => a + hunterAge(h), 0) / act.length) : '—'}</b></div><div><small>Deaths a year</small><b>${Y.length ? (dTot / Y.length).toFixed(1) : '—'}</b></div><div><small>Average career, the dead</small><b>${career} yrs</b></div><div><small>Expeditions</small><b>${T.exp || 0}</b></div><div><small>Came back from missing</small><b>${T.back || 0}</b></div></div>
-    <div class="st-two">${stLine(recent, 'a', 'Active Hunters')}${stLine(recent, r => r.s ? r.s[3] : null, '★★★ Hunters')}</div>
-    <div class="st-two">${stLine(ex, 'p', 'Exam pass rate, % of applicants')}${stLine(recent, r => Object.values(r.d || {}).reduce((a, b) => a + b, 0), 'Deaths a year')}</div>
+    <div class="st-two">${stLine(recent, 'a', 'Active Hunters, year by year')}${stLine(recent, r => r.s ? r.s[3] : null, '★★★ Hunters')}</div>
+    <div class="st-two">${stLine(ex, 'p', 'Exam pass rate, % of applicants')}${stLine(recent, r => Object.values(r.d || {}).reduce((a, b) => a + b, 0), 'Deaths, year by year')}</div>
     <div class="st-three">${stBars('Causes of death', Object.entries(D).map(([k, v]) => [ST_CAUSE[k] || k, v]).sort((a, b) => b[1] - a[1]), pct)}${stBars('Nen, active Hunters', nen, pct)}${stBars('Reach ★★★ by Nen, %', top3, v => v + '%')}</div>
     <div class="st-three">${stBars('Specialties, active', Object.entries(car).sort((a, b) => b[1] - a[1]).slice(0, 8), pct)}${stBars('Crises by kind', crisisN)}${stBars('Cases', [['Guilty', V.guilty || 0], ['Cleared', V.cleared || 0], ['Reopened', C.filter(c => c.re).length], ['Licenses revoked', H.filter(h => h.revoked).length]])}</div>
     <div class="marks">
-      ${stList('Longest lines', dyn.map(([h, g]) => [hl(h), `${g} generations${(WORLD.heirs || []).some(k => k.grand && k.cid === h.cid) ? ', one without a Hunter' : ''} · <a data-tree="${esc(h.license)}">the family tree</a>`]), 'lines')}
-      ${stList('Families with the most Hunters', Object.entries(fam).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([s, n]) => { const best = H.filter(h => surOf(h) === s).sort((a, b) => (b.rp || 0) - (a.rp || 0))[0];
-        return [`<a data-famq="${esc(s)}" title="The family tree of the ${esc(s)}s">${esc(s)}</a>`, `${n} Hunters${best ? ` · best known: ${hl(best)}` : ''}`]; }), 'families')}
+      ${stList('Longest lines', dyn.map(x => [hl(x.root), `${x.d} generations · latest: ${hl(x.h)}${(WORLD.heirs || []).some(k => k.grand && k.cid === x.h.cid) ? ' · skips a generation' : ''} · <a data-tree="${esc(x.h.license)}">tree</a>`]), 'lines')}
+      ${stList('Largest families still active', Object.entries(fam).map(([s, n]) => { const A = H.filter(h => surOf(h) === s && hActive(h)); return {s, n, A}; }).filter(x => x.A.length).sort((a, b) => b.n - a.n || b.A.length - a.A.length).slice(0, 5).map(({s, n, A}) => {
+        // one row a family: its youngest Hunter still active stands for it
+        const y = A.slice().sort((a, b) => hunterAge(a) - hunterAge(b))[0];
+        return [`<a data-famq="${esc(s)}" title="The family tree of the ${esc(s)}s">${esc(s)}</a>`, `${n} Hunters, ${A.length} active · youngest: ${hl(y)}`]; }), 'families')}
       ${stList('Largest schools', Sc.map(({s, all}) => [`<a data-school="${s.id}">${esc(capS(s.name))}</a>`, `${all} students · ${s.heads.length} master${s.heads.length === 1 ? '' : 's'} · ${s.st}`]), 'schools')}
       ${stList('Deadliest outlaws', dead.map(w => [`<a data-outlaw="${esc(w.id)}">${esc(w.name)}</a>` + (w.nick ? ` “${esc(w.nick)}”` : ''), `${w.kills} Hunter${w.kills === 1 ? '' : 's'} killed · ${w.status}`]), 'outlaws')}
       ${stList('Relics', most.map(r => [`<a data-relic="${r.id}">${esc(capS(RDEF[r.id].name))}</a>`, `${r.n || 0} owners`]).concat(longHold ? [[hl(hLic(longHold.o.lic)) || esc(longHold.o.name), `held ${esc(RDEF[longHold.r.id].name)} for ${longHold.y} years`]] : []), 'relics')}
-      ${stList('Records of the world', [longChair ? [hl(hLic(longChair[0])), `Chairman for ${longChair[1]} years`] : null, [`${T.expBack || 0} of ${T.exp || 0}`, 'expeditions came home'], [`${T.disc || 0}`, 'places discovered'], [`${W.filter(w => w.status === 'captured').length} / ${W.length}`, 'outlaws captured']].filter(Boolean))}
+      ${stList('Records of the world', [expLine(T), [`${T.disc || 0}`, 'places discovered']].filter(Boolean))}
     </div>${statsMoreHtml(H)}</div>`;
 }
 // more from the same records: how long a specialty lasts, how long its stars take, the chair, the families, the outlaws
+// expeditions that came home: from the record of each one when there is one (the old count could pass the total)
+// one line a family, told from the Hunter it started with down to its latest Hunter
+function famLines(H){
+  const kidC = new Map((WORLD.heirs || []).filter(x => x.cid).map(x => [x.cid, x]));
+  const gen = h => { let d = 1, cur = h, g = 0; while(cur && g++ < 12){ const k = kidC.get(cur.cid); const p = k && (k.grand || k.parents).map(l => hLic(l)).find(Boolean); if(!p) break; d += k.grand ? 2 : 1; cur = p; } return [d, cur]; };
+  const by = new Map(); H.filter(h => !h.legacy && (h.heirOf || h.hParent || h.grandOf)).forEach(h => { const [d, root] = gen(h), k = surOf(root) + '|' + root.license; const o = by.get(k); if(!o || d > o.d || (d === o.d && h.edition > o.h.edition)) by.set(k, {d, root, h}); });
+  // a family with two founders keeps its longest line only
+  const fam = new Map(); [...by.values()].forEach(x => { const k = surOf(x.root), o = fam.get(k); if(!o || x.d > o.d) fam.set(k, x); });
+  return [...fam.values()].filter(x => x.d >= 2).sort((a, b) => b.d - a.d || a.root.edition - b.root.edition);
+}
+function expLine(T){ const X = WORLD.expHist || []; if(X.length) return [`${X.filter(x => x.home.length).length} of ${X.length}`, 'expeditions on record came home']; return T.exp ? [`${Math.min(T.expBack || 0, T.exp)} of ${T.exp}`, 'expeditions came home'] : null; }
 function statsMoreHtml(H){
   const NOW = S.edition, hl = h => h ? `<a data-hunter="${esc(h.license)}">${esc(h.name)}</a>` : '—', P = v => Math.round(v * 100) + '%', med = A => { const s = A.slice().sort((a, b) => a - b), m = s.length >> 1; return s.length ? Math.round(s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2) : null; };
   const R = H.filter(h => !h.pro), endOf = h => { const E = [h.diedEd, h.missEd, h.retire && h.retire.ed].filter(v => v != null); return E.length ? Math.min(...E) : (hActive(h) ? null : NOW); };

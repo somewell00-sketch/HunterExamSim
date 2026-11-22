@@ -17,22 +17,48 @@ function idbGet(k){ return new Promise(res => { try{ const q = DB.transaction(DB
 function idbPut(k, v){ return new Promise(res => { try{ const tx = DB.transaction(DB_STORE, 'readwrite'); tx.objectStore(DB_STORE).put(v, k); tx.oncomplete = () => res(true); tx.onerror = () => res(false); tx.onabort = () => res(false); }catch(e){ res(false); } }); }
 function setSaveState(ok, msg){ const el = $('saveState'); if(el){ el.textContent = msg; el.className = 'savest ' + (ok ? 'ok' : 'bad'); el.title = ok ? '' : 'Your progress could not be stored in this browser. Keep this tab open, or free up browser storage.'; } }
 function save(){ registerHunters(); clearTimeout(saveTimer); saveTimer = setTimeout(flush, 200); }
+// The save is split: the Hunter register goes in blocks of JSON text (text is far quicker for the browser to copy than
+// objects), and a block of Hunters long dead is written once a year, not at every save in between.
+const SV_CH = 250; let SV_C = [], SV_REF = null, SV_HIST = null;
+const svCold = (L, ed) => L.length === SV_CH && L.every(h => h.legacy || (h.status === 'Deceased' && h.diedEd != null && h.diedEd < ed - 3));
+function idbPutMany(pairs, drop){ return new Promise(res => { try{ const tx = DB.transaction(DB_STORE, 'readwrite'), st = tx.objectStore(DB_STORE); pairs.forEach(([k, v]) => st.put(v, k)); (drop || []).forEach(k => st.delete(k)); tx.oncomplete = () => res(true); tx.onerror = () => res(false); tx.onabort = () => res(false); }catch(e){ res(false); } }); }
+function svPairs(){
+  if(SV_REF !== HUNTERS){ SV_C = []; SV_REF = HUNTERS; SV_HIST = null; }
+  const ed = S ? S.edition : 0, pairs = [], n = Math.ceil(HUNTERS.length / SV_CH), old = SV_C.length;
+  for(let k = 0; k < n; k++){ const L = HUNTERS.slice(k * SV_CH, (k + 1) * SV_CH), c = SV_C[k];
+    if(c && c.cold && c.ed === ed && c.n === L.length) continue;
+    pairs.push(['h:' + k, JSON.stringify(L)]); SV_C[k] = {ed, n: L.length, cold: svCold(L, ed)}; }
+  SV_C.length = n;
+  const hk = HISTORY.length + ':' + ed; if(SV_HIST !== hk){ pairs.push(['hist', JSON.stringify(HISTORY)]); SV_HIST = hk; }
+  pairs.push(['state', {v: 3, S, HA_SEQ, FAV, BULLETINS, WORLD, SCOUT, MENTOR, hn: n}]);
+  const drop = []; for(let k = n; k < Math.max(old, n + 4); k++) drop.push('h:' + k);
+  return [pairs, drop];
+}
 async function flush(){
   clearTimeout(saveTimer); saveTimer = null;
-  const data = {v:2, S, HISTORY, HUNTERS, HA_SEQ, FAV, BULLETINS, WORLD, SCOUT, MENTOR};
   if(DB){
-    if(await idbPut('state', data)){ setSaveState(true, 'Saved'); try{ localStorage.removeItem(KEY); }catch(e){} return; }
+    const [pairs, drop] = svPairs();
+    if(await idbPutMany(pairs, drop)){ setSaveState(true, 'Saved'); try{ localStorage.removeItem(KEY); }catch(e){} return; }
+    SV_C = []; SV_HIST = null;   // the write failed: write everything next time
   }
+  const data = {v:2, S, HISTORY, HUNTERS, HA_SEQ, FAV, BULLETINS, WORLD, SCOUT, MENTOR};
   try{ localStorage.setItem(KEY, JSON.stringify(data)); setSaveState(true, 'Saved'); return; }catch(e){}
   // last resort: drop the detailed snapshots of older editions, keep everything else
   try{ localStorage.setItem(KEY, JSON.stringify({...data, HISTORY: HISTORY.map((r, i) => i < HISTORY.length - 3 ? {...r, snap: null} : r)})); setSaveState(true, 'Saved (older archives trimmed)'); }
   catch(e){ setSaveState(false, 'Not saved — browser storage full'); }
 }
+// a split save put back together
+async function svLoad(d){
+  if(!d || d.v !== 3 || d.hn == null) return d;
+  const parts = await Promise.all([...Array(d.hn).keys()].map(k => idbGet('h:' + k))), hist = await idbGet('hist');
+  if(parts.some(x => typeof x !== 'string')) return null;
+  return {...d, HUNTERS: parts.flatMap(x => JSON.parse(x)), HISTORY: typeof hist === 'string' ? JSON.parse(hist) : []};
+}
 window.addEventListener('pagehide', () => { if(saveTimer) flush(); });
 document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'hidden' && saveTimer) flush(); });
 async function load(){
   DB = await idbOpen();
-  let d = DB ? await idbGet('state') : null;
+  let d = DB ? await svLoad(await idbGet('state')) : null;
   if(!d){ try{ d = JSON.parse(localStorage.getItem(KEY) || 'null'); }catch(e){ d = null; } }
   if(!(d && d.S)) return false;
   S = d.S; if(!S.started && !S.special) S.config.licenses = MAX_LICENSES;
