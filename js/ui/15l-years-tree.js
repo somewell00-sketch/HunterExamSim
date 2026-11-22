@@ -113,7 +113,8 @@ function famOf(lic, G){
   const blood = new Set([lic]), q = [lic];
   while(q.length && blood.size < 90){ const x = q.shift(); [...(G.par.get(x) || []), ...(G.kids.get(x) || [])].forEach(y => { if(!blood.has(y)){ blood.add(y); q.push(y); } }); }
   const all = new Set(blood); blood.forEach(id => { const s = G.N.get(id).spouse; if(s && G.N.has(s)) all.add(s); });
-  G.N.forEach(n => { if(n.spouse && blood.has(n.spouse)) all.add(n.id); });   // a spouse whose record points this way
+  if(!G.spRev){ G.spRev = new Map(); G.N.forEach(n => { if(n.spouse){ const L = G.spRev.get(n.spouse); if(L) L.push(n.id); else G.spRev.set(n.spouse, [n.id]); } }); }
+  blood.forEach(id => (G.spRev.get(id) || []).forEach(x => all.add(x)));   // a spouse whose record points this way
   return {G, ids: all, blood};
 }
 const famSize = lic => { const F = famOf(lic); return F ? F.blood.size : 0; };

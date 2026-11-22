@@ -131,7 +131,8 @@ function runElection(ed, reason, add, items){
   const { vice, why: viceWhy, refused } = pickVice(winner, second, last, WORLD.vice && hLic(WORLD.vice));
   WORLD.vice = vice ? vice.license : null; seatSince('vice', ed);
   const zc = fillZodiac(ed, add, prev === winner.license ? 0.9 : 0.7);
-  WORLD.elections.push({ed, reason, rounds, winner: winner.license, vice: WORLD.vice, viceWhy, refused: refused ? refused.license : null, prev, kept: zc.kept.length});
+  const E0 = {ed, reason, rounds, winner: winner.license, vice: WORLD.vice, viceWhy, refused: refused ? refused.license : null, prev, kept: zc.kept.length}; WORLD.elections.push(E0);
+  try { if(typeof lawsAfterElection === 'function') lawsAfterElection(E0, winner, add); } catch(e){ console.error(e); }
   if(refused) add(refused, 'rival', `${refused.name} turns down the Vice-Chairmanship ${winner.name} offers after the vote. "I did not run to be second."`, 6, winner);
   if(WORLD.elections.length > 10) WORLD.elections = WORLD.elections.slice(-10);
   setChair();
@@ -267,7 +268,7 @@ const yrs = x => x.from != null && x.to != null ? (x.from === x.to ? ordinal(x.f
 const ROLE_SHORT = r => r === 'Chairman' ? 'Chairman' : r === 'Vice-Chairman' ? 'Vice-Chairman' : r;
 // "Former Monkey", "Former Vice-Chairman ×2" — the current seat is not a former one
 // career lines: what kind of event each one is (older saves are read from the text)
-const CAREER_IC = {disc:'◇', crew:'⚑', feud:'⚔', arena:'◈', relic:'⚱', case:'§', school:'⛩', pupil:'⛩', wed:'⚭', reunion:'⇄', memorial:'❖', zodiac:'✧', chair:'♛', elder:'✪', election:'⚖', promo:'★', nen:'✦', exped:'▲', rival:'⚔', bond:'∞', death:'✝', missing:'?', retire:'◐', avenge:'✝', epilogue:'✓', debut:'+', duty:'◆', award:'✪', scandal:'!', hunt:'⌖', crisis:'⚠', regional:'⌂', origin:'◉'};
+const CAREER_IC = {law:'¶', disc:'◇', crew:'⚑', feud:'⚔', arena:'◈', relic:'⚱', case:'§', school:'⛩', pupil:'⛩', wed:'⚭', reunion:'⇄', memorial:'❖', zodiac:'✧', chair:'♛', elder:'✪', election:'⚖', promo:'★', nen:'✦', exped:'▲', rival:'⚔', bond:'∞', death:'✝', missing:'?', retire:'◐', avenge:'✝', epilogue:'✓', debut:'+', duty:'◆', award:'✪', scandal:'!', hunt:'⌖', crisis:'⚠', regional:'⌂', origin:'◉'};
 function careerKind(x){
   const t = x.text || '';
   if(/\ban Elder\b|Elder of the Association/.test(t)) return 'elder';
@@ -613,7 +614,8 @@ function hunterYear(prev){
   worldEnd(prev, ed, add, items, W);
   chroniclesYear(prev, ed, add, items);   // cases, schools, the ones who stopped waiting
   politicsYear(ed, add, items);
-  if(typeof worldMoreYear === 'function') worldMoreYear(prev, ed, add);   // discoveries, crews, feuds, the arena
+  if(typeof worldMoreYear === 'function') worldMoreYear(prev, ed, add);
+  try { if(typeof lawsYear === 'function') lawsYear(ed, add); } catch(e){ console.error(e); }   // discoveries, crews, feuds, the arena
   regionalYear(ed, items);
   // promotions: earned points open the door, but only while there is room at that rank
   calibrateStars();
@@ -648,7 +650,7 @@ function hunterYear(prev){
       `A hundred exams produced one ${h.name}. The Centennial Star of the ${nth} is gone, at ${age}, and the Association observes a minute of silence.`])});
   });
   try { statsYear(prev, ed, items); } catch(e){ console.error(e); }
-  const STORY = ['disc','crew','feud','arena','wed','reunion','memorial','crisis','hunt','exped','bond','rival','election','zodiac','regional','case','school','relic'];   // ongoing stories are always kept
+  const STORY = ['law','disc','crew','feud','arena','wed','reunion','memorial','crisis','hunt','exped','bond','rival','election','zodiac','regional','case','school','relic'];   // ongoing stories are always kept
   items.forEach((it, i) => { it.i = i; });   // remember the order things happened in
   const srt = items.sort((x, y) => y.rank - x.rank), keep = srt.slice(0, 30).concat(srt.slice(30).filter(i => STORY.includes(i.kind))), rest = srt.slice(30).filter(i => ['life','nen','job','fail','award','scandal'].includes(i.kind));
   for(let i = rest.length - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); [rest[i], rest[j]] = [rest[j], rest[i]]; }
@@ -740,7 +742,7 @@ function renderWorld(){
     relics: () => relicsHtml() || none('Relics', 'No relic has been found yet.'),
     schools: () => schoolsHtml() || none('Schools of Nen', 'No school has been founded yet.'),
     arena: () => (typeof arenaHtml === 'function' && arenaHtml()) || none("Heaven's Arena", 'News from the tower comes after the first year.'),
-    council: () => (docketHtml() || none('The council', 'No case is open.')) + originHtml()
+    council: () => (typeof lawsHtml === 'function' ? lawsHtml() : '') + (docketHtml() || none('The council', 'No case is open.')) + originHtml()
   };
   const LBL = {herald: 'Herald', underworld: 'Underworld', atlas: 'Atlas', dc: 'Dark Continent', relics: 'Relics', schools: 'Schools', arena: 'Arena', council: 'Council'};
   if(!P[wdTab]) wdTab = 'herald';
@@ -751,7 +753,7 @@ function renderWorld(){
 document.addEventListener('click', e => { const g = e.target.closest('[data-gosec]'); if(g){ showTab(g.dataset.gosec); window.scrollTo(0, 0); } });
 function bulletinHtml(b){
   if(!b) return '';
-  const ic = {disc:'◇', crew:'⚑', feud:'⚔', arena:'◈', relic:'⚱', case:'§', school:'⛩', pupil:'⛩', wed:'⚭', reunion:'⇄', memorial:'❖', origin:'◉', regional:'⌂', election:'⚖', zodiac:'✧', death:'✝', missing:'?', retire:'◐', promo:'★', job:'·', fail:'·', duty:'◆', debut:'+', epilogue:'✓', life:'♦', nen:'✦', scandal:'!', award:'✪', rival:'⚔', hunt:'⌖', exped:'▲', bond:'∞', crisis:'⚠', avenge:'✝', place:'◈'};
+  const ic = {law:'¶', disc:'◇', crew:'⚑', feud:'⚔', arena:'◈', relic:'⚱', case:'§', school:'⛩', pupil:'⛩', wed:'⚭', reunion:'⇄', memorial:'❖', origin:'◉', regional:'⌂', election:'⚖', zodiac:'✧', death:'✝', missing:'?', retire:'◐', promo:'★', job:'·', fail:'·', duty:'◆', debut:'+', epilogue:'✓', life:'♦', nen:'✦', scandal:'!', award:'✪', rival:'⚔', hunt:'⌖', exped:'▲', bond:'∞', crisis:'⚠', avenge:'✝', place:'◈'};
   const BRIEF = ['job', 'life', 'fail', 'nen'];
   const oldK = it => /election is called|new election|abdicates/.test(it.text) ? 0 : /rounds of voting/.test(it.text) ? 1 : /elected Chairman/.test(it.text) ? 2 : it.kind === 'zodiac' && /new Zodiac/.test(it.text) ? 3 : 4;   // bulletins saved before the order was kept
   const ix = new Map(b.items.map((it, i) => [it, it.i ?? (oldK(it) * 1000 + i)])), byTime = (x, y) => ix.get(x) - ix.get(y), byRank = (x, y) => y.rank - x.rank;
@@ -784,7 +786,7 @@ function bulletinHtml(b){
   if(lead) used.add(lead);
   const sec = (title, list, body) => list.length ? `<section class="bn-sec"><h5>${title}</h5>${body || list.map(row).join('')}</section>` : '';
   const take = f => { const l = items.filter(it => !used.has(it) && f(it)); l.forEach(it => used.add(it)); return l; };
-  const assoc = take(it => ['origin', 'election', 'zodiac', 'regional'].includes(it.kind) || (it.kind === 'award' && /Elder/.test(it.text))).sort(byTime);
+  const assoc = take(it => ['origin', 'election', 'zodiac', 'regional', 'law'].includes(it.kind) || (it.kind === 'award' && /Elder/.test(it.text))).sort(byTime);
   const world = take(it => ['exped', 'crisis', 'hunt', 'place', 'disc', 'arena'].includes(it.kind)).sort(byTime);
   // a crisis produces many similar reports: the first few stay, the rest fold away
   const crisisMore = world.filter(it => it.kind === 'crisis').slice(4); const worldShown = world.filter(it => !crisisMore.includes(it));
@@ -832,7 +834,7 @@ function electionHtml(E){
   const H = l => hLic(l), A = h => h ? `<a data-hunter="${esc(h.license)}">${esc(h.name)}</a>` : '—', last = h => h ? esc(h.last || h.name.split(' ').slice(-1)[0]) : '?';
   const W = H(E.winner), V = E.vice && H(E.vice), P = E.prev && H(E.prev), again = E.prev === E.winner;
   const ok = (E.rounds || []).filter(r => !r.void && r.top && r.valid), fin = ok[ok.length - 1], voids = (E.rounds || []).length - ok.length;
-  const row = (x, win) => { const h = H(x.l), pc = Math.round(x.v / fin.valid * 100); return `<div class="elx-row${win ? ' win' : ''}"><span class="elx-n">${A(h)}</span><span class="elx-bar"><i style="width:${pc}%"></i></span><b>${pc}%</b><small>${fmt(x.v)} votes</small></div>`; };
+  const row = (x, win) => { const h = H(x.l), pc = Math.round(x.v / fin.valid * 100); return `<div class="elx-row${win ? ' win' : ''}"><span class="elx-n">${A(h)}${typeof platTxt === 'function' ? platTxt(E, x.l) : ''}</span><span class="elx-bar"><i style="width:${pc}%"></i></span><b>${pc}%</b><small>${fmt(x.v)} votes</small></div>`; };
   const top = fin ? fin.top.slice(0, 2) : [], wx = fin && fin.top.find(x => x.l === E.winner);
   const res = fin ? (wx ? [wx].concat(top.filter(x => x.l !== E.winner).slice(0, 1)) : top) : [];
   const chips = (E.rounds || []).map(r => r.void ? `<span class="er v" title="Void: turnout under 95%">R${r.n} · void ${Math.round(r.turnout * 100)}%</span>` : `<span class="er${r === fin ? ' f' : ''}" title="${r.top.slice(0, 3).map(x => `${H(x.l) ? H(x.l).name : '?'}: ${Math.round(x.v / r.valid * 100)}%`).join(' · ')}">R${r.n} · ${last(H(r.top[0].l))} ${Math.round(r.top[0].v / r.valid * 100)}%</span>`).join('');

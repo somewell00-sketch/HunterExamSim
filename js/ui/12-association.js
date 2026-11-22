@@ -372,6 +372,9 @@ function edChartHtml(){
 let hiSort = {k: 'ed', dir: -1}, hiAll = false, hiRange = 30;   // editions: the latest 20 unless expanded   // editions: newest first until a header is clicked
 function renderHistory(){
   const el = $('pane-history');
+  // nothing has changed since the last time it was drawn: leave the page as it is (redrawing it means re-linking every name)
+  const hk = [haKey(), hiSort.k, hiSort.dir, hiAll, typeof hofEra !== 'undefined' ? hofEra : '', BULLETINS.length].join('|');
+  if(el.dataset.hk === hk && el.firstChild && HA_KEEP.a === HUNTERS) return;
   const kf = {ed: r => r.edition, app: r => r.applicants || 0, hun: r => (r.hunters || []).length}[hiSort.k] || (r => r.edition);
   const rows = HISTORY.slice().sort((a, b) => (kf(a) - kf(b)) * hiSort.dir || b.edition - a.edition);
   const hth = (k, l) => `<th class="sortable${hiSort.k === k ? ' on' : ''}" data-hisort="${k}" aria-sort="${hiSort.k === k ? (hiSort.dir > 0 ? 'ascending' : 'descending') : 'none'}">${l}<i>${hiSort.k === k ? (hiSort.dir > 0 ? '▲' : '▼') : '↕'}</i></th>`;
@@ -382,7 +385,10 @@ function renderHistory(){
   const editions = `<div><div class="section-h">Editions</div><div class="hi-chart"><div class="hi-cap">New Hunters per edition${HISTORY.length > 30 ? `<span class="hi-rng">${[[30, '30'], [100, '100'], [0, 'All']].filter(([v]) => !v || HISTORY.length > v - 20 || v === 30).map(([v, l]) => `<button type="button" class="btn small${hiRange === v ? ' on' : ''}" data-hirange="${v}">${l}</button>`).join('')}</span>` : ''}${hiRange === 0 && HISTORY.length > 100 ? ' · by decade' : ''}</div>${edChartHtml()}</div><div class="tablebox hi-tab"><table><thead><tr>${hth('ed', 'Edition')}${hth('app', 'Applicants').replace('<th ', '<th data-c="app" ')}${hth('hun', 'Hunters')}<th class="hi-names">New Hunters</th></tr></thead><tbody>${cur}` +
     (hiAll ? rows : rows.slice(0, 20)).map(r => `<tr class="archrow" data-arch="${r.edition}" title="${r.snap ? 'Open this edition' : 'Only a summary was kept for this older edition'}"><td>${ordinal(r.edition)} Hunter Exam${r.snap ? ' <span class="muted">›</span>' : ''}</td><td class="num hi-app">${fmt(r.applicants)}</td><td class="num">${r.hunters.length}</td><td class="hi-names">${names(r)}</td></tr>`).join('') +
     `</tbody></table></div>` + (rows.length > 20 ? `<button type="button" class="btn small hi-more" id="hiMore">${hiAll ? 'Show the latest 20' : `Show all ${fmt(rows.length)} editions`}</button>` : '') + (rows.length ? '<p class="muted" style="margin:6px 0 0;font-size:12.5px">Tap an edition to reopen its route, bracket, island and key events.</p>' : '<p class="muted">Finished exams are archived here when you start the next exam.</p>') + '</div>';
-  el.innerHTML = pageHead('The records', 'History', '#6fa8dc') + editions + hallOfFame() + statsHtml() + scRecordHtml() + mtRecordHtml();   // the world and its origin live in World
+  // the statistics take the longest the first time: the page shows at once and they follow a moment later
+  const ready = HA_KEEP.k === haKey() && HA_KEEP.a === HUNTERS && HA_KEEP.w === WORLD && HA_KEEP.v && 'stats' in HA_KEEP.v;
+  el.innerHTML = pageHead('The records', 'History', '#6fa8dc') + editions + hallOfFame() + `<div id="hiStats" data-noal>${ready ? statsHtml() : '<p class="muted" style="margin:0">Counting the statistics…</p>'}</div>` + scRecordHtml() + mtRecordHtml(); el.dataset.hk = hk;
+  if(!ready) setTimeout(() => { const s = $('hiStats'); if(s && el.dataset.hk === hk) s.innerHTML = statsHtml(); }, 30);   // the world and its origin live in World
   if($('hiMore')) $('hiMore').onclick = () => { hiAll = !hiAll; renderHistory(); };
   el.querySelectorAll('[data-hisort]').forEach(th => th.onclick = () => { const k = th.dataset.hisort; hiSort = hiSort.k === k ? {k, dir: -hiSort.dir} : {k, dir: -1}; renderHistory(); });
 }

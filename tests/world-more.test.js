@@ -17,10 +17,16 @@ const assert = require('assert'), {openGame, runExams} = require('./lib');
     const dh = hLic(D[D.length - 1].lic); if(dh){ openHunter(dh.license); if(!/Works/.test(document.querySelector('.sheet').innerHTML)) bad.push('no works on profile'); closeModal(); }
     const ch = hLic(on[0] ? on[0].m[0] : C[0].m[0]); if(ch){ openHunter(ch.license); if(!/data-hunter|⚑/.test(document.querySelector('.sheet').innerHTML) || !/Crews and families/.test(document.querySelector('.sheet').innerHTML)) bad.push('no crew on profile'); closeModal(); }
     ['disc', 'crews'].forEach(k => { openStAll(k); if(!document.querySelector('.sheet table')) bad.push('list ' + k); closeModal(); });
+    // laws: promises at the vote, decrees in force, the exam built under them (the specials keep their own)
+    const E = (W.elections || []).filter(e => e.plat); if(!E.length) bad.push('no promises at any election');
+    const LW = W.laws || {}; if(!S.special && S.config.licenses !== (LW.lic ? LAW[LW.lic.id].v : 12)) bad.push('licenses ' + S.config.licenses + ' against the law');
+    if(S.special === 'jubilee' && S.config.licenses !== 48) bad.push('the Jubilee lost its 48');
+    wdTab = 'council'; renderWorld(); if(Object.keys(LW).length && !/Laws in force/.test(document.getElementById('pane-world').innerHTML)) bad.push('no laws in the Council');
+    const lawN = BULLETINS.reduce((a, b) => a + b.items.filter(it => it.kind === 'law').length, 0);
     const per = D.length / 150;
-    return {bad, d: D.length, c: C.length, on: on.length, f: F.length, fm: A.fm.filter(s => s.lic).length, cl: A.cl.length, back: A.back || 0, per}; });
+    return {bad, laws: Object.keys(LW).map(k => LW[k].id).join(' '), lawN, d: D.length, c: C.length, on: on.length, f: F.length, fm: A.fm.filter(s => s.lic).length, cl: A.cl.length, back: A.back || 0, per}; });
   await browser.close();
   assert.deepStrictEqual(errors, []); assert.deepStrictEqual(r.bad, []);
   assert.ok(r.per < 8, 'too many discoveries a year: ' + r.per);
-  console.log(`world more: ${r.d} discoveries, ${r.c} crews (${r.on} together), ${r.f} feuds, ${r.fm} Hunter Floor Masters, ${r.cl} to the arena (${r.back} back at the exam)`);
+  console.log(`world more: laws now [${r.laws}], ${r.lawN} law notices in the last Heralds, ${r.d} discoveries, ${r.c} crews (${r.on} together), ${r.f} feuds, ${r.fm} Hunter Floor Masters, ${r.cl} to the arena (${r.back} back at the exam)`);
 })().catch(e => { console.error(e.message); process.exit(1); });

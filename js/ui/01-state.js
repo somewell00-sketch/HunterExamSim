@@ -61,7 +61,7 @@ async function load(){
   let d = DB ? await svLoad(await idbGet('state')) : null;
   if(!d){ try{ d = JSON.parse(localStorage.getItem(KEY) || 'null'); }catch(e){ d = null; } }
   if(!(d && d.S)) return false;
-  S = d.S; if(!S.started && !S.special) S.config.licenses = MAX_LICENSES;
+  S = d.S; if(!S.started && !S.special) S.config.licenses = typeof lawLic === 'function' && d.WORLD && d.WORLD.laws ? (d.WORLD.laws.lic ? LAW[d.WORLD.laws.lic.id].v : MAX_LICENSES) : MAX_LICENSES;
   HISTORY = d.HISTORY || []; HUNTERS = d.HUNTERS || [];
   // older saves: Hunters licensed in a catastrophe never awakened Nen; they do now, the same way the others did
   try { HUNTERS.forEach(h => { if(!h.nen && h.attrs && /^Licensed for /.test(h.reason || '') && typeof generateNen === 'function') h.nen = generateNen({seed: (d.S && d.S.seed) || 1}, {id: h.cid || h.license, a: h.attrs}, new Set()); }); } catch(e){ console.error(e); }
@@ -107,10 +107,15 @@ function fresh(edition, prev){
   let legends = [];
   if(special === 'centenary') legends = [hLic(WORLD.chair && WORLD.chair.lic), hLic(WORLD.vice), ...ZSIGNS.map(z => hLic((WORLD.zodiac || {})[z]))].filter((h, i, A) => h && hActive(h) && A.indexOf(h) === i).map(h => ({...pick(h), role: roleOf(h)})).sort(() => Math.random() - 0.5);
   else if(special === 'jubilee'){ const ex = HUNTERS.filter(h => hActive(h) && (h.pastRoles || []).some(r => r.r === 'Chairman')); if(ex.length) legends = [{...pick(pickR(ex)), role: 'Former Chairman'}]; }
-  const apps = randomApplicants() * (special === 'centenary' ? 2 : special === 'jubilee' ? 1.5 : 1);
-  const N = newState(edition, Math.round(apps), special === 'jubilee' ? 48 : MAX_LICENSES, prev, {catastrophe: CAT_NEXT || (special !== 'centenary' && Math.random() < 0.02), hunters: pool, special, legends, theme: special === 'jubilee' ? 'jubilee' : cr && Math.random() < 0.65 ? cr.theme : null});
+  // the Chairman's decrees (the Jubilee and the Centenary keep their own licenses, examiners and road)
+  const LW = typeof lawsFor === 'function' ? lawsFor(special) : {}, gate = LW.gate ? LAW[LW.gate].v : 1;
+  const pool2 = LW.ex === 'vets' && special !== 'centenary' && pool.filter(h => { const x = hLic(h.license); return x && hStars(x) >= 2; }).length >= 10 ? pool.filter(h => { const x = hLic(h.license); return x && hStars(x) >= 2; }) : pool;
+  const road = !special && !(cr) && LW.road && Math.random() < 0.5 ? (LW.road === 'book' ? 'classic' : pickR(['storm', 'wild'])) : null;
+  const apps = randomApplicants() * (special === 'centenary' ? 2 : special === 'jubilee' ? 1.5 : 1) * gate;
+  const N = newState(edition, Math.round(apps), special === 'jubilee' ? 48 : LW.lic ? LAW[LW.lic].v : MAX_LICENSES, prev, {catastrophe: CAT_NEXT || (special !== 'centenary' && Math.random() < 0.02), hunters: pool2, special, legends, theme: special === 'jubilee' ? 'jubilee' : cr && Math.random() < 0.65 ? cr.theme : road});
+  N.law = LW;;
   CAT_NEXT = false; if($('bCat')) $('bCat').textContent = 'Test a catastrophe';
-  const n0 = N.log.length; if(special) specialOpen(N);
+  const n0 = N.log.length; if(special) specialOpen(N); if(typeof lawsOpen === 'function') lawsOpen(N);
   // the centenary opens by remembering the Centennial Stars who came before
   if(special === 'centenary'){
     const past = HUNTERS.filter(h => h.starCup === 'champion' && h.edition < edition).sort((a, b) => b.edition - a.edition).slice(0, 5);

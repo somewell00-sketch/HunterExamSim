@@ -9,7 +9,8 @@ function fatalityChance(A, B){
 // one roll per finished duel between two candidates; returns true if the loser died
 function fatalRoll(S, rng, winner, loser){
   const f = fatalityChance(winner, loser), chance = S.theme === 'blood' ? Math.min(0.3, Math.max(0.05, f * 2.5)) : Math.min(0.2, f);
-  return rng() < chance;
+  const k = S.law && S.law.kill;   // a Chairman's decree: a ban on killing, or the strong survive
+  return rng() < chance * (k === 'kill-' ? 0.4 : k === 'kill+' ? 1.5 : 1);
 }
 function lastWords(S, p, v, k){
   persona(v);

@@ -10,10 +10,18 @@ MH_FN.forEach(name => { const f = window[name]; if(typeof f !== 'function') retu
     MH.cur = {name, a}; MH.back = false;
     return f.apply(this, a); }; });
 const _showModal = showModal;
+// one bar on top of every page: Back on the left (when there is somewhere to go back to), Close on the right.
+// The page's own buttons (Favorite, the register, …) stay in its header; the bar stays put while the page scrolls.
 showModal = function(html){ _showModal(html);
-  const c = $('mClose'); if(!c || !MH.stack.length || $('mBack')) return;   // the participants grid keeps its own way back
-  const b = document.createElement('button'); b.className = 'btn'; b.id = 'mHBack'; b.type = 'button'; b.textContent = '‹ Back'; b.title = 'Back to the page before';
-  b.onclick = () => { const p = MH.stack.pop(); if(!p) return; MH.back = true; window[p.name](...p.a); };
-  c.parentNode.insertBefore(b, c); };
+  const sh = $('modal').querySelector('.sheet'), c = $('mClose'); if(!sh || !c) return;
+  const nav = document.createElement('div'); nav.className = 'mnav';
+  const own = $('mBack');   // the participants grid has its own way back: it moves into the bar
+  if(own){ own.classList.add('mnav-b'); nav.appendChild(own); }
+  else if(MH.stack.length){ const b = document.createElement('button'); b.type = 'button'; b.className = 'mnav-b'; b.id = 'mHBack'; b.textContent = '‹ Back'; b.title = 'Back to the page before';
+    b.onclick = () => { const p = MH.stack.pop(); if(!p) return; MH.back = true; window[p.name](...p.a); }; nav.appendChild(b); }
+  else nav.appendChild(document.createElement('span'));
+  const x = document.createElement('button'); x.type = 'button'; x.className = 'mnav-x'; x.textContent = 'Close ✕'; x.setAttribute('aria-label', 'Close'); x.onclick = closeModal; nav.appendChild(x);
+  c.hidden = true; c.style.display = 'none'; const box = c.parentNode; if(box && box !== sh && box.id !== 'modal' && ![...box.children].some(e => e !== c)) box.style.display = 'none';
+  sh.insertBefore(nav, sh.firstChild); x.focus({preventScroll: true}); };
 const _closeModal = closeModal;
 closeModal = function(){ _closeModal(); MH.stack = []; MH.cur = null; };

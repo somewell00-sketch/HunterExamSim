@@ -1149,3 +1149,10 @@ b,strong{font-weight:700}
 .glance{border-left:4px solid var(--gold);padding:8px 12px;margin:10px 0 14px;background:color-mix(in srgb,var(--fg) 4%,transparent)}
 .glance>div{display:grid;grid-template-columns:92px 1fr;gap:10px;font-size:13px;padding:2px 0}
 .glance>div>span:first-child{font:600 10px var(--f-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted);padding-top:3px}
+/* the bar on top of every page: Back on the left, Close on the right; it stays while the page scrolls */
+.mnav{position:sticky;top:0;z-index:5;display:flex;justify-content:space-between;align-items:center;gap:10px;margin:-20px -20px -16px;padding:8px 12px;background:var(--ink);border-bottom:3px solid var(--ink)}
+.mnav button{font:600 12px var(--f-mono);letter-spacing:.08em;text-transform:uppercase;background:transparent;color:var(--fg);border:1px solid color-mix(in srgb,var(--fg) 30%,transparent);padding:6px 12px;cursor:pointer;border-radius:0}
+.mnav button:hover,.mnav button:focus-visible{border-color:var(--gold);color:var(--gold)}
+.mnav .mnav-x{margin-left:auto}
+.mnav + .sheet-head{margin-top:0}
+.elx-row .elx-n small.elx-p,.elx-row small.elx-p{display:block;font-size:11px;font-style:italic;color:var(--muted);margin-top:1px}
