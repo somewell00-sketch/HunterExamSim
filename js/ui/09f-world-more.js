@@ -132,23 +132,23 @@ function feudsYear(ed, add){
     const a = famKey(h.license, G), b = famKey(o.license, G); if(!a || !b || a.k === b.k || a.n < 2 || b.n < 2) return;
     if(F.some(f => (f.a === a.k && f.b === b.k) || (f.a === b.k && f.b === a.k))) return;
     const f = {id: 'F' + (++WORLD.seq), a: a.k, b: b.k, an: a.name, bn: b.name, ed, why: `the rivalry between ${h.name} and ${o.name}`, by: [h.license, o.license]}; F.push(f);
-    add(h, 'feud', `What started between ${h.name} and ${o.name} is now between their families: the ${a.name}s and the ${b.name}s are at odds.`, 5, o);
+    add(h, 'feud', `What started between ${h.name} and ${o.name} is now between their families: the ${a.name} and ${b.name} families are at odds.`, 5, o);
   });
   feudsOn().forEach(f => {
     const A = [...(famOf(f.a, G) || {blood: new Set()}).blood].map(id => G.N.get(id).h).filter(x => x && usable(x)), B = [...(famOf(f.b, G) || {blood: new Set()}).blood].map(id => G.N.get(id).h).filter(x => x && usable(x));
     if(!A.length || !B.length){ if(ed - f.ed > 30){ f.end = ed; f.how = 'nobody is left to carry it'; } return; }
     // a marriage across the line ends it
     const wed = A.find(x => x.spouse && B.some(y => y.license === x.spouse));
-    if(wed){ f.end = ed; f.how = 'a marriage'; add(wed, 'feud', `The quarrel between the ${f.an}s and the ${f.bn}s ends at a wedding: ${wed.name} marries into the other side.`, 5, hLic(wed.spouse)); return; }
+    if(wed){ f.end = ed; f.how = 'a marriage'; add(wed, 'feud', `The quarrel between the ${f.an} and ${f.bn} families ends at a wedding: ${wed.name} marries into the other side.`, 5, hLic(wed.spouse)); return; }
     const r = Math.random();
     if(r < 0.12){ const a = pickR(A), b = pickR(B); f.n = (f.n || 0) + 1;
-      add(a, 'feud', pickR([`${a.name} and ${b.name} refuse to work the same contract. The ${f.an}s and the ${f.bn}s have not forgotten.`, `A ${f.an} and a ${f.bn} meet in ${pickR(PLACES)}: ${a.name} and ${b.name} come to blows before anyone can stop them.`, `${a.name} blocks ${b.name}'s candidacy for an Association post. Everyone knows why.`]), 4, b); }
-    else if(r < 0.135 && ed - f.ed > 8){ f.end = ed; f.how = 'time'; add(pickR(A), 'feud', `After ${ed - f.ed} years, the ${f.an}s and the ${f.bn}s quietly let the old quarrel go.`, 4); }
+      add(a, 'feud', pickR([`${a.name} and ${b.name} refuse to work the same contract. Neither family has forgotten.`, `A ${f.an} and a ${f.bn} meet in ${pickR(PLACES)}: ${a.name} and ${b.name} come to blows before anyone can stop them.`, `${a.name} blocks ${b.name}'s candidacy for an Association post. Everyone knows why.`]), 4, b); }
+    else if(r < 0.135 && ed - f.ed > 8){ f.end = ed; f.how = 'time'; add(pickR(A), 'feud', `After ${ed - f.ed} years, the ${f.an} and ${f.bn} families quietly let the old quarrel go.`, 4); }
   });
 }
 function feudsOf(lic){ if(!(WORLD.feuds || []).length) return []; const G = famGraph(), k = famKey(lic, G); if(!k) return []; return WORLD.feuds.filter(f => f.a === k.k || f.b === k.k).map(f => ({f, other: f.a === k.k ? f.bn : f.an, mine: f.a === k.k ? f.an : f.bn})); }
-function feudRowHtml(h){ return feudsOf(h.license).slice(-2).map(({f, other, mine}) => `<p class="h-fam"><span>⚔</span> ${f.end == null ? `The ${esc(mine)}s have been at odds with the ${esc(other)}s since the ${ordinal(f.ed)}` : `An old quarrel with the ${esc(other)}s, ${ordinal(f.ed)}–${ordinal(f.end)}${f.how ? ', ended by ' + esc(f.how) : ''}`} <span class="muted">· ${esc(f.why)}</span></p>`).join(''); }
-const feudNote = lic => { const L = feudsOf(lic).filter(x => x.f.end == null); return L.length ? ` · at odds with the ${L.map(x => esc(x.other) + 's').join(' and the ')}` : ''; };
+function feudRowHtml(h){ return feudsOf(h.license).slice(-2).map(({f, other, mine}) => `<p class="h-fam"><span>⚔</span> ${f.end == null ? `At odds with the ${esc(other)} family since the ${ordinal(f.ed)}` : `An old quarrel with the ${esc(other)} family, ${ordinal(f.ed)}–${ordinal(f.end)}${f.how ? ', ended by ' + esc(f.how) : ''}`} <span class="muted">· ${esc(f.why)}</span></p>`).join(''); }
+const feudNote = lic => { const L = feudsOf(lic).filter(x => x.f.end == null); return L.length ? ` · at odds with the ${L.map(x => esc(x.other)).join(' and ')} famil${L.length > 1 ? 'ies' : 'y'}` : ''; };
 // in the exam: children of two feuding families in the same year
 function feudsEnter(N){
   const on = feudsOn(); if(!on.length || !N.candidates) return;
@@ -205,7 +205,7 @@ function glanceHtml(b){
   if(promo.length) rows.push(['Promotions', `${hl(promo[0].it)} <span class="stars">${starStr(promo[0].s)}</span>${promo.length > 1 ? ` <span class="muted">and ${promo.length - 1} more</span>` : ''}`]);
   if(disc.length) rows.push(['Found', disc.slice(0, 2).map(x => `<i>${esc(capS(x.name))}</i>`).join(', ') + (disc.length > 2 ? ` <span class="muted">and ${disc.length - 2} more</span>` : '')]);
   if(crews.length) rows.push(['Crews', crews.map(c => `${esc(c.name)} <span class="muted">formed</span>`).join(', ')]);
-  if(feuds.length) rows.push(['Families', feuds.map(f => f.end === ed ? `the ${esc(f.an)}s and the ${esc(f.bn)}s <span class="muted">make peace</span>` : `the ${esc(f.an)}s and the ${esc(f.bn)}s <span class="muted">at odds</span>`).join(', ')]);
+  if(feuds.length) rows.push(['Families', feuds.map(f => f.end === ed ? `the ${esc(f.an)} and ${esc(f.bn)} families <span class="muted">make peace</span>` : `the ${esc(f.an)} and ${esc(f.bn)} families <span class="muted">at odds</span>`).join(', ')]);
   return rows.length >= 2 ? `<div class="glance">${rows.map(([k, v]) => `<div><span>${k}</span><span>${v}</span></div>`).join('')}</div>` : '';
 }
 

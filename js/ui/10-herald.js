@@ -47,7 +47,7 @@ function makePaper(S){
   if(old && old.age >= 45) add('old', 20 + old.age / 2, [`${old.name}, ${old.age}, Proves Age Is Just a Number`, `Never Too Late: ${old.name} Licensed at ${old.age}`, `The Oldest in the Room Walks Out a Hunter`], [old.id]);
   if(n >= 11) add('bumper', 45, [`A Bumper Year: ${n} New Hunters`, `${n} Licenses, the Zodiac Nearly Full`, `The Association Opens Its Doors Wide`]);
   if(n && n <= 2) add('few', 50, [`Only ${n === 1 ? 'One' : 'Two'} Survive${n === 1 ? 's' : ''} the ${ordinal(S.edition)} Exam`, `${n === 1 ? 'A Single License' : 'Just Two Licenses'} from ${fmt(N)} Applicants`, `${n === 1 ? 'One' : 'Two'} out of ${fmt(N)}`]);
-  if(famWin && famWin.length >= 2){ const F = familyOf(S, famWin[0]); add('family', 40 + famWin.length * 8, [`The ${F.name.replace(/^The /, '')} Strikes: ${famWin.length} Licenses`, `Blood Is Thicker: ${famWin.length} ${famWin[0].last}s Pass`, `A Family Affair at the ${ordinal(S.edition)} Exam`], famWin.map(c => c.id)); }
+  if(famWin && famWin.length >= 2){ const F = familyOf(S, famWin[0]); add('family', 40 + famWin.length * 8, [`The ${F.name.replace(/^The /, '')} Strikes: ${famWin.length} Licenses`, `Blood Is Thicker: ${famWin.length} of the ${famWin[0].last} Family Pass`, `A Family Affair at the ${ordinal(S.edition)} Exam`], famWin.map(c => c.id)); }
   if(alliWin && alliWin[1].length >= 3){ const AL = (S.alliances || []).find(x => x.id === alliWin[0]); if(AL) add('alliance', 35 + alliWin[1].length * 6, [`${AL.name} Takes ${alliWin[1].length} Licenses`, `Strength in Numbers: ${AL.name}`, `Together to the End: ${AL.name}`], alliWin[1].map(c => c.id)); }
   if(killerH) add('killer', 50, [`A Killer Among the New Hunters?`, `${killerH.name} Licensed Despite Blood on ${PR(killerH).Their} Hands`, `Questions Grow Over ${killerH.name}'s License`], [killerH.id]);
   if(nickH) add('nick', 30, [`"${nickH.nick}" Earns a License`, `They Called ${nickH.first} "${nickH.nick}". Now Call ${PR(nickH).Them} Hunter.`, `The Legend of "${nickH.nick}"`], [nickH.id]);
@@ -122,7 +122,7 @@ function makePaper(S){
     if(k === 'family' && fm && /[Ff]amily is out/.test(x)) return v([`The ${fm[1]} Family Is Out`, `End of the Road for the ${fm[1]} Family`]);
     if(k === 'family' && fm && /lost|falls|is out/i.test(x)) return v([`The ${fm[1]} Family Loses One`, `A Gap in the ${fm[1]} Family`]);
     if(k === 'family' && /first time|long-lost|never met/i.test(x)) return v([`A Family Reunion`, `Strangers, Then Family`]);
-    if(k === 'family' && fm && /split|refuse|argue|walks? away/i.test(x)) return v([`Rift in the ${fm[1]} Family`, `The ${fm[1]}s Go Separate Ways`]);
+    if(k === 'family' && fm && /split|refuse|argue|walks? away/i.test(x)) return v([`Rift in the ${fm[1]} Family`, `The ${fm[1]} Family Goes Separate Ways`]);
     if(k === 'refuse') return v([`${A} Walks On`, `No Help for ${B}`]);
     if(k === 'injury') return v([`${A} Hurt but Standing`, `Wounded, ${A} Pushes On`]);
     if(k === 'sabot') return v([`Foul Play Reported`, `Sabotage in the Field`, `${A} Plays Dirty`]);

@@ -11,6 +11,10 @@ const assert = require('assert'), {openGame, runExams} = require('./lib');
     // the count a family shows is the count its tree draws
     famTrees().slice(0, 3).forEach(f => { openTree(f.last.license); const F = famOf(f.last.license); const n = [...F.ids].filter(id => F.G.N.get(id).h).length, shown = +((document.querySelector('.sheet .meta') || {}).textContent || '').match(/(\d+) Hunter/)?.[1]; if(shown !== f.H.length) bad.push('family ' + f.name + ': tree header says ' + shown); if(n !== f.H.length) bad.push('family ' + f.name + ': ' + f.H.length + ' vs tree ' + n); closeModal(); });
     if(!/Most common surnames/.test(st)) bad.push('no surnames');
+    // Back: a Hunter opened from a family tree goes back to the tree; from the first page there is no Back
+    { closeModal(); const f = famTrees()[0]; openTree(f.last.license); if(document.getElementById('mHBack')) bad.push('back on the first page');
+      openHunter(f.first.license); const b = document.getElementById('mHBack'); if(!b) bad.push('no back from a Hunter opened in a tree'); else { b.click(); if(!/Family tree/.test(document.querySelector('.sheet .meta').textContent)) bad.push('back did not return to the tree'); if(document.getElementById('mHBack')) bad.push('back twice'); }
+      closeModal(); }
     famTrees().slice(0, 5).forEach(f => f.H.forEach(x => { if(!famTreeBtn(x)) bad.push(x.name + ' counted in the ' + f.name + 's, no tree on the profile'); }));
     const m = st.match(/(\d+) of (\d+)<\/b>[^<]*<span[^>]*>expeditions/) || st.match(/(\d+) of (\d+)/); if(/expeditions/.test(st) && m && +m[1] > +m[2]) bad.push('more came home than went');
     if(/Chairman for \d+ years/.test(st)) bad.push('chair record twice');

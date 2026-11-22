@@ -7,7 +7,7 @@ const saName = h => h ? `<a data-hunter="${esc(h.license)}">${esc(h.name)}</a>` 
 // each list: its title, its columns ([label, numeric?]), and its rows ({c: cells, v: sort values, t: search text, f: filter value})
 const SA_DEF = {
   families: () => ({title: 'Hunter families', cols: [['Family'], ['Hunters', 1], ['Active', 1], ['First licensed', 1], ['Latest'], ['']], filter: ['Status', [['alive', 'Still active'], ['gone', 'No one active']]],
-    rows: famTrees().map(f => ({c: [saName(f.first) + ` <span class="muted">· the ${esc(f.name)}s</span>`, f.H.length, f.A.length, ordinal(f.first.edition), saName(f.last), `<a data-tree="${esc(f.last.license)}">tree ›</a>`], v: [f.name, f.H.length, f.A.length, f.first.edition, f.last.name, 0], t: f.H.map(h => h.name).join(' '), f: f.A.length ? 'alive' : 'gone'}))}),
+    rows: famTrees().map(f => ({c: [saName(f.first) + ` <span class="muted">· the ${esc(f.name)} family</span>`, f.H.length, f.A.length, ordinal(f.first.edition), saName(f.last), `<a data-tree="${esc(f.last.license)}">tree ›</a>`], v: [f.name, f.H.length, f.A.length, f.first.edition, f.last.name, 0], t: f.H.map(h => h.name).join(' '), f: f.A.length ? 'alive' : 'gone'}))}),
   surnames: () => ({title: 'Surnames', cols: [['Surname'], ['Hunters', 1], ['Active', 1]], filter: ['Status', [['alive', 'Still active'], ['gone', 'No one active']]],
     rows: surCounts(HUNTERS).map(([s, n, a]) => ({c: [`<a data-famreg="${esc(s)}">${esc(s)}</a>`, n, a], v: [s, n, a], t: s, f: a ? 'alive' : 'gone'}))}),
   lines: () => ({title: 'Longest lines', cols: [['Founder'], ['Generations', 1], ['Licensed', 1], ['Latest Hunter'], ['']], filter: ['Status', [['alive', 'Still active'], ['gone', 'No one active']]],
