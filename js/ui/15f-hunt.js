@@ -15,7 +15,7 @@ const HUNT = {
 const huntOf = i => { const ph = PHASES[i]; return ph && HUNT[ph.id] && !(typeof PREL !== 'undefined' && PREL[ph.id]) && S.stats.find(s => s.p === i) ? HUNT[ph.id] : null; };
 const HUNT_C = {};
 function huntRun(i){
-  const K = huntOf(i); if(!K) return null; const key = S.edition + ':' + i + ':' + S.log.length; if(HUNT_C[i] && HUNT_C[i].key === key) return HUNT_C[i];
+  const K = huntOf(i); if(!K) return null; const key = S.edition + ':' + i + ':' + S.log.length + ':' + S.seed + ':' + (PHASES[i] || {}).id; if(HUNT_C[i] && HUNT_C[i].key === key) return HUNT_C[i];
   const ph = PHASES[i], H = s => nhashUI(S.seed + ':hu:' + i + ':' + s), sc = c => typeof c.scores[ph.id] === 'number' ? c.scores[ph.id] : -99;
   const P = S.candidates.filter(c => (c.out == null || c.out >= i) && (typeof c.scores[ph.id] === 'number' || c.out === i));
   const cause = c => clean(c.reason || '').replace(/^[^:]+:\s*/, '').replace(/, missing the cut by a hair$/, '').replace(/; .*$/, '').trim() || 'did not make it';

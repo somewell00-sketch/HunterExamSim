@@ -440,29 +440,39 @@ function worldTies(ed, add, items){
   act.forEach(h => { const o = h.spouse && byLic[h.spouse]; if(!o || h.license > o.license || ed - (h.wedEd || ed) < 3 || Math.random() >= 0.004) return;
     h.spouse = o.spouse = null; h.exSpouse = o.license; o.exSpouse = h.license;
     add(h, 'wed', pickR([`${h.name} and ${o.name} separate, quietly. They still take the same contracts.`, `${h.name} and ${o.name} are no longer married. Neither will say why.`]), 4, o); });
+  const kidsMore = n => n >= 5 ? ` That makes ${['five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve'][n - 5] || n}${n >= 8 ? '. Nobody at the Association can keep the birthdays straight' : ''}.` : '';
   // 🧬 children: married Hunters, both alive, at a plausible age
   WORLD.heirs = WORLD.heirs || [];
+  // how many children a Hunter will have, drawn once: most 0 to 4; now and then a very large family (a Hunter family leans to having some)
+  const kidT = (h, line) => { if(h.kidT != null) return h.kidT; const r = Math.random();
+    if(r < 0.004) return h.kidT = 13 + Math.floor(Math.random() * 6);
+    if(r < 0.03) return h.kidT = 5 + Math.floor(Math.random() * 7);
+    const W = line ? [0.12, 0.2, 0.3, 0.22, 0.16] : [0.3, 0.22, 0.26, 0.13, 0.09]; let x = Math.random(), n = 0; while(n < 4 && (x -= W[n]) > 0) n++; return h.kidT = n; };
+  // the more children of Hunter families already waiting for the exam, the fewer are born: the exam is not only for families
+  const waitN = WORLD.heirs.filter(k => !k.entered && !k.never && ed - k.born <= 22).length, crowd = Math.max(0.25, 1 - Math.max(0, waitN - 120) / 240);
   act.forEach(h => { const o = h.spouse && byLic[h.spouse]; if(!o || h.license > o.license || o.status === 'Deceased' || o.status === 'Missing' || away(h) || away(o)) return;
     const ages = [hunterAge(h), hunterAge(o)], kids = WORLD.heirs.filter(k => k.parents.includes(h.license)).length;
     const line = WORLD.heirs.some(k => k.cid && (k.cid === h.cid || k.cid === o.cid));
-    if(Math.min(...ages) < 20 || Math.max(...ages) > 46 || kids >= (line ? 4 : 3) || Math.random() >= (kids ? 0.05 : 0.09) * (line ? 2.5 : 1) * relKids(h, o)) return;   // a Hunter family pushes for the next generation
+    const T = Math.max(kidT(h, line), kidT(o, line));
+    if(Math.min(...ages) < 20 || Math.max(...ages) > 46 || kids >= T || Math.random() >= (T > 4 ? 0.45 : kids ? 0.12 : 0.1) * (line ? 1.5 : 1) * relKids(h, o) * crowd) return;   // a Hunter family pushes for the next generation
     const g = Math.random() < 0.47 ? 'Male' : Math.random() < 0.9 ? 'Female' : 'Non-binary', ln = Math.random() < 0.5 ? [h, o] : [o, h], CN = childName(ln[0], ln[1], g), NS = namesake(CN, [h, o], g);
     const first = CN.first, kid = {id: 'K' + (++WORLD.seq), first, last: CN.last, surK: CN.surK, cul: CN.cul, name: CN.name, gender: g, born: ed, parents: [h.license, o.license]};
     WORLD.heirs.push(kid);
     if(NS) kid.namesake = NS;
-    add(h, 'wed', `${h.name} and ${o.name} welcome a ${g === 'Male' ? 'son' : g === 'Female' ? 'daughter' : 'child'}, ${first}${NS ? (NS.echo ? `, a name one letter away from ${g === 'Male' ? 'his' : g === 'Female' ? 'her' : 'their'} ${NS.rel}'s` : `, named after ${g === 'Male' ? 'his' : g === 'Female' ? 'her' : 'their'} ${NS.rel}, ${NS.name}`) : ''}.`, 4, o);
+    add(h, 'wed', `${h.name} and ${o.name} welcome a ${g === 'Male' ? 'son' : g === 'Female' ? 'daughter' : 'child'}, ${first}${NS ? (NS.echo ? `, a name one letter away from ${g === 'Male' ? 'his' : g === 'Female' ? 'her' : 'their'} ${NS.rel}'s` : `, named after ${g === 'Male' ? 'his' : g === 'Female' ? 'her' : 'their'} ${NS.rel}, ${NS.name}`) : ''}.${kidsMore(kids + 1)}`, 4, o);
   });
   // 🧬 a Hunter does not need another Hunter to start a family; a family name pushes the next one in
   const lineDepth = h => { let d = 1, cur = h, guard = 0; while(cur && guard++ < 12){ const k = (WORLD.heirs || []).find(x => x.cid && x.cid === cur.cid); if(!k) break; d += k.grand ? 2 : 1; cur = (k.grand || k.parents).map(l => byLic[l]).find(Boolean); } return d; };
   const CIV = ['a lighthouse keeper', 'a schoolteacher', 'a ship\'s doctor', 'a baker', 'a cartographer', 'a retired soldier', 'a musician', 'a bookseller', 'a tea merchant', 'a carpenter', 'a nurse', 'a fisher'];
   act.forEach(h => { if(h.spouse || h.status !== 'Active Hunter') return; const a = hunterAge(h); if(a < 22 || a > 45) return;
-    const kids = WORLD.heirs.filter(k => k.parents.includes(h.license)).length, depth = lineDepth(h); if(kids >= (depth >= 2 ? 3 : 2)) return;
-    if(Math.random() >= 0.003 * (depth >= 2 ? 4 : 1) * (kids ? 0.5 : 1)) return;
+    const kids = WORLD.heirs.filter(k => k.parents.includes(h.license)).length, depth = lineDepth(h), T = kidT(h, depth >= 2); if(kids >= T) return;
+    // a first child with someone outside the Association is rarer than for a married pair; a Hunter family pushes for it
+    if(Math.random() >= (kids ? (T > 4 ? 0.45 : 0.12) : depth >= 2 ? 0.06 : 0.008) * crowd) return;
     const g = Math.random() < 0.47 ? 'Male' : Math.random() < 0.9 ? 'Female' : 'Non-binary', CN = childName(h, null, g), NS = namesake(CN, [h], g);
     const first = CN.first, kid = {id: 'K' + (++WORLD.seq), first, last: CN.last, surK: CN.surK, cul: CN.cul, name: CN.name, gender: g, born: ed, parents: [h.license], civ: pickR(CIV), line: depth};
     WORLD.heirs.push(kid);
     if(NS) kid.namesake = NS;
-    add(h, 'life', `${h.name} has a ${g === 'Male' ? 'son' : g === 'Female' ? 'daughter' : 'child'}, ${first}, with ${kid.civ} from ${pickR(PLACES)}${NS ? (NS.echo ? `, a name one letter away from ${g === 'Male' ? 'his' : g === 'Female' ? 'her' : 'their'} ${NS.rel}'s` : `, named after ${g === 'Male' ? 'his' : g === 'Female' ? 'her' : 'their'} ${NS.rel}, ${NS.name}`) : ''}.${depth >= 2 ? ` The ${surname(h)} line goes on.` : ''}`, depth >= 2 ? 6 : 4);
+    add(h, 'life', `${h.name} has a ${g === 'Male' ? 'son' : g === 'Female' ? 'daughter' : 'child'}, ${first}, with ${kid.civ} from ${pickR(PLACES)}${NS ? (NS.echo ? `, a name one letter away from ${g === 'Male' ? 'his' : g === 'Female' ? 'her' : 'their'} ${NS.rel}'s` : `, named after ${g === 'Male' ? 'his' : g === 'Female' ? 'her' : 'their'} ${NS.rel}, ${NS.name}`) : ''}.${depth >= 2 && !kids ? ` The ${surname(h)} line goes on.` : ''}${kidsMore(kids + 1)}`, depth >= 2 ? 6 : 4);
   });
   // 🧬 B: a line can skip a generation. A Hunter's child who never became a Hunter still has a life, and children of their own;
   // years later a grandchild registers for the exam with the old name. One skip only: the grandchild's own children are not followed.

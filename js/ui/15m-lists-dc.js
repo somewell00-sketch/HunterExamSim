@@ -13,6 +13,11 @@ const SA_DEF = {
   lines: () => ({title: 'Longest lines', cols: [['Founder'], ['Generations', 1], ['Licensed', 1], ['Latest Hunter'], ['']], filter: ['Status', [['alive', 'Still active'], ['gone', 'No one active']]],
     rows: famLines(HUNTERS).map(x => { const s = surOf(x.root), on = HUNTERS.some(h => !h.legacy && surOf(h) === s && hActive(h));
       return {c: [saName(x.root), x.d, ordinal(x.root.edition), saName(x.h), `<a data-tree="${esc(x.h.license)}">tree ›</a>`], v: [x.root.name, x.d, x.root.edition, x.h.name, 0], t: x.root.name + ' ' + x.h.name + ' ' + s, f: on ? 'alive' : 'gone'}; })}),
+  disc: () => ({title: 'Discoveries', cols: [['Discovery'], ['Kind'], ['By'], ['Year', 1]], filter: ['Kind', Object.entries(DISC_K)],
+    rows: (WORLD.disc || []).map(x => { const h = hLic(x.lic); return {c: [esc(capS(x.name)), DISC_K[x.k], h ? saName(h) : esc(x.by), ordinal(x.ed)], v: [x.name, x.k, x.by, x.ed], t: x.name + ' ' + x.by, f: x.k}; })}),
+  crews: () => ({title: 'Crews', cols: [['Crew'], ['Members'], ['From', 1], ['Years', 1]], filter: ['Status', [['on', 'Together'], ['off', 'Split up']]],
+    rows: (WORLD.crews || []).map(c => { const M = c.m.concat((c.past || []).map(p => p.lic)).map(hLic).filter(Boolean), y = (c.end ?? S.edition) - c.from;
+      return {c: [esc(c.name), M.map(saName).join(', '), ordinal(c.from), y], v: [c.name, M.length, c.from, y], t: c.name + ' ' + M.map(h => h.name).join(' '), f: c.end == null ? 'on' : 'off'}; })}),
   schools: () => ({title: 'Schools of Nen', cols: [['School'], ['Students', 1], ['Masters', 1], ['Founded', 1], ['Status']], filter: ['Status', [['open', 'Open'], ['closed', 'Closed']]],
     rows: (WORLD.schools || []).map(s => { const n = HUNTERS.filter(h => h.school === s.id).length;
       return {c: [`<a data-school="${s.id}">${esc(capS(s.name))}</a>`, n, (s.heads || []).length, s.ed != null ? ordinal(s.ed) : '—', esc(s.st || '')], v: [s.name, n, (s.heads || []).length, s.ed ?? 0, s.st], t: s.name + ' ' + (s.fName || ''), f: s.st === 'open' ? 'open' : 'closed'}; })}),

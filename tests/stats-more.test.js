@@ -9,8 +9,9 @@ const assert = require('assert'), {openGame, runExams} = require('./lib');
     // one row a family in the family blocks; the largest families all still have someone active; no record counts past its total
     const fl = famLines(HUNTERS); if(new Set(fl.map(x => x.root.license)).size !== fl.length) bad.push('a family twice in Longest lines');
     // the count a family shows is the count its tree draws
-    famTrees().slice(0, 3).forEach(f => { openTree(f.last.license); const F = famOf(f.last.license); const n = [...F.ids].filter(id => { const x = F.G.N.get(id).h; return x && !x.legacy; }).length; if(n !== f.H.length) bad.push('family ' + f.name + ': ' + f.H.length + ' vs tree ' + n); closeModal(); });
+    famTrees().slice(0, 3).forEach(f => { openTree(f.last.license); const F = famOf(f.last.license); const n = [...F.ids].filter(id => F.G.N.get(id).h).length, shown = +((document.querySelector('.sheet .meta') || {}).textContent || '').match(/(\d+) Hunter/)?.[1]; if(shown !== f.H.length) bad.push('family ' + f.name + ': tree header says ' + shown); if(n !== f.H.length) bad.push('family ' + f.name + ': ' + f.H.length + ' vs tree ' + n); closeModal(); });
     if(!/Most common surnames/.test(st)) bad.push('no surnames');
+    famTrees().slice(0, 5).forEach(f => f.H.forEach(x => { if(!famTreeBtn(x)) bad.push(x.name + ' counted in the ' + f.name + 's, no tree on the profile'); }));
     const m = st.match(/(\d+) of (\d+)<\/b>[^<]*<span[^>]*>expeditions/) || st.match(/(\d+) of (\d+)/); if(/expeditions/.test(st) && m && +m[1] > +m[2]) bad.push('more came home than went');
     if(/Chairman for \d+ years/.test(st)) bad.push('chair record twice');
     Object.keys(SA_DEF).forEach(k => { openStAll(k); const sh = document.querySelector('.sheet'); if(!sh || !sh.querySelector('table')) bad.push('list ' + k); });

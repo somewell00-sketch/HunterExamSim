@@ -87,6 +87,7 @@ function statsHtml0(){
       ${stList('Longest lines', dyn.map(x => [hl(x.root), `${x.d} generations · latest: ${hl(x.h)}${(WORLD.heirs || []).some(k => k.grand && k.cid === x.h.cid) ? ' · skips a generation' : ''} · <a data-tree="${esc(x.h.license)}">tree</a>`]), 'lines')}
       ${stList('Largest families', famTrees().filter(f => f.A.length).slice(0, 5).map(f => [famLink(f), `${f.H.length} Hunters, ${f.A.length} active · latest: ${hl(f.last)}`]), 'families')}
       ${stList('Most common surnames', surCounts(H).slice(0, 5).map(([s, n, a]) => [`<a data-famreg="${esc(s)}" title="Every ${esc(s)} in the register">${esc(s)}</a>`, `${n} Hunters${a ? `, ${a} active` : ''}`]), 'surnames')}
+      ${typeof crewsOn === 'function' ? stList('Crews still together', crewsOn().slice().sort((a, b) => a.from - b.from).slice(0, 3).map(c => [esc(c.name), `${S.edition - c.from} years · ${c.m.map(l => hl(hLic(l))).filter(Boolean).join(', ')}`]), 'crews') : ''}
       ${stList('Largest schools', Sc.map(({s, all}) => [`<a data-school="${s.id}">${esc(capS(s.name))}</a>`, `${all} students · ${s.heads.length} master${s.heads.length === 1 ? '' : 's'} · ${s.st}`]), 'schools')}
       ${stList('Deadliest outlaws', dead.map(w => [`<a data-outlaw="${esc(w.id)}">${esc(w.name)}</a>` + (w.nick ? ` “${esc(w.nick)}”` : ''), `${w.kills} Hunter${w.kills === 1 ? '' : 's'} killed · ${w.status}`]), 'outlaws')}
       ${stList('Relics', most.map(r => [`<a data-relic="${r.id}">${esc(capS(RDEF[r.id].name))}</a>`, `${r.n || 0} owners`]).concat(longHold ? [[hl(hLic(longHold.o.lic)) || esc(longHold.o.name), `held ${esc(RDEF[longHold.r.id].name)} for ${longHold.y} years`]] : []), 'relics')}
@@ -111,7 +112,7 @@ function famTrees(){ return typeof haKept === 'function' ? haKept('famTrees', fa
 function famTrees0(){
   const G = famGraph(), done = new Set(), out = [];
   HUNTERS.filter(h => !h.legacy && G.N.has(h.license)).forEach(h => { if(done.has(h.license)) return; const F = famOf(h.license, G); F.blood.forEach(id => done.add(id));
-    const H = [...F.ids].map(id => G.N.get(id).h).filter(x => x && !x.legacy); if(H.length < 2) return;
+    const H = [...F.ids].map(id => G.N.get(id).h).filter(Boolean); if(H.length < 2) return;   // the same Hunters the tree counts
     const first = H.slice().sort((a, b) => a.edition - b.edition)[0], A = H.filter(hActive), last = (A.length ? A : H).slice().sort((a, b) => b.edition - a.edition)[0];
     out.push({H, A, first, last, name: surOf(first)}); });
   return out.sort((a, b) => b.H.length - a.H.length || b.A.length - a.A.length);

@@ -14,7 +14,7 @@ const TRAILS = {
 const trailOf = i => { const ph = PHASES[i]; return ph && TRAILS[ph.id] && S.stats.find(s => s.p === i) ? i : null; };
 const TRAIL_C = {};
 function trailRun(i){
-  if(trailOf(i) == null) return null; const key = S.edition + ':' + i + ':' + S.log.length; if(TRAIL_C[i] && TRAIL_C[i].key === key) return TRAIL_C[i];
+  if(trailOf(i) == null) return null; const key = S.edition + ':' + i + ':' + S.log.length + ':' + S.seed + ':' + (PHASES[i] || {}).id; if(TRAIL_C[i] && TRAIL_C[i].key === key) return TRAIL_C[i];
   const ph = PHASES[i], H = s => nhashUI(S.seed + ':tt:' + i + ':' + s), F0 = ph.fail || {};
   const P = S.candidates.filter(c => (c.out == null || c.out >= i) && (typeof c.scores[ph.id] === 'number' || c.out === i));
   const TK = TRAILS[ph.id], STOP = TK.stop;

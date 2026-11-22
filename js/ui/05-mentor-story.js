@@ -436,7 +436,7 @@ function heirsEnter(S){
   const pick = H.filter(k => !k.entered && !k.never && ed - k.born >= 12 && ed - k.born <= 22).filter(k => {
     const age = ed - k.born; if(age === 22 && Math.random() < 0.4){ k.never = true; return false; }   // some choose another life
     return Math.random() < 0.08 + (age - 12) * 0.03;
-  }).slice(0, 4);
+  }).slice(0, Math.min(8, Math.max(4, Math.round(S.candidates.length / 200))));
   pick.forEach(k => {
     const c = S.candidates.find(x => x.status === 'Active' && !x.fam && !x.heir && attemptsOf(x) <= 1 && !used.has(x.id) && !x.secret && !mtOf(x.id) && !isFav(x.id) && x.tier !== 'Elite'); if(!c) return;
     const P = k.parents.map(hLic).filter(Boolean), G = (k.grand || []).map(hLic).filter(Boolean), age = ed - k.born;

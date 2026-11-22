@@ -82,7 +82,7 @@ const PREL = {
 const prelOf = i => { const ph = PHASES[i]; return ph && PREL[ph.id] && S.stats.find(s => s.p === i) ? PREL[ph.id] : null; };
 const PREL_C = {};
 function prelRun(i){
-  const K = prelOf(i); if(!K) return null; const key = S.edition + ':' + i + ':' + S.log.length; if(PREL_C[i] && PREL_C[i].key === key) return PREL_C[i];
+  const K = prelOf(i); if(!K) return null; const key = S.edition + ':' + i + ':' + S.log.length + ':' + S.seed + ':' + (PHASES[i] || {}).id; if(PREL_C[i] && PREL_C[i].key === key) return PREL_C[i];
   const ph = PHASES[i], F0 = ph.fail || {}, H = s => nhashUI(S.seed + ':pr:' + i + ':' + s), dur = K.dur;
   const P = S.candidates.filter(c => (c.out == null || c.out >= i) && (typeof c.scores[ph.id] === 'number' || c.out === i));
   // the way out: the recorded cause, matched against this trial's own failures; anything else (disqualified, died) gets its own card

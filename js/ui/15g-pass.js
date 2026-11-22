@@ -12,7 +12,7 @@ function passOf(i){ const ph = PHASES[i]; if(!ph) return null;
   const p = PHASES[i]; return p && PASS[p.id] && S.stats.find(s => s.p === i) ? i : null; }
 const PASS_C = {};
 function passRun(i0){
-  const i = passOf(i0); if(i == null) return null; const key = S.edition + ':' + i + ':' + S.log.length; if(PASS_C[i] && PASS_C[i].key === key) return PASS_C[i];
+  const i = passOf(i0); if(i == null) return null; const key = S.edition + ':' + i + ':' + S.log.length + ':' + S.seed + ':' + (PHASES[i] || {}).id; if(PASS_C[i] && PASS_C[i].key === key) return PASS_C[i];
   const ph = PHASES[i], K = PASS[ph.id], eg = PHASES[i + 1] && PHASES[i + 1].id === 'egg' ? PHASES[i + 1] : null, egDone = eg && S.stats.find(s => s.p === i + 1), H = s => nhashUI(S.seed + ':ps:' + i + ':' + s);
   const P = S.candidates.filter(c => (c.out == null || c.out >= i) && typeof c.scores[ph.id] === 'number');
   const R1 = Object.values(ph.fail || {}), R2 = eg ? Object.values(eg.fail || {}) : [], cap = s => s.charAt(0).toUpperCase() + s.slice(1);
@@ -20,7 +20,9 @@ function passRun(i0){
   const why2 = c => { const r = clean(c.reason || '').replace(/^[^:]+:\s*/, '').replace(/, missing the cut by a hair$/, ''), k = R2.findIndex(x => r.startsWith(x)); return k >= 0 ? k : Math.max(0, R2.indexOf(eg.fail[weakest(c, eg.w)])); };
   const rows = P.map(c => { const rej = eg ? (typeof c.scores[eg.id] === 'number' || (c.notes || []).some(n => n.p === i && /Dish rejected/.test(n.text)) || c.out === i) : c.out === i;
     const jumped = rej && eg && egDone && typeof c.scores[eg.id] === 'number', outE = jumped && c.out === i + 1;
-    return {c, rej, r1: rej ? why1(c) : -1, t1: 0.04 + (H(c.id) % 1000) / 1000 * 0.92, t2: jumped ? 1.1 + (H(c.id + 'e') % 1000) / 1000 * 0.85 : null, outE, r2: outE ? why2(c) : -1}; });
+    return {c, rej, r1: rej ? why1(c) : -1, t1: 0.04 + (H(c.id) % 1000) / 1000 * 0.92, t2: jumped ? 1.1 + (H(c.id + 'e') % 1000) / 1000 * 0.85 : null, outE, r2: outE ? why2(c) : -1};  })
+    // approved, yet gone by the end of the kitchen for some other reason (an undercover examiner unmasked, say): not part of the count
+    .filter(r => r.rej || r.c.out == null || r.c.out > i + (egDone ? 1 : 0));
   const cast = new Set(typeof chCastAt === 'function' ? chCastAt(i) : []), F = [];
   rows.filter(r => isFav(r.c.id) || (!MENTOR.off && mtOf(r.c.id))).concat(rows.filter(r => cast.has(r.c.id))).forEach(r => { if(F.length < 12 && !F.includes(r)) F.push(r); });
   const lost = rows.filter(r => r.outE || (!eg && r.rej)); if(!F.some(r => lost.includes(r))){ const s = lost.slice().sort((a, b) => b.c.scores[ph.id] - a.c.scores[ph.id])[0]; if(s) F.push(s); }

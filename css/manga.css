@@ -1137,3 +1137,15 @@ b,strong{font-weight:700}
 .md-body .mt-stamp{display:inline-block!important}
 .mt-folded{flex-direction:row!important;align-items:center;gap:10px!important;padding:8px 12px!important;flex-wrap:wrap}.mt-folded .mt-fcall{color:var(--fg);font-size:13px}.mt-folded .sc-link{margin-left:auto;font-size:11.5px}
 .sq-h span:first-child{font-weight:700}
+/* more world: discoveries, the arena, the year at a glance */
+.dsc{margin-top:18px}.dsc-f{display:flex;flex-wrap:wrap;gap:6px;margin:2px 0 8px}
+.dsc-r{display:grid;grid-template-columns:86px 1fr;gap:4px 12px;padding:7px 0;border-top:1px solid color-mix(in srgb,var(--fg) 10%,transparent);align-items:start}
+.dsc-r>span:last-child{display:flex;flex-direction:column;gap:2px}.dsc-r small{font-size:12px}
+.dsc-k{font:600 10px var(--f-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted);border:1px solid var(--line);padding:1px 6px;justify-self:start;margin-top:2px}
+.works{margin-top:16px}
+.ar-fl{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;margin-top:12px}
+.ar-fl>div{border:1px solid var(--line);padding:8px 10px;display:flex;flex-direction:column;gap:2px;font-size:13px}.ar-fl>div.hun{border-color:var(--gold)}
+.ar-fl small{font:600 10px var(--f-mono);color:var(--gold);letter-spacing:.12em;text-transform:uppercase}.ar-fl .muted{font-size:11.5px}
+.glance{border-left:4px solid var(--gold);padding:8px 12px;margin:10px 0 14px;background:color-mix(in srgb,var(--fg) 4%,transparent)}
+.glance>div{display:grid;grid-template-columns:92px 1fr;gap:10px;font-size:13px;padding:2px 0}
+.glance>div>span:first-child{font:600 10px var(--f-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted);padding-top:3px}

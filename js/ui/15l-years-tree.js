@@ -209,7 +209,7 @@ function openTree(lic){
         return `<g class="${h ? 'h' : 'civ'}" data-ftp="${p.id}"><text x="144" y="${y + 4}" text-anchor="end" class="nm">${esc(p.name)}</text><rect x="${x(p.born)}" y="${y - 6}" width="${Math.max(3, x(end) - x(p.born))}" height="12" rx="6"/>${h ? `<text x="${x(h.pro ? h.edition - (h.years || 0) : h.edition)}" y="${y + 4}" text-anchor="middle" class="lic">★</text>` : ''}</g>`; }).join('')}</svg>`; }
   const nH = [...ids].filter(id => P(id).h).length;
   showModal(`<div class="sheet wide" role="dialog" aria-modal="true" aria-label="Family tree">
-    <div class="sheet-head"><div><div class="meta">Family tree · ${nH} Hunter${nH === 1 ? '' : 's'} · ${maxG + 1} generation${maxG ? 's' : ''}</div><h2>The family of ${esc(P(lic).name)}</h2></div><div style="display:flex;gap:8px;flex-wrap:wrap">${sur ? `<button class="btn" data-famreg="${esc(sur)}">Every ${esc(sur)} in the register</button>` : ''}<button class="btn" id="mClose">Close</button></div></div>
+    <div class="sheet-head"><div><div class="meta">Family tree · ${nH} Hunter${nH === 1 ? '' : 's'} · ${maxG + 1} generation${maxG ? 's' : ''}${typeof feudNote === 'function' ? feudNote(lic) : ''}</div><h2>The family of ${esc(P(lic).name)}</h2></div><div style="display:flex;gap:8px;flex-wrap:wrap">${sur ? `<button class="btn" data-famreg="${esc(sur)}">Every ${esc(sur)} in the register</button>` : ''}<button class="btn" id="mClose">Close</button></div></div>
     <div class="ft-sw seg" role="group" aria-label="View"><button type="button" data-ftv="A" aria-pressed="${FT_VIEW === 'A'}">The tree</button><button type="button" data-ftv="B" aria-pressed="${FT_VIEW === 'B'}">Lifelines</button><button type="button" data-ftv="C" aria-pressed="${FT_VIEW === 'C'}">Direct line</button></div>
     <div class="ft-wrap" data-noal><div id="ftA" class="ft-a"${FT_VIEW === 'A' ? '' : ' hidden'}>${treeA}</div><div id="ftB"${FT_VIEW === 'B' ? '' : ' hidden'}>${life}</div><div id="ftC" class="dl"${FT_VIEW === 'C' ? '' : ' hidden'}></div></div>
     <p class="muted st-note">⚭ married · a dashed card never became a Hunter · each colour is one couple's children · ★ on a lifeline is the year of the license. Tap someone to light up their line; tap a name to open the Hunter.</p></div>`);
@@ -251,7 +251,9 @@ document.addEventListener('click', e => {
   const p = e.target.closest('[data-ftp]'); if(p && !e.target.closest('a')){ ftLight(p.dataset.ftp); }
 }, true);
 // the button on a Hunter's page, when there is a family to draw
-const famTreeBtn = h => famSize(h.license) >= 2 ? `<button type="button" class="btn small ft-open" data-tree="${esc(h.license)}">Family tree ›</button>` : '';
+// married into a family with no blood kin of their own: the tree of the family they married into
+const famTreeBtn = h => { if(famSize(h.license) >= 2) return `<button type="button" class="btn small ft-open" data-tree="${esc(h.license)}">Family tree ›</button>`;
+  const sp = h.spouse || h.widowOf; return sp && hLic(sp) && famSize(sp) >= 2 ? `<button type="button" class="btn small ft-open" data-tree="${esc(sp)}">Family tree, by marriage ›</button>` : ''; };
 // a surname from the Statistics: the largest family of that name
 function treeBySurname(s){
   const G = famGraph(), done = new Set(); let best = null;

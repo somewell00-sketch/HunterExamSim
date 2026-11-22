@@ -195,7 +195,7 @@ function chShape(i){
 }
 const chTidy = (t, ph) => t.replace(/ \([^)]*\)(?=\.?$)/, '').replace(new RegExp(` (?:in|during) the ${ph.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?=[.,;:!?])`, 'g'), '');
 // the order people first appear in a chapter (the Ones to watch list follows it)
-function chOrder(i){ const k = S.edition + ':' + i + ':' + S.log.length; if(chOrder.k !== k){ chOrder.k = k; const ids = []; [...chapterHtml(i).matchAll(/data-id="([^"]+)"/g)].forEach(m => { if(!ids.includes(m[1])) ids.push(m[1]); }); chOrder.v = ids; } return chOrder.v; }
+function chOrder(i){ const k = S.edition + ':' + i + ':' + S.log.length + ':' + S.seed + ':' + (PHASES[i] || {}).id; if(chOrder.k !== k){ chOrder.k = k; const ids = []; [...chapterHtml(i).matchAll(/data-id="([^"]+)"/g)].forEach(m => { if(!ids.includes(m[1])) ids.push(m[1]); }); chOrder.v = ids; } return chOrder.v; }
 function chapterHtml(i){
   const C = chapterOf(i), ph = C.ph, shape = chShape(i), k = 'c' + i, cast = chCast(C), nx = chNext(i, C);
   const tidy = arr => arr.map(e => Object.assign({}, e, {text: chTidy(e.text, ph)}));

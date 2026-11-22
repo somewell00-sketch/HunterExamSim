@@ -25,7 +25,7 @@ const RACE = {
 const raceOf = i => { const ph = PHASES[i]; return ph && RACE[ph.id] && !RACE[ph.id].route && S.stats.find(s => s.p === i) ? RACE[ph.id] : null; };
 const RACE_C = {};
 function raceRun(i){
-  const K = raceOf(i); if(!K) return null; const key = S.edition + ':' + i + ':' + S.log.length; if(RACE_C[i] && RACE_C[i].key === key) return RACE_C[i];
+  const K = raceOf(i); if(!K) return null; const key = S.edition + ':' + i + ':' + S.log.length + ':' + S.seed + ':' + (PHASES[i] || {}).id; if(RACE_C[i] && RACE_C[i].key === key) return RACE_C[i];
   const ph = PHASES[i], H = s => nhashUI(S.seed + ':rc:' + i + ':' + s);
   const P = S.candidates.filter(c => (c.out == null || c.out >= i) && (typeof c.scores[ph.id] === 'number' || c.out === i));
   const sc = c => typeof c.scores[ph.id] === 'number' ? c.scores[ph.id] : -99, outs = P.filter(c => c.out === i).sort((a, b) => sc(a) - sc(b) || H(a.id) - H(b.id)), stay = P.filter(c => c.out !== i);
