@@ -9,18 +9,25 @@ const LAW = {
   'kill-': {k: 'kill', v: 'ban', txt: 'a ban on killing', law: 'A ban on killing: fatal duels are rarer', ann: 'any candidate who kills is out before the body is cold'},
   'kill+': {k: 'kill', v: 'free', txt: 'the strong survive', law: 'The strong survive: fewer duels are stopped', ann: 'examiners who will not stop a duel early'},
   'vets': {k: 'ex', v: 'vets', txt: 'veteran examiners', law: 'Only veterans examine (★★ and up)', ann: 'only veterans as examiners'},
+  'rookie': {k: 'ex', v: 'rookie', txt: 'starless examiners, as training', law: 'Examiners without stars, as part of their training', ann: 'examiners who have not yet earned a star, sent to learn'},
   'road': {k: 'road', v: 'hard', txt: 'harder roads', law: 'Harder roads: storms and wild country', ann: 'routes chosen to be hard'},
   'book': {k: 'road', v: 'book', txt: 'an exam by the book', law: 'An exam by the book', ann: 'an exam by the book, without games'}
 };
+// undoing a decree: back to the way it was before anyone changed it
+const LAW_REV = {lic: 'twelve licenses again', gate: 'the usual gate', kill: 'the old rules on killing', ex: 'any Hunter may examine again', road: 'the usual roads'};
+const lawTxt = id => id.startsWith('rev:') ? LAW_REV[id.slice(4)] : LAW[id].txt;
 // who promises what: a leaning by specialty, a little chance for anything
-const LAW_LEAN = {Blacklist: ['lic-', 'kill+', 'vets'], Crime: ['lic-', 'vets', 'kill-'], Ruins: ['book', 'vets', 'lic-'], Head: ['lic+', 'kill-', 'book'], Jackpot: ['lic+', 'gate-', 'road'],
-  Music: ['lic+', 'kill-', 'gate+'], Gourmet: ['gate+', 'kill-', 'lic+'], Lost: ['gate+', 'kill-', 'road'], Sea: ['road', 'gate+', 'kill+'], Beast: ['road', 'kill+', 'gate+'], Treasure: ['gate-', 'book', 'lic+'], Virus: ['kill-', 'book', 'gate-']};
+const LAW_LEAN = {Blacklist: ['lic-', 'kill+', 'vets'], Crime: ['lic-', 'vets', 'kill-'], Ruins: ['book', 'vets', 'lic-'], Head: ['lic+', 'kill-', 'rookie'], Jackpot: ['lic+', 'gate-', 'road'],
+  Music: ['lic+', 'kill-', 'rookie'], Gourmet: ['gate+', 'kill-', 'lic+'], Lost: ['gate+', 'rookie', 'road'], Sea: ['road', 'gate+', 'kill+'], Beast: ['road', 'kill+', 'gate+'], Treasure: ['gate-', 'book', 'lic+'], Virus: ['kill-', 'book', 'gate-']};
 const lawOpp = id => Object.keys(LAW).filter(x => x !== id && LAW[x].k === LAW[id].k);
 function promisesOf(h){
-  if(h.plat && h.plat.ed && S && S.edition - h.plat.ed < 20) return h.plat.p;
-  const lean = LAW_LEAN[(h.career || '').replace(' Hunter', '')] || Object.keys(LAW), out = [];
+  if(h.plat && S && h.plat.ed === S.edition) return h.plat.p;
+  const lean = LAW_LEAN[(h.career || '').replace(' Hunter', '')] || Object.keys(LAW), out = [], keyOf = id => id.startsWith('rev:') ? id.slice(4) : LAW[id].k;
+  // a decree in force that does not suit them: they may promise to undo it
+  const undo = Object.entries(laws()).filter(([, L]) => !lean.includes(L.id)).map(([k]) => 'rev:' + k);
+  if(undo.length && Math.random() < 0.4) out.push(pickR(undo));
   const n = Math.random() < 0.45 ? 2 : 1;
-  for(let t = 0; t < 10 && out.length < n; t++){ const id = Math.random() < 0.75 ? pickR(lean) : pickR(Object.keys(LAW)); if(!out.some(x => x === id || LAW[x].k === LAW[id].k)) out.push(id); }
+  for(let t = 0; t < 10 && out.length < n; t++){ const id = Math.random() < 0.75 ? pickR(lean) : pickR(Object.keys(LAW)); if(!out.some(x => keyOf(x) === keyOf(id))) out.push(id); }
   h.plat = {ed: S ? S.edition : 0, p: out}; return out;
 }
 const laws = () => (WORLD.laws = WORLD.laws || {});
@@ -31,6 +38,8 @@ function lawsAfterElection(E, winner, add){
   const fin = (E.rounds || []).filter(r => !r.void && r.top).pop(); if(!fin) return;
   E.plat = {}; fin.top.slice(0, 3).forEach(x => { const h = hLic(x.l); if(h) E.plat[x.l] = promisesOf(h).slice(); });
   (E.plat[winner.license] || promisesOf(winner)).forEach(id => {
+    if(id.startsWith('rev:')){ const k = id.slice(4), cur = laws()[k]; if(!cur) return; delete laws()[k];
+      add(winner, 'law', `Chairman ${winner.name} repeals ${LAW[cur.id].txt}, as promised: ${LAW_REV[k]}.`, 7); return; }
     const cur = laws()[LAW[id].k]; if(cur && cur.id === id) return;
     if(Math.random() < 0.15){ add(winner, 'law', `Chairman ${winner.name} promised ${LAW[id].txt}. The Zodiac does not let it through.`, 5); return; }
     laws()[LAW[id].k] = {id, ed: E.ed, by: winner.license};
@@ -51,4 +60,4 @@ function lawsOpen(N){ const ids = Object.values(N.law || {}); if(!ids.length) re
 // the Council: the rules in force, in a few lines
 function lawsHtml(){ const L = Object.values(laws()); if(!L.length) return '';
   return `<div class="laws"><div class="section-h">Laws in force</div>${L.map(x => { const h = hLic(x.by); return `<p class="h-fam"><span>¶</span> ${esc(LAW[x.id].law)} <span class="muted">· since the ${ordinal(x.ed)}${h ? `, ${esc(h.name)}` : ''}</span></p>`; }).join('')}<p class="muted" style="font-size:12px;margin:4px 0 0">The Jubilee and the Centenary keep their own rules for licenses, examiners and the road.</p></div>`; }
-const platTxt = (E, l) => { const P = E.plat && E.plat[l]; return P && P.length ? `<small class="elx-p">promised ${P.map(id => LAW[id].txt).join(' and ')}</small>` : ''; };
+const platTxt = (E, l) => { const P = E.plat && E.plat[l]; return P && P.length ? `<small class="elx-p">promised ${P.map(lawTxt).join(' and ')}</small>` : ''; };

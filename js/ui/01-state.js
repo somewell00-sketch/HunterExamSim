@@ -109,7 +109,8 @@ function fresh(edition, prev){
   else if(special === 'jubilee'){ const ex = HUNTERS.filter(h => hActive(h) && (h.pastRoles || []).some(r => r.r === 'Chairman')); if(ex.length) legends = [{...pick(pickR(ex)), role: 'Former Chairman'}]; }
   // the Chairman's decrees (the Jubilee and the Centenary keep their own licenses, examiners and road)
   const LW = typeof lawsFor === 'function' ? lawsFor(special) : {}, gate = LW.gate ? LAW[LW.gate].v : 1;
-  const pool2 = LW.ex === 'vets' && special !== 'centenary' && pool.filter(h => { const x = hLic(h.license); return x && hStars(x) >= 2; }).length >= 10 ? pool.filter(h => { const x = hLic(h.license); return x && hStars(x) >= 2; }) : pool;
+  const exOk = h => { const x = hLic(h.license); return x && (LW.ex === 'vets' ? hStars(x) >= 2 : hStars(x) === 0 && h.edition < edition - 1); }, exP = LW.ex ? pool.filter(exOk) : [];
+  const pool2 = LW.ex && special !== 'centenary' && exP.length >= 10 ? exP : pool;
   const road = !special && !(cr) && LW.road && Math.random() < 0.5 ? (LW.road === 'book' ? 'classic' : pickR(['storm', 'wild'])) : null;
   const apps = randomApplicants() * (special === 'centenary' ? 2 : special === 'jubilee' ? 1.5 : 1) * gate;
   const N = newState(edition, Math.round(apps), special === 'jubilee' ? 48 : LW.lic ? LAW[LW.lic].v : MAX_LICENSES, prev, {catastrophe: CAT_NEXT || (special !== 'centenary' && Math.random() < 0.02), hunters: pool2, special, legends, theme: special === 'jubilee' ? 'jubilee' : cr && Math.random() < 0.65 ? cr.theme : road});

@@ -22,6 +22,12 @@ const assert = require('assert'), {openGame, runExams} = require('./lib');
     const LW = W.laws || {}; if(!S.special && S.config.licenses !== (LW.lic ? LAW[LW.lic.id].v : 12)) bad.push('licenses ' + S.config.licenses + ' against the law');
     if(S.special === 'jubilee' && S.config.licenses !== 48) bad.push('the Jubilee lost its 48');
     wdTab = 'council'; renderWorld(); if(Object.keys(LW).length && !/Laws in force/.test(document.getElementById('pane-world').innerHTML)) bad.push('no laws in the Council');
+    // starless examiners by decree: every examiner of a new ordinary exam has no star yet
+    { const keep = JSON.stringify(W.laws || {}); W.laws = {ex: {id: 'rookie', ed: S.edition, by: (W.chair || {}).lic}}; let N = null; for(let e = S.edition + 1; e < S.edition + 6 && !N; e++){ if(!specialOf(e)) N = fresh(e, S); }
+      const X = N.phaseSpec.map(sp => sp.ex && sp.ex.license && hLic(sp.ex.license)).filter(Boolean); if(X.some(h => hStars(h) > 0)) bad.push('a starred examiner under the rookie decree');
+      if(!N.log.some(e => /By decree/.test(e.text))) bad.push('no decree line at the opening');
+      W.laws = JSON.parse(keep); }
+    if(!(W.elections || []).some(e => Object.values(e.plat || {}).flat().some(id => /^rev:/.test(id))) && (W.elections || []).length > 4) bad.push('nobody ever promised to undo a decree');
     const lawN = BULLETINS.reduce((a, b) => a + b.items.filter(it => it.kind === 'law').length, 0);
     const per = D.length / 150;
     return {bad, laws: Object.keys(LW).map(k => LW[k].id).join(' '), lawN, d: D.length, c: C.length, on: on.length, f: F.length, fm: A.fm.filter(s => s.lic).length, cl: A.cl.length, back: A.back || 0, per}; });
