@@ -120,7 +120,7 @@ function famOf(lic, G){
 const famSize = lic => { const F = famOf(lic); return F ? F.blood.size : 0; };
 // The tree's layout: siblings under their parents, one line per couple, each couple's bar on its own lane.
 // layoutTree(nodes) -> {cards:[{id,x,y,row}], rows:[{y}], lines:[{u, d, col}], w, h}
-const FT_CW = 172, FT_CH = 96, FT_WED = 26, FT_GAP = 18, FT_FAM = 36, FT_LANE = 9;
+const FT_CW = 172; let FT_CH = 96; const FT_WED = 26, FT_GAP = 18, FT_FAM = 36, FT_LANE = 9;
 function layoutTree(nodes){
   const N = new Map(nodes.map(n => [n.id, n])), ids = nodes.map(n => n.id), par = id => N.get(id).par || [];
   // partners: married, or parents of the same child
@@ -188,17 +188,27 @@ function openTree(lic){
   modalBack = null;
   const {G, ids} = F, P = id => G.N.get(id), parentsOf = id => (G.par.get(id) || []).filter(p => ids.has(p));
   const spouseOf = id => { const s = P(id).spouse; if(s && ids.has(s)) return s; for(const x of ids) if(P(x).spouse === id) return x; return null; };
+  // small tags as in the register: the seat held now (or the highest once held, greyed), and Master of a school
+  const MST = new Set((WORLD.schools || []).flatMap(s => (s.heads || []).map(x => x.lic)));
+  const tags = h => { if(!h) return ''; const r = roleOf(h), P = h.pastRoles || [], out = [];
+    if(r) out.push(`<span class="role" title="${esc(roleFull(h))}">${r === 'Chairman' ? '♛' : r === 'Vice-Chairman' ? 'V' : esc(r.split(' · ')[1])}</span>`);
+    else if((WORLD.chairHist || []).some(x => x.lic === h.license && x.to) || P.some(x => x.r === 'Chairman')) out.push('<span class="role was" title="Former Chairman">♛</span>');
+    else if(P.some(x => x.r === 'Vice-Chairman')) out.push('<span class="role was" title="Former Vice-Chairman">V</span>');
+    else if(P.length) out.push('<span class="role was" title="Former member of the Zodiac">Zodiac</span>');
+    if(MST.has(h.license)) out.push('<span class="role was" title="Master of a school of Nen">Master</span>');
+    return out.length ? ' ' + out.join(' ') : ''; };
+  FT_CH = [...ids].some(id => tags(P(id).h)) ? 112 : 96;   // room for a line of tags when anyone has one
   const L = layoutTree([...ids].map(id => ({id, born: P(id).born, par: parentsOf(id), spouse: spouseOf(id)}))), maxG = L.R, OFF = innerWidth < 700 ? 34 : 92;
   const sur = P(lic).h ? surOf(P(lic).h) : (P(lic).name || '').split(' ').slice(-1)[0], fn = id => { const p = P(id); return p.ghost ? 'someone never named' : esc(p.name.split(' ')[0]); };
   const card = id => { const p = P(id), h = p.h, ps = parentsOf(id), of = ps.length ? `<em>child of ${ps.map(fn).join(' &amp; ')}</em>` : '';
     if(p.ghost) return `<b>?</b><span>${esc(p.name)}</span>`;
     const life = `${p.born != null ? 'born ' + p.born : ''}${p.died != null ? ` · died ${p.died}` : h && h.status === 'Missing' ? ' · missing' : ''}`;
-    return `${h ? `<a data-hunter="${esc(h.license)}">${esc(p.name)}</a>` : `<b>${esc(p.name)}</b>`}<span>${h ? `<i class="stars">${starStr(hStars(h)) || ''}</i> ${esc((h.career || 'Hunter').replace(' Hunter', ''))} · ${h.pro ? 'veteran' : ordinal(h.edition)}` : p.never ? 'never sat the exam' : p.entered ? `took the ${ordinal(p.entered)} exam` : 'not a Hunter'}</span>${of}${life ? `<small>${life}</small>` : ''}`; };
+    return `${h ? (t => t ? `<div class="ft-n"><a data-hunter="${esc(h.license)}">${esc(p.name)}</a>${t}</div>` : `<a data-hunter="${esc(h.license)}">${esc(p.name)}</a>`)(tags(h)) : `<b>${esc(p.name)}</b>`}<span>${h ? `<i class="stars">${starStr(hStars(h)) || ''}</i> ${esc((h.career || 'Hunter').replace(' Hunter', ''))} · ${h.pro ? 'veteran' : ordinal(h.edition)}` : p.never ? 'never sat the exam' : p.entered ? `took the ${ordinal(p.entered)} exam` : 'not a Hunter'}</span>${of}${life ? `<small>${life}</small>` : ''}`; };
   const cls = id => { const p = P(id), h = p.h; return p.ghost ? 'ghost' : (h ? 'h' : 'civ') + (h && !hActive(h) && h.status !== 'Retired' ? ' dead' : ''); };
   const treeA = `<div class="nt" style="width:${L.w + OFF + 10}px;height:${L.h + 10}px">${L.rowY.map((y, r) => `<small class="nt-gl" style="top:${y + 12}px"><span class="lg">Generation </span><span class="sh">G</span>${r + 1}</small>`).join('')}
     <svg class="nt-lines" width="${L.w}" height="${L.h}" style="left:${OFF}px" aria-hidden="true">${L.lines.map((l, i) => `<path data-li="${i}" d="${l.d}" style="--lc:${l.col}"/>`).join('')}</svg>
     ${L.weds.map(w => `<span class="nt-wed" style="left:${w.x + OFF}px;top:${w.y}px" title="Married">⚭</span>`).join('')}
-    ${L.cards.map(c => `<div class="ft-c nt-c ${cls(c.id)}" data-ftp="${esc(c.id)}" style="left:${c.x + OFF}px;top:${c.y}px">${card(c.id)}</div>`).join('')}</div>`;
+    ${L.cards.map(c => `<div class="ft-c nt-c ${cls(c.id)}" data-ftp="${esc(c.id)}" style="left:${c.x + OFF}px;top:${c.y}px;height:${FT_CH}px">${card(c.id)}</div>`).join('')}</div>`;
   // lifelines: one bar from birth to death (or now), a star in the year of the license
   const LL = [...ids].map(P).filter(p => !p.ghost && p.born != null).sort((a, b) => a.born - b.born);
   let life = '';
