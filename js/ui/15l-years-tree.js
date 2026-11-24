@@ -200,7 +200,11 @@ function layoutTree(nodes){
   const weds = []; rows.forEach((B, r) => B.forEach(b => b.forEach((id, j) => { if(j) weds.push({x: X[id] - FT_WED / 2, y: rowY[r] + FT_CH / 2, a: b[j - 1], b: id}); })));
   return {cards, weds, lines, rowY, R, w: Math.max(...ids.map(id => X[id])) + FT_CW, h: rowY[R] + FT_CH, gen, kids, par};
 }
-let FT_VIEW = 'A';
+let FT_VIEW = 'A', FT_ZOOM = 1;
+// zoom of the tree: CSS zoom keeps the scrolling right; the middle of what you were looking at stays in the middle
+function ftZoom(z){ const box = $('ftA'), nt = box && box.querySelector('.nt'); if(!nt) return; const mid = (box.scrollLeft + box.clientWidth / 2) / (nt.scrollWidth * FT_ZOOM || 1);
+  if(z === 'fit') z = Math.min(1, (box.clientWidth - 8) / nt.scrollWidth);
+  FT_ZOOM = Math.round(Math.max(0.2, Math.min(1.5, z)) * 100) / 100; nt.style.zoom = FT_ZOOM; box.scrollLeft = Math.max(0, mid * nt.scrollWidth * FT_ZOOM - box.clientWidth / 2); }
 function openTree(lic){
   const F = famOf(lic); if(!F) return;
   modalBack = null;
@@ -239,7 +243,7 @@ function openTree(lic){
   const nH = [...ids].filter(id => P(id).h).length;
   showModal(`<div class="sheet wide" role="dialog" aria-modal="true" aria-label="Family tree">
     <div class="sheet-head"><div><div class="meta">Family tree · ${nH} Hunter${nH === 1 ? '' : 's'} · ${maxG + 1} generation${maxG ? 's' : ''}${typeof feudNote === 'function' ? feudNote(lic) : ''}</div><h2>The family of ${esc(P(lic).name)}</h2></div><div style="display:flex;gap:8px;flex-wrap:wrap">${sur ? `<button class="btn" data-famreg="${esc(sur)}">Every ${esc(sur)} in the register</button>` : ''}<button class="btn" id="mClose">Close</button></div></div>
-    <div class="ft-sw seg" role="group" aria-label="View"><button type="button" data-ftv="A" aria-pressed="${FT_VIEW === 'A'}">The tree</button><button type="button" data-ftv="B" aria-pressed="${FT_VIEW === 'B'}">Lifelines</button><button type="button" data-ftv="C" aria-pressed="${FT_VIEW === 'C'}">Direct line</button></div>
+    <div class="ft-bar"><div class="ft-sw seg" role="group" aria-label="View"><button type="button" data-ftv="A" aria-pressed="${FT_VIEW === 'A'}">The tree</button><button type="button" data-ftv="B" aria-pressed="${FT_VIEW === 'B'}">Lifelines</button><button type="button" data-ftv="C" aria-pressed="${FT_VIEW === 'C'}">Direct line</button></div><div class="ft-zoom seg" role="group" aria-label="Zoom"${FT_VIEW === 'A' ? '' : ' hidden'}><button type="button" data-ftz="-" aria-label="Zoom out" title="Zoom out">−</button><button type="button" data-ftz="fit" title="Fit the whole tree">Fit</button><button type="button" data-ftz="+" aria-label="Zoom in" title="Zoom in">+</button></div></div>
     <div class="ft-wrap" data-noal><div id="ftA" class="ft-a"${FT_VIEW === 'A' ? '' : ' hidden'}>${treeA}</div><div id="ftB"${FT_VIEW === 'B' ? '' : ' hidden'}>${life}</div><div id="ftC" class="dl"${FT_VIEW === 'C' ? '' : ' hidden'}></div></div>
     <p class="muted st-note">⚭ married · a dashed card never became a Hunter · each colour is one couple's children · ★ on a lifeline is the year of the license. Tap someone to light up their line; tap a name to open the Hunter.</p></div>`);
   // the direct line: one person in the middle, their ancestors above and descendants below; brothers and sisters folded away
@@ -261,7 +265,11 @@ function openTree(lic){
   direct(lic, false);
   ftLight(lic);
   // a wide tree opens on the person it was opened for
-  const box = $('ftA'), me = box && box.querySelector(`[data-ftp="${CSS.escape(lic)}"]`); if(me && !box.hidden) box.scrollLeft = Math.max(0, me.offsetLeft + FT_CW / 2 - box.clientWidth / 2);
+  const box = $('ftA'), me = box && box.querySelector(`[data-ftp="${CSS.escape(lic)}"]`), nt0 = box && box.querySelector('.nt');
+  if(nt0 && FT_ZOOM !== 1) nt0.style.zoom = FT_ZOOM;
+  if(me && !box.hidden) box.scrollLeft = Math.max(0, (me.offsetLeft + FT_CW / 2) * FT_ZOOM - box.clientWidth / 2);
+  // pinch on a trackpad (or ctrl + wheel) zooms the tree, not the page
+  if(box) box.addEventListener('wheel', e => { if(!e.ctrlKey) return; e.preventDefault(); ftZoom(FT_ZOOM * (e.deltaY > 0 ? 0.92 : 1.08)); }, {passive: false});
 }
 // tapping someone lights their line: ancestors, descendants, the spouse; their own lines to parents and children turn gold
 function ftLight(id){
@@ -274,7 +282,8 @@ function ftLight(id){
 document.addEventListener('click', e => {
   if(!e.target.closest) return;
   const t = e.target.closest('[data-tree]'); if(t){ e.preventDefault(); e.stopPropagation(); openTree(t.dataset.tree); return; }
-  const v = e.target.closest('[data-ftv]'); if(v){ FT_VIEW = v.dataset.ftv; document.querySelectorAll('[data-ftv]').forEach(b => b.setAttribute('aria-pressed', b === v)); $('ftA').hidden = FT_VIEW !== 'A'; $('ftB').hidden = FT_VIEW !== 'B'; $('ftC').hidden = FT_VIEW !== 'C'; return; }
+  const zb = e.target.closest('[data-ftz]'); if(zb){ const d = zb.dataset.ftz; ftZoom(d === 'fit' ? 'fit' : FT_ZOOM + (d === '+' ? 0.15 : -0.15)); return; }
+  const v = e.target.closest('[data-ftv]'); if(v){ FT_VIEW = v.dataset.ftv; document.querySelectorAll('[data-ftv]').forEach(b => b.setAttribute('aria-pressed', b === v)); $('ftA').hidden = FT_VIEW !== 'A'; document.querySelector('.ft-zoom') && (document.querySelector('.ft-zoom').hidden = FT_VIEW !== 'A'); $('ftB').hidden = FT_VIEW !== 'B'; $('ftC').hidden = FT_VIEW !== 'C'; return; }
   const d = e.target.closest('[data-ftd]'); if(d && !e.target.closest('a')){ const M = $('modal'); if(M._ft) M._ft.direct(d.dataset.ftd, false); return; }
   if(e.target.closest('[data-ftsib]')){ const M = $('modal'); if(M._ft) M._ft.direct(M._ftD, !M._ftSib); return; }
   const p = e.target.closest('[data-ftp]'); if(p && !e.target.closest('a')){ ftLight(p.dataset.ftp); }
