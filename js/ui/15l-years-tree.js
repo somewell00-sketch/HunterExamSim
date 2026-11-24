@@ -120,6 +120,7 @@ function famOf(lic, G){
 const famSize = lic => { const F = famOf(lic); return F ? F.blood.size : 0; };
 // The tree's layout: siblings under their parents, one line per couple, each couple's bar on its own lane.
 // layoutTree(nodes) -> {cards:[{id,x,y,row}], rows:[{y}], lines:[{u, d, col}], w, h}
+let FT_ALIGN = 'young';
 const FT_CW = 172; let FT_CH = 96; const FT_WED = 26, FT_GAP = 18, FT_FAM = 36, FT_LANE = 9;
 function layoutTree(nodes){
   const N = new Map(nodes.map(n => [n.id, n])), ids = nodes.map(n => n.id), par = id => N.get(id).par || [];
@@ -128,10 +129,27 @@ function layoutTree(nodes){
   nodes.forEach(n => { if(n.spouse) tie(n.id, n.spouse); if(n.par.length === 2) tie(n.par[0], n.par[1]); });
   // rows: below every parent, and on the same row as a partner (the one who married in moves down to meet them)
   const gen = {}; ids.forEach(id => gen[id] = 0);
+  const SIBm = new Map(); ids.forEach(id => { const k = par(id).slice().sort().join('+'); if(k){ if(!SIBm.has(k)) SIBm.set(k, []); SIBm.get(k).push(id); } }); const SIB = [...SIBm.values()].filter(L => L.length > 1);
   for(let k = 0; k < 60; k++){ let ch = false;
     ids.forEach(id => { const m = par(id).length ? 1 + Math.max(...par(id).map(p => gen[p])) : 0; if(gen[id] < m){ gen[id] = m; ch = true; } });
     PT.forEach((S, a) => S.forEach(b => { if(gen[a] < gen[b]){ gen[a] = gen[b]; ch = true; } }));
+    // brothers and sisters on one row: when one of them marries into a younger generation, the others come down with them
+    if(FT_ALIGN !== 'old') SIB.forEach(L => { const m = Math.max(...L.map(x => gen[x])); L.forEach(x => { if(gen[x] < m){ gen[x] = m; ch = true; } }); });
     if(!ch) break; }
+  // then pulled down, from the youngest up: each couple sits right above its children wherever it can, so the parents
+  // of two people who married across generations are not left rows away from them (FT_ALIGN 'old' keeps the old way)
+  if(FT_ALIGN !== 'old'){
+    const kd = new Map(ids.map(id => [id, []])); ids.forEach(id => par(id).forEach(p => kd.has(p) && kd.get(p).push(id)));
+    const comp = id => { const seen = new Set([id]), st = [id]; while(st.length){ const a = st.pop(); PT.get(a).forEach(b => { if(!seen.has(b)){ seen.add(b); st.push(b); } }); } return [...seen]; };
+    for(let k = 0; k < 60; k++){ let ch = false; const done = new Set();
+      ids.slice().sort((a, b) => gen[b] - gen[a]).forEach(id => { if(done.has(id)) return; const C = comp(id); C.forEach(x => done.add(x));
+        const t = Math.min(...C.flatMap(x => kd.get(x).map(c => gen[c] - 1))), cur = Math.max(...C.map(x => gen[x]));
+        if(isFinite(t) && t > cur){ C.forEach(x => gen[x] = t); ch = true; } });
+      if(!ch) break; }
+    // brothers and sisters with no children follow the others down, so a family's children still share a row
+    SIB.forEach(L => { const m = Math.max(...L.map(x => gen[x])); L.forEach(x => { const C = comp(x); if(C.every(y => !kd.get(y).length) && gen[x] < m) C.forEach(y => gen[y] = m); }); });
+    const lo = Math.min(...ids.map(id => gen[id])); if(lo) ids.forEach(id => gen[id] -= lo);
+  }
   const R = Math.max(...ids.map(id => gen[id])), kids = new Map(ids.map(id => [id, []]));
   ids.forEach(id => par(id).forEach(p => kids.get(p).push(id)));
   // blocks: the partners on one row, side by side (a chain when someone had children with two people)

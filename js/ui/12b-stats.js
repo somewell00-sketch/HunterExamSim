@@ -113,6 +113,8 @@ function famTrees0(){
   const G = famGraph(), done = new Set(), out = [];
   HUNTERS.filter(h => !h.legacy && G.N.has(h.license)).forEach(h => { if(done.has(h.license)) return; const F = famOf(h.license, G); F.blood.forEach(id => done.add(id));
     const H = [...F.ids].map(id => G.N.get(id).h).filter(Boolean); if(H.length < 2) return;   // the same Hunters the tree counts
+    // a very large family is cut at the edge of its tree: seen again from its far side, it is still the same family
+    if(H.some(x => done.has('~' + x.license))) return; H.forEach(x => done.add('~' + x.license));
     const first = H.slice().sort((a, b) => a.edition - b.edition)[0], A = H.filter(hActive), last = (A.length ? A : H).slice().sort((a, b) => b.edition - a.edition)[0];
     out.push({H, A, first, last, name: surOf(first)}); });
   return out.sort((a, b) => b.H.length - a.H.length || b.A.length - a.A.length);
