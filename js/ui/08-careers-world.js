@@ -387,6 +387,11 @@ function mournFor(h, ed, add, skip){
 function tieUp(a, b){ if(!a || !b || a === b || !a.license || !b.license) return; (a.ties = a.ties || {})[b.license] = (a.ties[b.license] || 0) + 1; (b.ties = b.ties || {})[a.license] = (b.ties[a.license] || 0) + 1; }
 const surname = h => surOf(h);   // the family a Hunter belongs to
 // the family a child is born into: grandparents, great-grandparents, aunts and uncles, with how they are related
+// how close two Hunters are by blood, for marriages: 'sib' (a parent in common), 'pc' (parent and child), or ''
+function kinClose(a, b){ const P = h => { const k = (WORLD.heirs || []).find(x => x.cid === h.cid); return k ? (k.parents || []) : []; };
+  const pa = P(a), pb = P(b); if(pa.includes(b.license) || pb.includes(a.license)) return 'pc'; return pa.some(l => pb.includes(l)) ? 'sib' : ''; }
+// brothers and sisters marry now and then, far more rarely than anyone else; a parent and child, never
+const kinWed = (a, b) => { const k = kinClose(a, b); return k === 'pc' ? 0 : k === 'sib' ? 0.04 : 1; };
 function famKin(parents){
   const H = WORLD.heirs || [], byCid = new Map(H.filter(k => k.cid).map(k => [k.cid, k]));
   const up = x => { const h = typeof x === 'string' ? hLic(x) : x; if(!h) return []; const k = byCid.get(h.cid); return ((k && (k.parents && k.parents.length ? k.parents : k.grand)) || h.heirOf || (h.hParent ? [h.hParent] : [])).map(hLic).filter(Boolean); };
@@ -430,7 +435,7 @@ function worldTies(ed, add, items){
     cand.forEach((pr, o) => {
       const key = [h.license, o.license].sort().join('|'); if(seen.has(key)) return; seen.add(key);
       if(h.spouse || o.spouse || !hActive(o) || o.legacy || away(o) || hunterAge(o) < 18 || Math.abs(hunterAge(o) - hunterAge(h)) > 15 || surname(o) === surname(h) || o.widowEd === ed || h.widowEd === ed) return;
-      if(Math.random() >= pr * relMarry(h) * relMarry(o)) return;
+      if(Math.random() >= pr * relMarry(h) * relMarry(o) * kinWed(h, o)) return;
       h.spouse = o.license; o.spouse = h.license; h.wedEd = o.wedEd = ed;
       const pl = pickR(PLACES), how = (h.bonds || []).some(b => b.id === o.cid) ? `inseparable since the ${ordinal(h.edition)} exam` : h.savedBy === o.cid ? `ever since ${o.name.split(' ')[0]} pulled ${h.name.split(' ')[0]} through ${h.savedIn ? thePhase(h.savedIn) : 'the exam'}` : 'after years of working side by side';
       add(h, 'wed', pickR([`${h.name} and ${o.name} marry in ${pl}, ${how}. Half the Association attends; the other half sends gifts.`, `Wedding in ${pl}: ${h.name} and ${o.name}, ${how}. The cake survives, barely.`, `${h.name} and ${o.name} are married, ${how}. They spend the honeymoon on a contract in ${pl}.`]), 6, o);

@@ -8,7 +8,8 @@ function lkIndex(){
   const map = new Map();
   // outlaws first, then Hunters, then this exam's candidates: the later one wins a shared name, so the person in front of you comes first
   W.forEach(w => { if(w.name && w.name.includes(' ')) map.set(w.name, ['outlaw', w.id]); });
-  HUNTERS.forEach(h => { if(h.name && h.name.includes(' ')) map.set(h.name, ['hunter', h.license]); });
+  // two Hunters with the very same name (a nephew named after an uncle): no guessing, the name is linked only where the page says which
+  HUNTERS.forEach(h => { if(!h.name || !h.name.includes(' ')) return; const o = map.get(h.name); if(o && (o[0] === 'hunter' || o[0] === 'dup')) map.set(h.name, ['dup', (o[0] === 'dup' ? o[1] : [o[1]]).concat(h.license)]); else map.set(h.name, ['hunter', h.license]); });
   S.candidates.forEach(c => { if(c.name && c.name.includes(' ')) map.set(c.name, ['id', c.id]); });
   const names = [...map.keys()].sort((a, b) => b.length - a.length).map(n => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
   const fi = new Map(); map.forEach((v, n) => { const f = n.split(' ')[0]; if(!fi.has(f)) fi.set(f, []); fi.get(f).push([n, v[1]]); });
@@ -27,7 +28,12 @@ function lkLinkIn(root){
     const frag = document.createDocumentFragment(); let at = 0, any = false;
     for(const [st, name] of hits){
       if(name === self) continue;
-      const [kind, id] = L.map.get(name); any = true;
+      const [kind, id] = L.map.get(name);
+      // inside something that already opens this very Hunter (a card, a row): leave the name as it is
+      const own = t.parentElement && t.parentElement.closest('[data-hunter]');
+      if(own && (kind === 'hunter' ? String(id) === own.dataset.hunter : kind === 'dup' && id.map(String).includes(own.dataset.hunter))) continue;
+      if(kind === 'dup') continue;
+      any = true;
       frag.append(s.slice(at, st)); const a = document.createElement('a'); a.setAttribute('data-' + kind, id); a.className = 'nl'; a.textContent = name; frag.append(a); at = st + name.length;
     }
     if(!any) return; frag.append(s.slice(at)); t.parentNode.replaceChild(frag, t);
