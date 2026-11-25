@@ -32,9 +32,11 @@ function lkLinkIn(root){
       // inside something that already opens this very Hunter (a card, a row): leave the name as it is
       const own = t.parentElement && t.parentElement.closest('[data-hunter]');
       if(own && (kind === 'hunter' ? String(id) === own.dataset.hunter : kind === 'dup' && id.map(String).includes(own.dataset.hunter))) continue;
-      if(kind === 'dup') continue;
+      // a name two Hunters share: the line itself says who it is about, when it was written down with them
+      let k2 = kind, id2 = id;
+      if(kind === 'dup'){ const ctx = t.parentElement && t.parentElement.closest('[data-lks]'), L2 = ctx ? ctx.dataset.lks.split(',') : [], hit = id.map(String).find(x => L2.includes(x)); if(!hit) continue; k2 = 'hunter'; id2 = hit; }
       any = true;
-      frag.append(s.slice(at, st)); const a = document.createElement('a'); a.setAttribute('data-' + kind, id); a.className = 'nl'; a.textContent = name; frag.append(a); at = st + name.length;
+      frag.append(s.slice(at, st)); const a = document.createElement('a'); a.setAttribute('data-' + k2, id2); a.className = 'nl'; a.textContent = name; frag.append(a); at = st + name.length;
     }
     if(!any) return; frag.append(s.slice(at)); t.parentNode.replaceChild(frag, t);
   });

@@ -293,7 +293,7 @@ function careerHtml(h){
   const groups = [];
   (h.log || []).slice().reverse().forEach(x => { const g = groups[groups.length - 1]; if(g && g.ed === x.ed) g.list.push(x); else groups.push({ed: x.ed, list: [x]}); });
   const line = x => { const k = careerKind(x), txt = x.text.startsWith(h.name + ' ') && !x.text.startsWith(h.name + ' and ') ? x.text.slice(h.name.length + 1) : x.text;
-    return `<div class="bl ${k}"><i>${CAREER_IC[k] || '·'}</i><span>${typeof uwLinkOutlaws === 'function' ? uwLinkOutlaws(esc(txt.charAt(0).toUpperCase() + txt.slice(1)), h.name) : esc(txt.charAt(0).toUpperCase() + txt.slice(1))}</span></div>`; };   // outlaw names link to their page
+    return `<div class="bl ${k}" data-lks="${esc([h.license].concat(x.w || []).join(','))}"><i>${CAREER_IC[k] || '·'}</i><span>${typeof uwLinkOutlaws === 'function' ? uwLinkOutlaws(esc(txt.charAt(0).toUpperCase() + txt.slice(1)), h.name) : esc(txt.charAt(0).toUpperCase() + txt.slice(1))}</span></div>`; };   // outlaw names link to their page
   const block = g => `<div class="cy"><div class="cy-h">${HISTORY.some(r => r.edition === g.ed) ? `<a data-year="${g.ed}" title="The year of the ${ordinal(g.ed)} exam">After the ${ordinal(g.ed)}</a>` : `After the ${ordinal(g.ed)}`}</div>${g.list.map(line).join('')}</div>`;
   const KEEP = 5, recent = groups.slice(0, KEEP), older = groups.slice(KEEP);
   return recent.map(block).join('') + (older.length ? `<details class="cy-old"><summary>Earlier years · ${older.length}</summary>${older.map(block).join('')}</details>` : '');
@@ -462,7 +462,7 @@ const rpRecent = h => (h.rp || 0) - (h.rpH && h.rpH.length >= 10 ? h.rpH[0] : 0)
 function hunterYear(prev){
   const items = [], ed = prev.edition, nextEd = ed + 1;
   // on the Dark Continent nobody takes contracts, marries or feuds at home: only the expedition's own news is told for them
-  const add = (h, kind, text, rank, o) => { if((away(h) || away(o)) && !DC_KINDS.has(kind) && !/Dark Continent|expedition/i.test(String(text))) return; text = String(text).replace(/\.\.$/, '.'); if((kind === 'job' || kind === 'hunt' || kind === 'life') && !o && typeof traitTag === 'function') text = traitTag(h, text); items.push({lic: h.license, name: h.name, kind, text, rank: rank || 0, o: o ? {lic: o.license, name: o.name} : undefined}); (h.log = h.log || []).push({ed, text, k: kind}); if(o) (o.log = o.log || []).push({ed, text, k: kind}); if(o && ['job', 'epilogue', 'reunion'].includes(kind)) tieUp(h, o); };
+  const add = (h, kind, text, rank, o) => { if((away(h) || away(o)) && !DC_KINDS.has(kind) && !/Dark Continent|expedition/i.test(String(text))) return; text = String(text).replace(/\.\.$/, '.'); if((kind === 'job' || kind === 'hunt' || kind === 'life') && !o && typeof traitTag === 'function') text = traitTag(h, text); items.push({lic: h.license, name: h.name, kind, text, rank: rank || 0, o: o ? {lic: o.license, name: o.name} : undefined}); const w = o ? [h.license, o.license] : [h.license]; (h.log = h.log || []).push({ed, text, k: kind, w}); if(o) (o.log = o.log || []).push({ed, text, k: kind, w}); if(o && ['job', 'epilogue', 'reunion'].includes(kind)) tieUp(h, o); };
   const busy = new Set();
   relicsStart(ed);
   const W = worldStart(prev, ed, add, busy, items);
@@ -768,7 +768,7 @@ function bulletinHtml(b){
   if(EL) items.forEach(it => { if(it.kind === 'election' || (it.kind === 'zodiac' && /^The new Zodiac/.test(it.text))) used.add(it); });
   // the first sentence carries the news; the rest is detail
   const split = it => { const html = linkHunter(it), m = html.match(/^(.+?[.!?]["”]?)(\s+)(.+)$/s); return m ? `${m[1]} <span class="bn-more">${m[3]}</span>` : html; };
-  const row = it => `<div class="bl ${it.kind}"><i>${ic[it.kind] || '·'}</i><span>${split(it)}</span></div>`;
+  const row = it => `<div class="bl ${it.kind}" data-lks="${esc([it.lic, it.o && it.o.lic].filter(Boolean).join(','))}"><i>${ic[it.kind] || '·'}</i><span>${split(it)}</span></div>`;
   const facts = h => h ? [hunterAge(h) + (h.status === 'Deceased' ? ' ✝' : ''), starStr(hStars(h)), (h.career || '').replace(' Hunter', '')].filter(Boolean).join(' · ') : '';
   // what someone is remembered for, from their own record
   const memory = h => {
