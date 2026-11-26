@@ -111,7 +111,8 @@ function famGraph(){
 function famOf(lic, G){
   G = G || famGraph(); if(!G.N.has(lic)) return null;
   const blood = new Set([lic]), q = [lic];
-  while(q.length && blood.size < 90){ const x = q.shift(); [...(G.par.get(x) || []), ...(G.kids.get(x) || [])].forEach(y => { if(!blood.has(y)){ blood.add(y); q.push(y); } }); }
+  // the whole family, however far it reaches: the same set whoever you start from (a cap here made counts depend on the start)
+  while(q.length && blood.size < 1500){ const x = q.shift(); [...(G.par.get(x) || []), ...(G.kids.get(x) || [])].forEach(y => { if(!blood.has(y)){ blood.add(y); q.push(y); } }); }
   const all = new Set(blood); blood.forEach(id => { const s = G.N.get(id).spouse; if(s && G.N.has(s)) all.add(s); });
   if(!G.spRev){ G.spRev = new Map(); G.N.forEach(n => { if(n.spouse){ const L = G.spRev.get(n.spouse); if(L) L.push(n.id); else G.spRev.set(n.spouse, [n.id]); } }); }
   blood.forEach(id => (G.spRev.get(id) || []).forEach(x => all.add(x)));   // a spouse whose record points this way
