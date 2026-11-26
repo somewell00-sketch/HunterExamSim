@@ -113,13 +113,14 @@ function famTrees0(){
   const G = famGraph(), done = new Set(), out = [];
   HUNTERS.filter(h => !h.legacy && G.N.has(h.license)).forEach(h => { if(done.has(h.license)) return; const F = famOf(h.license, G); F.blood.forEach(id => done.add(id));
     const H = [...F.ids].map(id => G.N.get(id).h).filter(Boolean); if(H.length < 2) return;   // the same Hunters the tree counts
-    // a very large family is cut at the edge of its tree: seen again from its far side, it is still the same family
-    if(H.some(x => done.has('~' + x.license))) return; H.forEach(x => done.add('~' + x.license));
     const first = H.slice().sort((a, b) => a.edition - b.edition)[0], A = H.filter(hActive), last = (A.length ? A : H).slice().sort((a, b) => b.edition - a.edition)[0];
     out.push({H, A, first, last, name: surOf(first)}); });
+  // two families can carry the same name: the one who started each tells them apart
+  const nm = {}; out.forEach(f => nm[f.name] = (nm[f.name] || 0) + 1);
+  out.forEach(f => { f.label = nm[f.name] > 1 ? `The ${f.name} family of ${f.first.name.split(' ')[0]}` : `The ${f.name} family`; });
   return out.sort((a, b) => b.H.length - a.H.length || b.A.length - a.A.length);
 }
-const famLink = f => `<a data-tree="${esc(f.last.license)}" title="The family tree">The ${esc(f.name)} family</a>`;
+const famLink = f => `<a data-tree="${esc(f.last.license)}" title="The family tree">${esc(f.label)}</a>`;
 // surnames on their own: every Hunter who carries one, family tree or not
 function surCounts(H){ const by = {}; H.filter(h => !h.legacy).forEach(h => { const s = surOf(h), x = by[s] = by[s] || [s, 0, 0]; x[1]++; if(hActive(h)) x[2]++; }); return Object.values(by).filter(x => x[1] >= 2).sort((a, b) => b[1] - a[1] || b[2] - a[2]); }
 function expLine(T){ const X = WORLD.expHist || []; if(X.length) return [`${X.filter(x => x.home.length).length} of ${X.length}`, 'expeditions on record came home']; return T.exp ? [`${Math.min(T.expBack || 0, T.exp)} of ${T.exp}`, 'expeditions came home'] : null; }
